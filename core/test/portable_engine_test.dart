@@ -455,6 +455,24 @@ void main() {
       );
     });
 
+    test('a picture over the pixel limit is refused before decoding it', () async {
+      final forged = Uint8List.fromList(jpg);
+      var i = 2;
+      while (forged[i + 1] != 0xC0) {
+        i += 2 + (forged[i + 2] << 8 | forged[i + 3]);
+      }
+      const side = 15000;
+      forged[i + 5] = side >> 8;
+      forged[i + 6] = side & 0xFF;
+      forged[i + 7] = side >> 8;
+      forged[i + 8] = side & 0xFF;
+      await expectLater(run('image-to-png', forged), plain('too large'));
+    });
+
+    test('the limit allows a 200 megapixel phone photo', () {
+      expect(16320 * 12240, lessThan(maxPortablePixels));
+    });
+
     test('a truncated JPEG', () async {
       final broken = jpg.sublist(0, 40);
       await expectLater(run('image-to-png', broken), plain('could not be read'));

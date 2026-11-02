@@ -2,10 +2,31 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:radial_core/radial_core.dart';
 
-/// Opens the system file dialog. Files are read into memory, so nothing is sent anywhere.
-Future<List<PortableFile>> pickFilesFromDevice() async {
-  final picked = await FilePicker.pickFiles();
-  return [for (final file in picked) PortableFile(file.name, await file.readAsBytes())];
+import 'conversion.dart';
+import 'pick_options_native.dart' if (dart.library.js_interop) 'pick_options_web.dart';
+
+/// Opens the system file dialog. Nothing is sent anywhere, and only the start of each file
+/// is read for now.
+Future<List<PickedFile>> pickFilesFromDevice() async {
+  final picked = await FilePicker.pickFiles(webOptions: pickerWebOptions);
+  return [
+    for (final file in picked)
+      PickedFile(
+        name: file.name,
+        size: await file.length() ?? 0,
+        head: await _readHead(file),
+        read: file.readAsBytes,
+      ),
+  ];
+}
+
+Future<List<int>> _readHead(PlatformFile file) async {
+  final head = <int>[];
+  await for (final chunk in file.readAsByteStream()) {
+    head.addAll(chunk);
+    if (head.length >= detectHeadBytes) break;
+  }
+  return head.length <= detectHeadBytes ? head : head.sublist(0, detectHeadBytes);
 }
 
 /// Opens the system save dialog, or downloads the file in a browser. False if cancelled.

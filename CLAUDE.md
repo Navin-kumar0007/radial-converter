@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 353 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 60 tests. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 355 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 66 tests. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
 | `docs/` | User guide, privacy policy, website (later). |
@@ -96,8 +96,14 @@ Engine decisions that differ from the plan or are easy to get wrong:
   all metadata. Revisit if users want EXIF kept.
 - Lossless only for PDF (qpdf), so "under X KB" can fail on picture-heavy PDFs until PDFium arrives.
 - Passwords go to qpdf over stdin, never in arguments, which other processes can read.
-- The portable engine (`image` package, MIT) is the shared baseline: slower than native, and in a
-  browser it runs on the page, so a big photo can pause it. Native engines add speed and formats later.
+- The portable engine (`image` package, MIT) is the shared baseline; native engines add speed and
+  formats later. It works on whole files in memory: pictures up to 210 MP, files up to 1 GB
+  (`maxInMemoryBytes`). Video can't use this approach.
+- In a browser, conversions run in a Web Worker (`app/web_worker/convert_worker.dart`), compiled into
+  `app/web/convert_worker.js`, which is checked in. After changing conversions in `core/`, run
+  `app/tool/build_worker.sh` or browser tests use the old code; release builds run it for you.
+- Chosen files are read only when needed. The web picker reads everything up front unless told not to
+  (`pick_options_web.dart`), so check memory when touching file reading.
 - In a browser, Flutter fetches any font it lacks from Google. So the app ships Noto Sans Devanagari,
   a test bans characters outside Latin-1 and Devanagari in `app/lib`, and `app/tool/build_web.sh` adds a
   policy blocking outside connections. Build release web only with that script: the policy can't live in

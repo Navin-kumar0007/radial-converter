@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,19 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/radial_menu.dart';
+
+/// A picked file, counting how many times it is really read.
+PickedFile picked(String name, Uint8List bytes, {int? size, void Function()? onRead}) {
+  return PickedFile(
+    name: name,
+    size: size ?? bytes.length,
+    head: bytes.length <= detectHeadBytes ? bytes : bytes.sublist(0, detectHeadBytes),
+    read: () async {
+      onRead?.call();
+      return bytes;
+    },
+  );
+}
 
 Uint8List jpeg() => img.encodeJpg(img.Image(width: 64, height: 48));
 
@@ -32,12 +46,12 @@ final _mp4 = Uint8List.fromList(const [
 ]);
 
 void main() {
-  late List<PortableFile> toPick;
+  late List<PickedFile> toPick;
   late List<PortableFile> saved;
   late bool saveWorks;
 
   setUp(() {
-    toPick = [PortableFile('photo.jpg', jpeg())];
+    toPick = [picked('photo.jpg', jpeg())];
     saved = [];
     saveWorks = true;
   });
@@ -52,7 +66,9 @@ void main() {
             return saveWorks;
           },
           // Isolates need real time, so tests run the conversion directly.
-          converter: converter ?? (action, files) => runPortable(action, files),
+          converter:
+              converter ??
+              (action, files, onProgress) => runPortable(action, files, onProgress: onProgress),
         ),
       ),
     );
@@ -133,7 +149,7 @@ void main() {
         home: ConverterScreen(
           pickFiles: () async => toPick,
           saveFile: (file) async => throw StateError('disk full'),
-          converter: (action, files) => runPortable(action, files),
+          converter: (action, files, onProgress) => runPortable(action, files),
         ),
       ),
     );
@@ -157,7 +173,7 @@ void main() {
   });
 
   testWidgets('a batch gets one chip per file, each saved separately', (tester) async {
-    toPick = [PortableFile('a.jpg', jpeg()), PortableFile('b.jpg', jpeg())];
+    toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg())];
     await pump(tester);
     await chooseFiles(tester);
     await selectFirstSlice(tester);
@@ -172,7 +188,8 @@ void main() {
   testWidgets('a bad file shows why, in plain words', (tester) async {
     await pump(
       tester,
-      converter: (action, files) async => throw const EngineFailed('Try another picture.'),
+      converter: (action, files, onProgress) async =>
+          throw const EngineFailed('Try another picture.'),
     );
     await chooseFiles(tester);
     await selectFirstSlice(tester);
@@ -182,7 +199,10 @@ void main() {
   });
 
   testWidgets('an unexpected error does not show technical text', (tester) async {
-    await pump(tester, converter: (action, files) async => throw StateError('stack internals'));
+    await pump(
+      tester,
+      converter: (action, files, onProgress) async => throw StateError('stack internals'),
+    );
     await chooseFiles(tester);
     await selectFirstSlice(tester);
     await settleWork(tester);
@@ -191,11 +211,91 @@ void main() {
   });
 
   testWidgets('a file this build cannot handle says so', (tester) async {
-    toPick = [PortableFile('clip.mp4', _mp4)];
+    toPick = [picked('clip.mp4', _mp4)];
     await pump(tester);
     await chooseFiles(tester);
     expect(find.textContaining('not available in this build'), findsOneWidget);
     expect(find.text('Nothing fits'), findsOneWidget);
+  });
+
+  testWidgets('a file we cannot convert is never read', (tester) async {
+    var reads = 0;
+    toPick = [picked('clip.mp4', _mp4, size: 5 * 1024 * 1024 * 1024, onRead: () => reads++)];
+    await pump(tester);
+    await chooseFiles(tester);
+    expect(find.textContaining('5.0 GB'), findsOneWidget);
+    expect(reads, 0);
+  });
+
+  testWidgets('a picture is read only once a slice is chosen', (tester) async {
+    var reads = 0;
+    toPick = [picked('photo.jpg', jpeg(), onRead: () => reads++)];
+    await pump(tester);
+    await chooseFiles(tester);
+    expect(reads, 0);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(reads, 1);
+  });
+
+  testWidgets('a picture too large for memory says so, without reading it', (tester) async {
+    var reads = 0;
+    toPick = [picked('giant.jpg', jpeg(), size: maxInMemoryBytes + 1, onRead: () => reads++)];
+    await pump(tester);
+    await chooseFiles(tester);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(find.textContaining('too large'), findsOneWidget);
+    expect(reads, 0);
+  });
+
+  testWidgets('a file that cannot be read says so', (tester) async {
+    toPick = [
+      PickedFile(name: 'gone.jpg', size: 10, head: jpeg(), read: () async => throw StateError('x')),
+    ];
+    await pump(tester);
+    await chooseFiles(tester);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(find.textContaining('could not be read'), findsOneWidget);
+  });
+
+  testWidgets('a file dialog that fails says so instead of doing nothing', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConverterScreen(
+          pickFiles: () async => throw StateError('no access'),
+          saveFile: (file) async => false,
+        ),
+      ),
+    );
+    await chooseFiles(tester);
+    expect(find.textContaining('could not be opened'), findsOneWidget);
+    expect(find.textContaining('no access'), findsNothing);
+  });
+
+  testWidgets('real progress shows on the ring', (tester) async {
+    late void Function(double) report;
+    final finish = Completer<List<PortableFile>>();
+    await pump(
+      tester,
+      converter: (action, files, onProgress) {
+        report = onProgress;
+        return finish.future;
+      },
+    );
+    await chooseFiles(tester);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    final ring = find.byType(CircularProgressIndicator);
+    expect(tester.widget<CircularProgressIndicator>(ring).value, isNull);
+    report(0.5);
+    await tester.pump();
+    expect(tester.widget<CircularProgressIndicator>(ring).value, 0.5);
+    finish.complete([PortableFile('done.png', jpeg())]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('done.png'), findsOneWidget);
   });
 
   testWidgets('the mode switch changes the slices', (tester) async {
@@ -211,7 +311,7 @@ void main() {
   testWidgets('a slow job finishing after new files are picked is ignored', (tester) async {
     await pump(
       tester,
-      converter: (action, files) {
+      converter: (action, files, onProgress) {
         return Future<List<PortableFile>>.delayed(
           const Duration(seconds: 5),
           () => [PortableFile('old (converted).png', files.first.bytes)],
@@ -221,7 +321,7 @@ void main() {
     await chooseFiles(tester);
     await selectFirstSlice(tester);
     await tester.pump(const Duration(milliseconds: 50));
-    toPick = [PortableFile('new.jpg', jpeg())];
+    toPick = [picked('new.jpg', jpeg())];
     await chooseFiles(tester);
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('old (converted).png'), findsNothing);
@@ -267,5 +367,6 @@ void main() {
     expect(formatBytes(512), '512 B');
     expect(formatBytes(2048), '2 KB');
     expect(formatBytes(2621440), '2.5 MB');
+    expect(formatBytes(1500 * 1024 * 1024), '1.5 GB');
   });
 }

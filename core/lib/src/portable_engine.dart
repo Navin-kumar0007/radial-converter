@@ -20,8 +20,9 @@ class PortableFile {
   final Uint8List bytes;
 }
 
-/// Refuses pictures larger than this, so one file cannot use up all the memory.
-const maxPortablePixels = 100 * 1000 * 1000;
+/// Refuses pictures larger than this, so one file cannot use up all the memory. Phones now
+/// take 200 megapixel photos, and those must open.
+const maxPortablePixels = 210 * 1000 * 1000;
 
 const _readable = {
   FileKind.jpg,
@@ -154,6 +155,10 @@ img.Image _decode(PortableFile file, {required bool keepsAnimationFormat}) {
   try {
     decoded = img.decodeImage(file.bytes, frame: 0);
   } catch (_) {
+    // A very large picture usually fails because the device ran out of memory.
+    if (info.width * info.height > 50 * 1000 * 1000) {
+      throw EngineFailed('${file.name} is too large to open on this device.');
+    }
     throw unreadable;
   }
   if (decoded == null) throw unreadable;

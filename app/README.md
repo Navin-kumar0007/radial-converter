@@ -7,6 +7,7 @@ real on every platform, using pure Dart from `core`. Shift-drag and native engin
 flutter test
 flutter run -d chrome    # try it while developing; press r to reload after a change
 tool/build_web.sh        # release web build, in build/web
+tool/build_worker.sh     # after changing conversions in core/, for browser testing
 ```
 
 To try the release build:

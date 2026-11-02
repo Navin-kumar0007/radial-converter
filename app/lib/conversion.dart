@@ -1,5 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+
 import 'package:radial_core/radial_core.dart';
+
+export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
 
 /// Actions that need a screen we have not built yet, such as the crop frame.
 const _needsScreen = {'image-crop', 'subtitle-shift'};
@@ -14,26 +17,32 @@ List<RadialAction> availableActions(List<FileKind> kinds, ActionMode mode) {
   ];
 }
 
-class _Request {
-  const _Request(this.actionId, this.files);
+/// Files larger than this are refused rather than read into memory. Everything converted so
+/// far works on a whole file in memory, and a browser cannot hold much more.
+const maxInMemoryBytes = 1024 * 1024 * 1024;
 
-  final String actionId;
-  final List<PortableFile> files;
-}
+/// A file the user chose. Only its start is read until it is needed, so choosing a very large
+/// file costs nothing, and files we cannot convert are never read at all.
+class PickedFile {
+  const PickedFile({
+    required this.name,
+    required this.size,
+    required this.head,
+    required this.read,
+  });
 
-Future<List<PortableFile>> _run(_Request request) {
-  return runPortable(actionById(request.actionId)!, request.files);
-}
+  final String name;
+  final int size;
 
-/// Converts without freezing the app: a background isolate on phones and desktops. Browsers
-/// have no isolates, so there the work runs on the page and a large picture can pause it.
-Future<List<PortableFile>> convert(RadialAction action, List<PortableFile> files) {
-  return compute(_run, _Request(action.id, files));
+  /// The start of the file, enough to identify it.
+  final List<int> head;
+  final Future<Uint8List> Function() read;
 }
 
 /// Readable sizes: `340 KB`, `2.5 MB`.
 String formatBytes(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).round()} KB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }

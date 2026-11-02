@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:radial_core/radial_core.dart';
 
@@ -7,11 +5,12 @@ import 'conversion.dart';
 import 'file_chip.dart';
 import 'radial_menu.dart';
 
-typedef FilesPicker = Future<List<PortableFile>> Function();
+typedef FilesPicker = Future<List<PickedFile>> Function();
 typedef FileSaver = Future<bool> Function(PortableFile file);
 typedef Converter = Future<List<PortableFile>> Function(
   RadialAction action,
   List<PortableFile> files,
+  void Function(double progress) onProgress,
 );
 
 class _Job {
@@ -20,6 +19,7 @@ class _Job {
   final String name;
   final int bytesBefore;
   FileChipState state = FileChipState.working;
+  double? progress;
   PortableFile? output;
   String? message;
   bool saved = false;
@@ -44,48 +44,70 @@ class ConverterScreen extends StatefulWidget {
 }
 
 class _ConverterScreenState extends State<ConverterScreen> {
-  List<PortableFile> _files = const [];
+  List<PickedFile> _files = const [];
   List<FileKind> _kinds = const [];
   ActionMode _mode = ActionMode.convert;
   bool _menuOpen = false;
   List<_Job> _jobs = const [];
 
+  void _say(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _pick() async {
-    final files = await widget.pickFiles();
+    final List<PickedFile> files;
+    try {
+      files = await widget.pickFiles();
+    } catch (_) {
+      if (mounted) _say('These files could not be opened. Try again.');
+      return;
+    }
     if (!mounted || files.isEmpty) return;
     setState(() {
       _files = files;
-      _kinds = [for (final file in files) detectKind(_head(file.bytes), fileName: file.name)];
+      _kinds = [for (final file in files) detectKind(file.head, fileName: file.name)];
       _menuOpen = true;
       _jobs = const [];
     });
   }
 
-  List<int> _head(Uint8List bytes) {
-    return bytes.length <= detectHeadBytes
-        ? bytes
-        : Uint8List.sublistView(bytes, 0, detectHeadBytes);
+  /// A failure message, or null if these files can be read into memory.
+  String? _tooLarge() {
+    for (final file in _files) {
+      if (file.size > maxInMemoryBytes) {
+        return '${file.name} is too large to convert here (limit '
+            '${formatBytes(maxInMemoryBytes)}).';
+      }
+    }
+    return null;
   }
 
   Future<void> _start(RadialAction action) async {
-    final jobs = [_Job(_workingName(action), _files.fold(0, (sum, f) => sum + f.bytes.length))];
+    final before = _files.fold<int>(0, (sum, file) => sum + file.size);
+    final files = _files;
+    final jobs = [_Job(_workingName(), before)];
     setState(() {
       _menuOpen = false;
       _jobs = jobs;
     });
     final job = jobs.single;
-    // Paint the chip before work starts: in a browser the work runs on the page.
-    await Future<void>.delayed(const Duration(milliseconds: 16));
     try {
-      final outputs = await widget.converter(action, _files);
+      final tooLarge = _tooLarge();
+      if (tooLarge != null) throw EngineFailed(tooLarge);
+      final List<PortableFile> inputs;
+      try {
+        inputs = [for (final file in files) PortableFile(file.name, await file.read())];
+      } catch (_) {
+        throw const EngineFailed('This file could not be read. It may have moved or be too large.');
+      }
+      final outputs = await widget.converter(action, inputs, (progress) {
+        if (mounted && identical(_jobs, jobs)) setState(() => job.progress = progress);
+      });
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         _jobs = [
           for (var i = 0; i < outputs.length; i++)
-            _Job(
-                outputs[i].name,
-                outputs.length == _files.length ? _files[i].bytes.length : job.bytesBefore,
-              )
+            _Job(outputs[i].name, outputs.length == files.length ? files[i].size : before)
               ..state = FileChipState.done
               ..output = outputs[i],
         ];
@@ -107,7 +129,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     }
   }
 
-  String _workingName(RadialAction action) {
+  String _workingName() {
     final first = _files.first.name;
     return _files.length == 1 ? first : '$first and ${_files.length - 1} more';
   }
@@ -119,11 +141,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       saved = await widget.saveFile(output);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('This file could not be saved. Try again.')));
-      }
+      if (mounted) _say('This file could not be saved. Try again.');
       return;
     }
     if (!mounted || !saved) return;
@@ -187,7 +205,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   String _summary() {
-    final total = _files.fold<int>(0, (sum, file) => sum + file.bytes.length);
+    final total = _files.fold<int>(0, (sum, file) => sum + file.size);
     final names = _files.length == 1 ? _files.first.name : '${_files.length} files';
     return '$names · ${formatBytes(total)}';
   }
@@ -239,7 +257,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return FileChip(
       name: job.name,
       state: job.state,
-      indeterminate: job.state == FileChipState.working,
+      progress: job.progress ?? 0,
+      indeterminate: job.state == FileChipState.working && job.progress == null,
       detail: job.saved ? 'Saved. $sizes' : sizes,
       message: job.message,
       fadeAfter: null,
