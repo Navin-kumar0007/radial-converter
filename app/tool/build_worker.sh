@@ -5,5 +5,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+flutter pub get
 dart compile js -O2 --no-source-maps web_worker/convert_worker.dart -o web/convert_worker.js
 rm -f web/convert_worker.js.deps
