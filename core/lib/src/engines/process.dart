@@ -2,19 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../action_options.dart';
 import '../job_queue.dart';
-
-/// An engine could not do the job. [message] is written for the user; [details] is what
-/// the engine said, for the Copy details button.
-class EngineFailed implements Exception {
-  const EngineFailed(this.message, {this.details = ''});
-
-  final String message;
-  final String details;
-
-  @override
-  String toString() => details.isEmpty ? message : '$message\n$details';
-}
 
 /// How much of an engine's error output is kept.
 const _maxDetails = 8 * 1024;

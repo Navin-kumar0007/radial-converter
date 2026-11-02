@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'preview/menu_preview.dart';
+import 'converter_screen.dart';
+import 'platform_files.dart';
 
 void main() {
   runApp(const RadialApp());
@@ -15,9 +16,18 @@ class RadialApp extends StatelessWidget {
     return MaterialApp(
       title: 'Radial Converter',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: accent),
-      darkTheme: ThemeData(colorSchemeSeed: accent, brightness: Brightness.dark),
-      home: const MenuPreview(),
+      theme: _theme(accent, Brightness.light),
+      darkTheme: _theme(accent, Brightness.dark),
+      home: const ConverterScreen(pickFiles: pickFilesFromDevice, saveFile: saveFileToDevice),
+    );
+  }
+
+  /// Hindi file names and labels need a font we ship: in a browser, Flutter would otherwise
+  /// fetch a missing font from Google, and nothing here may touch the network.
+  ThemeData _theme(Color accent, Brightness brightness) {
+    final base = ThemeData(colorSchemeSeed: accent, brightness: brightness);
+    return base.copyWith(
+      textTheme: base.textTheme.apply(fontFamilyFallback: const ['NotoSansDevanagari']),
     );
   }
 }

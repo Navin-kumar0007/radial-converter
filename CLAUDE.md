@@ -19,6 +19,10 @@ Headline features that make people switch:
 
 ## Decisions already made
 
+- **Build order (owner's decision, 2 Nov 2026)**: every feature on all platforms first, testable as
+  it is written. This replaces the Mac-first order in the roadmap below; those dates need replanning.
+  Shared code goes in `core/` and `app/`; a Mac-only slice is not finished. The plan is also at
+  `~/Desktop/Cross platform recreation.pages`.
 - **Platforms**: macOS and Windows (Shift-drag), Android (Share menu), web app (also serves
   iPhone and iPad, added to the Home Screen from Safari). No native iPhone app for now.
 - **Distribution**: downloads from our own website; installers on GitHub Releases. Windows also on
@@ -52,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles. `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 291 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`). For now it opens `lib/preview/menu_preview.dart`: the real `RadialMenu` and `FileChip` with pretend files. 38 tests. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 353 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 60 tests. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
 | `docs/` | User guide, privacy policy, website (later). |
@@ -68,15 +72,17 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 
 ## Status
 
-- Phase 0 (setup and proof): Shift-drag proof done. Still to do: run FFmpeg and libvips from
-  Flutter as separate processes; wireframe the menu and chip.
-- Phase 1 (core engine) in progress: `core/` done for detection, actions, presets, naming, size
-  targets, job queue, history database, engine wrappers (68 of 74 actions run) and the command-line
-  test tool (`cd core && dart run radial_core:radial list`). Not wired: `pdf-to-jpg`, `pdf-to-png`
-  (PDFium) and the four `document-to-*` actions. Still to do: those, 200+ sample files, CI on macOS
-  and Windows. History only records: moving an undone output to the Trash needs native code in the
-  app, and the app must call `prune` on launch. After changing the schema, run
-  `dart run build_runner build` in `core/`; `history_database.g.dart` is generated but checked in.
+- Works on every platform, from one code path: images (JPG, PNG, WebP, GIF, BMP, TIFF, ICO in; JPG, PNG,
+  WebP, GIF, TIFF, ICO, PDF out) and subtitles, through the app's pick, menu, convert, save flow.
+  Tested for real only in Chrome so far; the others are built by CI but not yet run by anyone.
+- Desktop only, command line only: `lib/engines.dart` runs FFmpeg, libvips, qpdf and bsdtar (68 of 74
+  actions). Not bundled with the app yet, so the app can't do video, audio, HEIC or PDF tools.
+- Not started: Shift-drag in the app, Android share target, web video and audio (ffmpeg.wasm).
+- History only records: moving an undone output to the Trash needs native code, and the app must
+  call `prune` on launch. After changing the schema, run `dart run build_runner build` in `core/`;
+  `history_database.g.dart` is generated but checked in.
+- Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
+  Android, Windows and macOS downloads on every push.
 
 Engine decisions that differ from the plan or are easy to get wrong:
 
@@ -90,19 +96,30 @@ Engine decisions that differ from the plan or are easy to get wrong:
   all metadata. Revisit if users want EXIF kept.
 - Lossless only for PDF (qpdf), so "under X KB" can fail on picture-heavy PDFs until PDFium arrives.
 - Passwords go to qpdf over stdin, never in arguments, which other processes can read.
+- The portable engine (`image` package, MIT) is the shared baseline: slower than native, and in a
+  browser it runs on the page, so a big photo can pause it. Native engines add speed and formats later.
+- In a browser, Flutter fetches any font it lacks from Google. So the app ships Noto Sans Devanagari,
+  a test bans characters outside Latin-1 and Devanagari in `app/lib`, and `app/tool/build_web.sh` adds a
+  policy blocking outside connections. Build release web only with that script: the policy can't live in
+  `web/index.html` because it blanks `flutter run`. Other Indian scripts and emoji in file names show as
+  boxes on web until their fonts ship.
 
 ## Next steps
 
-1. Finish the Xcode install and get `flutter doctor` clean for macOS and Android.
-2. The Android package name is registered with Google in Phase 5. It can still change until then,
-   and it holds the working name, so revisit it when the real name is chosen.
-3. Move the spike's Swift trigger into a macOS plugin that talks to Flutter over a platform
-   channel; connect `RadialMenu` and `FileChip` to it and to `ActionRunner`. Needs Xcode.
-4. Still needed in the menu: estimated size on hover and an outer ring for options. Its text is
-   English in the code; move it to ARB files with Hindi.
-5. The chip's native drag out to other apps (`super_drag_and_drop`) needs the macOS build too.
+1. Push so CI builds all four platforms, then fix whatever it finds on Windows and Android.
+2. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,
+   `sudo xcodebuild -license accept`, `sudo xcodebuild -runFirstLaunch`, `flutter doctor`.
+3. Drag files onto the window; Android share target; screens for crop and subtitle shift.
+4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
+5. More formats on every platform: PDF tools, video and audio. Bundle desktop engines; web needs
+   ffmpeg.wasm and pdf-lib, Android needs its own FFmpeg build.
+6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
+7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
+   when the real name is chosen.
 
 ## Roadmap (one developer, full time, no buffer)
+
+Written before the all-platforms-first decision: treat it as scope, not order.
 
 | Phase | Weeks | What |
 | --- | --- | --- |

@@ -5,17 +5,21 @@ import 'package:flutter/material.dart';
 enum FileChipState { working, done, failed }
 
 /// The chip shown under the cursor after a drop: a progress ring, then the result with its
-/// actions. It fades after [fadeAfter]; the file stays saved.
+/// actions. It fades after [fadeAfter], unless that is null because the result only exists
+/// in memory until saved.
 ///
-/// Dragging the chip out to another app needs native drag support, which arrives with the
-/// macOS build. Until then the handle only shows where the drag will start.
+/// Dragging the chip out to another app needs native drag support on each platform. Until
+/// then the handle only shows where the drag will start.
 class FileChip extends StatefulWidget {
   const FileChip({
     super.key,
     required this.name,
     required this.state,
     this.progress = 0,
+    this.indeterminate = false,
+    this.detail,
     this.message,
+    this.onSave,
     this.onCopy,
     this.onShowInFolder,
     this.onUndo,
@@ -29,13 +33,20 @@ class FileChip extends StatefulWidget {
   /// From 0 to 1, while working.
   final double progress;
 
+  /// True when the work cannot report how far along it is.
+  final bool indeterminate;
+
+  /// A second line once done, such as the sizes.
+  final String? detail;
+
   /// Why it failed, in plain words.
   final String? message;
+  final VoidCallback? onSave;
   final VoidCallback? onCopy;
   final VoidCallback? onShowInFolder;
   final VoidCallback? onUndo;
   final VoidCallback? onFaded;
-  final Duration fadeAfter;
+  final Duration? fadeAfter;
 
   @override
   State<FileChip> createState() => _FileChipState();
@@ -63,8 +74,9 @@ class _FileChipState extends State<FileChip> {
   }
 
   void _startFadeTimer() {
-    if (widget.state != FileChipState.done) return;
-    _timer = Timer(widget.fadeAfter, () => setState(() => _fading = true));
+    final fadeAfter = widget.fadeAfter;
+    if (widget.state != FileChipState.done || fadeAfter == null) return;
+    _timer = Timer(fadeAfter, () => setState(() => _fading = true));
   }
 
   @override
@@ -97,9 +109,11 @@ class _FileChipState extends State<FileChip> {
               Flexible(child: _buildText(context)),
               if (widget.state == FileChipState.done) ...[
                 const SizedBox(width: 6),
-                _action(Icons.copy_outlined, 'Copy', widget.onCopy),
-                _action(Icons.folder_open_outlined, 'Show in folder', widget.onShowInFolder),
-                _action(Icons.undo, 'Undo', widget.onUndo),
+                if (widget.onSave != null) _action(Icons.save_alt, 'Save', widget.onSave),
+                if (widget.onCopy != null) _action(Icons.copy_outlined, 'Copy', widget.onCopy),
+                if (widget.onShowInFolder != null)
+                  _action(Icons.folder_open_outlined, 'Show in folder', widget.onShowInFolder),
+                if (widget.onUndo != null) _action(Icons.undo, 'Undo', widget.onUndo),
               ],
             ],
           ),
@@ -113,10 +127,10 @@ class _FileChipState extends State<FileChip> {
       FileChipState.working => SizedBox.square(
         dimension: 24,
         child: CircularProgressIndicator(
-          value: widget.progress,
+          value: widget.indeterminate ? null : widget.progress,
           strokeWidth: 3,
           semanticsLabel: 'Converting',
-          semanticsValue: '${(widget.progress * 100).round()}%',
+          semanticsValue: widget.indeterminate ? null : '${(widget.progress * 100).round()}%',
         ),
       ),
       FileChipState.done => Semantics(
@@ -133,11 +147,14 @@ class _FileChipState extends State<FileChip> {
   Widget _buildText(BuildContext context) {
     final styles = Theme.of(context).textTheme;
     final message = widget.message;
+    final detail = widget.detail;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: styles.bodyMedium),
+        if (widget.state == FileChipState.done && detail != null)
+          Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: styles.bodySmall),
         if (widget.state == FileChipState.failed && message != null)
           Text(message, maxLines: 2, overflow: TextOverflow.ellipsis, style: styles.bodySmall),
       ],

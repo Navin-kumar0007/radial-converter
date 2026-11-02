@@ -16,23 +16,47 @@ void main() {
     expect(find.byTooltip('Undo'), findsNothing);
   });
 
-  testWidgets('done offers copy, show and undo', (tester) async {
+  testWidgets('done offers each action it was given', (tester) async {
     final pressed = <String>[];
     await tester.pumpWidget(
       host(
         FileChip(
           name: 'a.png',
           state: FileChipState.done,
+          onSave: () => pressed.add('save'),
           onCopy: () => pressed.add('copy'),
           onShowInFolder: () => pressed.add('show'),
           onUndo: () => pressed.add('undo'),
         ),
       ),
     );
+    await tester.tap(find.byTooltip('Save'));
     await tester.tap(find.byTooltip('Copy'));
     await tester.tap(find.byTooltip('Show in folder'));
     await tester.tap(find.byTooltip('Undo'));
-    expect(pressed, ['copy', 'show', 'undo']);
+    expect(pressed, ['save', 'copy', 'show', 'undo']);
+  });
+
+  testWidgets('actions it was not given are not shown', (tester) async {
+    await tester.pumpWidget(host(FileChip(name: 'a', state: FileChipState.done, onSave: () {})));
+    expect(find.byTooltip('Save'), findsOneWidget);
+    expect(find.byTooltip('Undo'), findsNothing);
+    expect(find.byTooltip('Copy'), findsNothing);
+  });
+
+  testWidgets('shows the sizes once done', (tester) async {
+    await tester.pumpWidget(
+      host(const FileChip(name: 'a', state: FileChipState.done, detail: '2 MB → 100 KB')),
+    );
+    expect(find.text('2 MB → 100 KB'), findsOneWidget);
+  });
+
+  testWidgets('an indeterminate ring has no value', (tester) async {
+    await tester.pumpWidget(
+      host(const FileChip(name: 'a', state: FileChipState.working, indeterminate: true)),
+    );
+    final ring = tester.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator));
+    expect(ring.value, isNull);
   });
 
   testWidgets('failed shows why, in words', (tester) async {

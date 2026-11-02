@@ -4,51 +4,17 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../action_options.dart';
 import '../actions.dart';
 import '../detect.dart';
 import '../file_kind.dart';
 import '../job_queue.dart';
 import '../naming.dart';
 import '../pdf_writer.dart';
+import '../portable_engine.dart';
 import '../size_target.dart';
-import '../subtitles.dart';
 import 'process.dart';
 import 'tools.dart';
-
-/// The choices an action may need from the user.
-class ActionOptions {
-  const ActionOptions({
-    this.longSide,
-    this.crop,
-    this.degrees,
-    this.flipVertical = false,
-    this.startSeconds,
-    this.endSeconds,
-    this.pages,
-    this.password,
-    this.audioKbps,
-    this.targetMb,
-    this.shift,
-  });
-
-  final int? longSide;
-
-  /// Left, top, width, height in pixels.
-  final ({int left, int top, int width, int height})? crop;
-
-  /// Clockwise: 90, 180 or 270.
-  final int? degrees;
-  final bool flipVertical;
-  final double? startSeconds;
-  final double? endSeconds;
-
-  /// A qpdf page range such as `1-3,7`.
-  final String? pages;
-  final String? password;
-  final int? audioKbps;
-  final double? targetMb;
-  final Duration? shift;
-}
 
 /// Actions waiting on an engine we have not wired up yet: PDFium for PDF pages to images,
 /// and the built-in and add-on document converters.
@@ -863,17 +829,12 @@ class _Job {
 
   Future<void> _subtitles() async {
     final bytes = await File(input).readAsBytes();
-    final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
-    if (cues.isEmpty) throw EngineFailed('${p.basename(input)} has no subtitles in it.');
-    final text = switch (action.id) {
-      'subtitle-to-srt' => toSrt(cues),
-      'subtitle-to-vtt' => toVtt(cues),
-      'subtitle-to-text' => toPlainText(cues),
-      _ => () {
-        final shifted = shiftCues(cues, _need(options.shift, 'how far to shift'));
-        return kinds.first == FileKind.vtt ? toVtt(shifted) : toSrt(shifted);
-      }(),
-    };
+    final text = convertSubtitles(
+      action.id,
+      utf8.decode(bytes, allowMalformed: true),
+      kinds.first,
+      options.shift,
+    );
     await File(_temp).writeAsString(text);
   }
 
