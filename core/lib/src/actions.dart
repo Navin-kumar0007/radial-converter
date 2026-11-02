@@ -39,6 +39,10 @@ class RadialAction {
   /// The size limit for "under X" actions.
   final int? maxBytes;
 
+  /// True if changing the format is all this action does. Only these do nothing when the file
+  /// is already in that format: WhatsApp on a JPG still resizes it.
+  bool get isFormatChange => suffix == 'converted';
+
   /// The format this action writes for [input].
   ///
   /// Keeps the input's format unless the engines can only read it: we ship no HEIC
@@ -63,7 +67,7 @@ List<RadialAction> actionsFor(Iterable<FileKind> kinds, ActionMode mode) {
       if (action.mode == mode &&
           files.length >= action.minFiles &&
           files.every(action.accepts.contains) &&
-          !(action.output != null && files.every((kind) => kind == action.output)))
+          !(action.isFormatChange && files.every((kind) => kind == action.output)))
         action,
   ];
 }

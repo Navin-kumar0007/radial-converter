@@ -52,7 +52,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles. `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 279 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles. `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 291 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`). For now it opens `lib/preview/menu_preview.dart`: the real `RadialMenu` and `FileChip` with pretend files. 38 tests. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
 | `docs/` | User guide, privacy policy, website (later). |
@@ -93,13 +94,13 @@ Engine decisions that differ from the plan or are easy to get wrong:
 ## Next steps
 
 1. Finish the Xcode install and get `flutter doctor` clean for macOS and Android.
-2. Create the Flutter app in `app/`:
-   `flutter create --org io.github.GITHUB_USERNAME --project-name radial_converter --platforms macos,windows,android,web app`
-   and depend on `core` with a path dependency. Ask for the GitHub username first. The Android
-   package name gets registered with Google in Phase 5, so choose it once.
+2. The Android package name is registered with Google in Phase 5. It can still change until then,
+   and it holds the working name, so revisit it when the real name is chosen.
 3. Move the spike's Swift trigger into a macOS plugin that talks to Flutter over a platform
-   channel; draw the radial menu and the file chip in Flutter.
-4. Engine wrappers: start with FFmpeg + libvips on macOS as separate processes.
+   channel; connect `RadialMenu` and `FileChip` to it and to `ActionRunner`. Needs Xcode.
+4. Still needed in the menu: estimated size on hover and an outer ring for options. Its text is
+   English in the code; move it to ARB files with Hindi.
+5. The chip's native drag out to other apps (`super_drag_and_drop`) needs the macOS build too.
 
 ## Roadmap (one developer, full time, no buffer)
 

@@ -53,6 +53,21 @@ void main() {
     test('a PNG can become a JPG', () {
       expect(ids(actionsFor(const [FileKind.png], ActionMode.convert)), contains('image-to-jpg'));
     });
+    test('make-it-fit is offered even when the format already matches', () {
+      final jpg = ids(actionsFor(const [FileKind.jpg], ActionMode.convert));
+      expect(jpg, containsAll(['fit-whatsapp-photo', 'fit-instagram']));
+      final mp4 = ids(actionsFor(const [FileKind.mp4], ActionMode.convert));
+      expect(mp4, contains('fit-whatsapp-video'));
+      expect(mp4, isNot(contains('video-to-mp4')));
+      final webp = ids(actionsFor(const [FileKind.webp], ActionMode.convert));
+      expect(webp, contains('fit-web'));
+    });
+    test('tools with a fixed output are offered for that format too', () {
+      final pdfTools = ids(actionsFor(const [FileKind.jpg], ActionMode.tools));
+      expect(pdfTools, contains('images-to-pdf'));
+      final m4a = ids(actionsFor(const [FileKind.mov], ActionMode.tools));
+      expect(m4a, contains('video-extract-audio'));
+    });
     test('modes are separate', () {
       final convert = ids(actionsFor(const [FileKind.jpg], ActionMode.convert));
       final tools = ids(actionsFor(const [FileKind.jpg], ActionMode.tools));
