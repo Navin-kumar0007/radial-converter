@@ -89,6 +89,9 @@ jobs:
       - name: Build
         working-directory: app
         run: flutter build windows --release
+      - name: Add the video engine
+        shell: bash
+        run: engines/fetch_ffmpeg_windows.sh app/build/windows/x64/runner/Release/engines
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-windows
@@ -106,6 +109,21 @@ jobs:
       - name: Build
         working-directory: app
         run: flutter build macos --release
+      - name: Reuse the video engine if its recipe has not changed
+        id: engine
+        uses: actions/cache@v4
+        with:
+          path: engines/build/macos/bin
+          key: ffmpeg-macos-${{ hashFiles('engines/build_ffmpeg_macos.sh') }}
+      - name: Build the video engine
+        if: steps.engine.outputs.cache-hit != 'true'
+        run: engines/build_ffmpeg_macos.sh
+      - name: Add the video engine to the app
+        run: |
+          app=app/build/macos/Build/Products/Release/radialconverter.app
+          mkdir -p "$app/Contents/Resources/engines"
+          cp engines/build/macos/bin/* "$app/Contents/Resources/engines/"
+          codesign --force --deep --sign - "$app"
       - name: Zip the app, keeping its permissions
         run: ditto -c -k --keepParent app/build/macos/Build/Products/Release/radialconverter.app radial-converter-macos.zip
       - uses: actions/upload-artifact@v4

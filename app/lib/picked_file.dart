@@ -11,6 +11,7 @@ class PickedFile {
     required this.head,
     required this.read,
     this.webUrl,
+    this.path,
   });
 
   final String name;
@@ -22,17 +23,29 @@ class PickedFile {
 
   /// In a browser, a `blob:` address for the file, so video can be read piece by piece.
   final String? webUrl;
+
+  /// On a desktop, where the file is on disk.
+  final String? path;
 }
 
-/// A finished result. Pictures are in memory; a video may be too large for that, so it brings
-/// its own way to save.
+/// A finished result. Pictures are in memory. A video may be too large for that, so it is
+/// already saved on a desktop, or brings its own way to save in a browser.
 class ConvertedFile {
-  const ConvertedFile({required this.name, required this.size, this.inMemory, this.download});
+  const ConvertedFile({
+    required this.name,
+    required this.size,
+    this.inMemory,
+    this.download,
+    this.savedPath,
+  });
 
   final String name;
   final int size;
   final PortableFile? inMemory;
   final void Function()? download;
+
+  /// Where the result already is, on a desktop.
+  final String? savedPath;
 }
 
 /// Lets the screen stop a running conversion.

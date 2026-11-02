@@ -178,6 +178,21 @@ void main() {
     expect(cancelled, 1);
   });
 
+  testWidgets('a result already saved on disk says so and offers no Save', (tester) async {
+    await pump(
+      tester,
+      [video()],
+      (a, f, k, p, c) async => [
+        const ConvertedFile(name: 'clip (compressed).mp4', size: 500, savedPath: '/x/clip.mp4'),
+      ],
+    );
+    await selectFirstSlice(tester);
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('Saved beside the original'), findsOneWidget);
+    expect(find.byTooltip('Save'), findsNothing);
+  });
+
   testWidgets('a failure from the engine is shown in its words', (tester) async {
     await pump(tester, [
       video(),

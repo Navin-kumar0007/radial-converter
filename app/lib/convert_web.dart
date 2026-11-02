@@ -72,7 +72,7 @@ extension type _MediaReply._(JSObject _) implements JSObject {
 }
 
 /// Browsers can convert video themselves, with their own hardware encoders.
-const bool mediaEngineAvailable = true;
+bool mediaEngineAvailable() => true;
 
 class _VideoWorker {
   _VideoWorker() : _worker = web.Worker('video_worker.js'.toJS, web.WorkerOptions(type: 'module')) {
@@ -161,9 +161,7 @@ Future<List<ConvertedFile>> convertMedia(
       final probe = await worker.send({'command': 'probe', 'url': url});
       final info = _readInfo(probe.info!);
       final plans = planMedia(action, kinds[i], info);
-      final limit =
-          action.maxBytes ??
-          (action.id == 'fit-whatsapp-video' ? (whatsappVideoMb * 1024 * 1024).floor() : null);
+      final limit = mediaSizeLimit(action, const ActionOptions());
 
       void Function(double)? report(int attempt) => (progress) {
         final part = (attempt + progress) / plans.length;

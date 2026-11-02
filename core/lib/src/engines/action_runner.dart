@@ -9,10 +9,12 @@ import '../actions.dart';
 import '../detect.dart';
 import '../file_kind.dart';
 import '../job_queue.dart';
+import '../media_plan.dart';
 import '../naming.dart';
 import '../pdf_writer.dart';
 import '../portable_engine.dart';
 import '../size_target.dart';
+import 'ffmpeg_plan.dart';
 import 'process.dart';
 import 'tools.dart';
 
@@ -20,9 +22,6 @@ import 'tools.dart';
 /// and the built-in and add-on document converters.
 bool isActionWired(RadialAction action) =>
     action.engine != Engine.pdfium && action.engine != Engine.document;
-
-/// WhatsApp's default limit in the plan's Settings; the app will pass its own.
-const _whatsappVideoMb = 16.0;
 
 /// Actions that turn several inputs into one output.
 const _combines = {'images-to-pdf', 'pdf-merge', 'video-merge', 'audio-merge'};
@@ -165,6 +164,10 @@ class _Job {
   /// Does the work and returns the temporary output path.
   Future<String> run() async {
     if (action.id == 'archive-extract') return _extract();
+    if (inputs.length == 1 && canPlanMedia(action, kinds.first)) {
+      await _planned();
+      return _temp;
+    }
     switch (action.engine) {
       case Engine.vips:
         await _image();
@@ -461,14 +464,14 @@ class _Job {
     );
   }
 
-  Future<_Media> _probe(String path) async {
+  Future<MediaInfo> _probe(String path) async {
     final output = await runTool(
       tools.ffprobe,
       [
         '-v',
         'error',
         '-show_entries',
-        'format=duration:stream=codec_type,width,height',
+        'format=duration:stream=codec_type,codec_name,width,height',
         '-of',
         'json',
         path,
@@ -478,14 +481,48 @@ class _Job {
     );
     final json = jsonDecode(output) as Map<String, dynamic>;
     final streams = (json['streams'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final video = streams.where((stream) => stream['codec_type'] == 'video').firstOrNull;
+    Map<String, dynamic>? stream(String type) {
+      return streams.where((entry) => entry['codec_type'] == type).firstOrNull;
+    }
+
+    final video = stream('video');
+    final audio = stream('audio');
     final format = json['format'] as Map<String, dynamic>? ?? const {};
-    return _Media(
-      seconds: double.tryParse('${format['duration']}'),
-      hasAudio: streams.any((stream) => stream['codec_type'] == 'audio'),
+    return MediaInfo(
+      seconds: double.tryParse('${format['duration']}') ?? 0,
+      hasVideo: video != null,
+      hasAudio: audio != null,
       width: video?['width'] as int?,
       height: video?['height'] as int?,
+      videoCodec: planCodecName(video?['codec_name'] as String?),
+      audioCodec: planCodecName(audio?['codec_name'] as String?),
     );
+  }
+
+  /// Carries out the shared plan, the same one every platform follows. A size target tries
+  /// each plan in turn until the file really fits.
+  Future<void> _planned() async {
+    final info = await _probe(input);
+    final plans = planMedia(action, kinds.first, info, options: options);
+    final limit = mediaSizeLimit(action, options);
+    for (final plan in plans) {
+      final start = plan.startSeconds ?? 0;
+      await _ffmpeg([
+        ..._ffmpegStart,
+        ...ffmpegInputFlags(plan),
+        '-i',
+        input,
+        ...ffmpegPlanArguments(
+          plan,
+          info,
+          h264Encoder: platformH264Encoder(),
+          qualityMode: Platform.isMacOS,
+        ),
+      ], (plan.endSeconds ?? info.seconds) - start);
+      if (limit == null || await File(_temp).length() <= limit) return;
+      await File(_temp).delete();
+    }
+    throw EngineFailed('This video could not be made small enough for "${action.label}".');
   }
 
   /// A trim's input flags, and how long the result will be.
@@ -504,16 +541,12 @@ class _Job {
     );
   }
 
+  /// What plans don't cover yet: GIF, MP3 and merging.
   Future<void> _video() async {
     if (action.id == 'video-merge') return _mergeVideo();
     final media = await _probe(input);
-    final seconds = media.seconds;
-    final start = _ffmpegStart;
-    final open = [...start, '-i', input];
-    // Location lives in the container's metadata, so it is dropped along with the rest.
+    final open = [..._ffmpegStart, '-i', input];
     const clean = ['-map_metadata', '-1', '-sn'];
-    final kind = _outputKind;
-
     switch (action.id) {
       case 'video-to-gif':
         return _ffmpeg([
@@ -522,92 +555,12 @@ class _Job {
           '-an',
           '-filter_complex',
           'fps=12,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse',
-        ], seconds);
+        ], media.seconds);
       case 'video-to-mp3':
-      case 'video-to-m4a':
-      case 'video-extract-audio':
         if (!media.hasAudio) throw const EngineFailed('This video has no sound.');
-        return _ffmpeg([...open, ...clean, '-vn', ..._audioCodec(kind)], seconds);
-      case 'fit-whatsapp-video':
-        return _videoToSize(
-          options.targetMb ?? _whatsappVideoMb,
-          media,
-          filter: "scale=-2:'min(720,ih)'",
-        );
-      case 'fit-email-video':
-        return _videoToSize(options.targetMb ?? action.maxBytes! / (1024 * 1024), media);
-      case 'video-trim':
-        final (flags, length) = _trim(seconds);
-        return _ffmpeg([...start, ...flags, '-i', input, ...clean, ..._videoCodec(kind)], length);
-      case 'video-compress':
-        final kbps = media.width == null ? null : _compressedKbps(media);
-        return _ffmpeg([...open, ...clean, ..._videoCodec(kind, kbps: kbps)], seconds);
-      case 'video-resize':
-        final side = _need(options.longSide, 'a size');
-        return _ffmpeg([
-          ...open,
-          ...clean,
-          '-vf',
-          "scale='if(gt(iw,ih),min($side,iw),-2)':'if(gt(iw,ih),-2,min($side,ih))'",
-          ..._videoCodec(kind),
-        ], seconds);
-      case 'video-crop':
-        final crop = _need(options.crop, 'a crop area');
-        return _ffmpeg([
-          ...open,
-          ...clean,
-          '-vf',
-          'crop=${crop.width}:${crop.height}:${crop.left}:${crop.top}',
-          ..._videoCodec(kind),
-        ], seconds);
-      case 'video-rotate':
-        final filter = switch (_need(options.degrees, 'an angle')) {
-          90 => 'transpose=1',
-          180 => 'transpose=1,transpose=1',
-          270 => 'transpose=2',
-          final other => throw EngineFailed('Videos rotate by 90, 180 or 270, not $other.'),
-        };
-        return _ffmpeg([...open, ...clean, '-vf', filter, ..._videoCodec(kind)], seconds);
-      case 'video-mute':
-        return _ffmpeg([...open, ...clean, '-an', '-c:v', 'copy'], seconds);
+        return _ffmpeg([...open, ...clean, '-vn', ..._audioCodec(_outputKind)], media.seconds);
     }
-    return _ffmpeg([...open, ...clean, ..._videoCodec(kind)], seconds);
-  }
-
-  /// About half the bits of plain quality mode for ordinary footage.
-  int _compressedKbps(_Media media) {
-    final pixels = media.width! * media.height!;
-    return (pixels * 30 * 0.05 / 1000).round().clamp(300, 8000);
-  }
-
-  /// The plan asks for two passes, but hardware encoders have only one. Encoders overshoot,
-  /// so this aims under the target and retries lower until the file really fits.
-  Future<void> _videoToSize(double targetMb, _Media media, {String? filter}) async {
-    final seconds = media.seconds;
-    if (seconds == null) throw const EngineFailed('This video\'s length could not be read.');
-    const audioKbps = 128;
-    final maxBytes = (targetMb * 1024 * 1024).floor();
-    for (final margin in const [0.95, 0.85, 0.7, 0.5]) {
-      final kbps = videoKbpsForTarget(
-        targetMb: targetMb * margin,
-        durationSeconds: seconds,
-        audioKbps: media.hasAudio ? audioKbps : 0,
-      );
-      if (kbps == null) break;
-      await _ffmpeg([
-        ..._ffmpegStart,
-        '-i',
-        input,
-        '-map_metadata',
-        '-1',
-        '-sn',
-        if (filter != null) ...['-vf', filter],
-        ..._videoCodec(_outputKind, kbps: kbps),
-      ], seconds);
-      if (await File(_temp).length() <= maxBytes) return;
-      await File(_temp).delete();
-    }
-    throw EngineFailed('This video is too long to fit under ${targetMb.toStringAsFixed(0)} MB.');
+    throw EngineFailed('"${action.label}" can\'t use this file.');
   }
 
   /// Fits every clip into the first clip's frame. Clips without sound get silence.
@@ -618,7 +571,7 @@ class _Job {
     final height = first.height;
     if (width == null || height == null) throw const EngineFailed('A video could not be read.');
     final withAudio = clips.any((clip) => clip.hasAudio);
-    final total = clips.fold<double>(0, (sum, clip) => sum + (clip.seconds ?? 0));
+    final total = clips.fold<double>(0, (sum, clip) => sum + clip.seconds);
 
     final filter = StringBuffer();
     final joined = StringBuffer();
@@ -632,7 +585,7 @@ class _Job {
         filter.write(
           clips[i].hasAudio
               ? '[$i:a]aformat=sample_rates=48000:channel_layouts=stereo[a$i];'
-              : 'aevalsrc=0:d=${clips[i].seconds ?? 0}:s=48000:c=stereo[a$i];',
+              : 'aevalsrc=0:d=${clips[i].seconds}:s=48000:c=stereo[a$i];',
         );
         joined.write('[a$i]');
       }
@@ -687,7 +640,7 @@ class _Job {
 
   Future<void> _mergeAudio() async {
     final clips = [for (final clip in inputs) await _probe(clip)];
-    final total = clips.fold<double>(0, (sum, clip) => sum + (clip.seconds ?? 0));
+    final total = clips.fold<double>(0, (sum, clip) => sum + clip.seconds);
     final filter = StringBuffer();
     final joined = StringBuffer();
     for (var i = 0; i < clips.length; i++) {
@@ -842,13 +795,4 @@ class _Job {
     if (value == null) throw EngineFailed('"${action.label}" needs $what.');
     return value;
   }
-}
-
-class _Media {
-  const _Media({this.seconds, this.hasAudio = false, this.width, this.height});
-
-  final double? seconds;
-  final bool hasAudio;
-  final int? width;
-  final int? height;
 }

@@ -36,3 +36,6 @@ key.properties
 
 # Dart package lock (core is a library)
 core/pubspec.lock
+
+# Engines are built by scripts in engines/, not checked in
+engines/build/

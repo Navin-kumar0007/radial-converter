@@ -13,6 +13,8 @@ class MediaInfo {
     this.hasAudio = false,
     this.width,
     this.height,
+    this.videoCodec,
+    this.audioCodec,
   });
 
   final double seconds;
@@ -22,6 +24,10 @@ class MediaInfo {
   /// As displayed, after any rotation in the file.
   final int? width;
   final int? height;
+
+  /// In the names plans use: `avc`, `hevc`, `vp9`, `aac`, `mp3`. Null if unknown.
+  final String? videoCodec;
+  final String? audioCodec;
 }
 
 /// One way to run a video or audio action. Each platform's engine carries this out, so all
@@ -61,6 +67,21 @@ class MediaPlan {
   final double? startSeconds;
   final double? endSeconds;
 
+  /// True if the picture can be kept as it is. A container may technically allow a codec that
+  /// players won't open, so streams are copied only when they are what people expect here.
+  bool copiesVideo(MediaInfo info) {
+    if (!copyIfPossible) return false;
+    final wanted = videoCodec;
+    if (wanted == null) return true;
+    return (_copyableVideo[wanted] ?? {wanted}).contains(info.videoCodec);
+  }
+
+  /// True if the sound can be kept as it is. See [copiesVideo].
+  bool copiesAudio(MediaInfo info) {
+    if (!copyIfPossible) return false;
+    return audioCodec == null || audioCodec == info.audioCodec;
+  }
+
   Map<String, Object?> toMap() => {
     'output': output.extension,
     'dropVideo': dropVideo,
@@ -77,6 +98,11 @@ class MediaPlan {
     'endSeconds': endSeconds,
   };
 }
+
+const _copyableVideo = {
+  'avc': {'avc', 'hevc'},
+  'vp9': {'vp9', 'vp8', 'av1'},
+};
 
 const _videoInputs = {FileKind.mp4, FileKind.mov, FileKind.mkv, FileKind.webm};
 const _audioInputs = {
@@ -119,6 +145,14 @@ const _sizeMargins = [0.95, 0.85, 0.7, 0.5];
 
 /// Below this a video is unwatchable, so saying it won't fit is more honest.
 const _minUsefulKbps = 100;
+
+/// The size a result must stay under, in bytes, or null if it has no limit.
+int? mediaSizeLimit(RadialAction action, ActionOptions options) {
+  final target = options.targetMb;
+  if (target != null) return (target * 1024 * 1024).floor();
+  if (action.id == 'fit-whatsapp-video') return (whatsappVideoMb * 1024 * 1024).floor();
+  return action.maxBytes;
+}
 
 /// True if [action] can be planned for [kind].
 bool canPlanMedia(RadialAction action, FileKind kind) {
@@ -238,6 +272,7 @@ List<MediaPlan> _toSize(
   MediaPlan Function({int? kbps, int? width, int? height, int? degrees}) encode,
   ({int width, int height})? size,
 ) {
+  if (info.seconds <= 0) throw const EngineFailed('This video\'s length could not be read.');
   final plans = <MediaPlan>[];
   for (final margin in _sizeMargins) {
     final kbps = videoKbpsForTarget(

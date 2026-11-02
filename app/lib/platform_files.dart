@@ -17,6 +17,7 @@ Future<List<PickedFile>> pickFilesFromDevice() async {
         head: await _readHead(file),
         read: file.readAsBytes,
         webUrl: kIsWeb ? file.uri.toString() : null,
+        path: kIsWeb ? null : file.path,
       ),
   ];
 }

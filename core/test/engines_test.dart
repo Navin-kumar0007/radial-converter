@@ -122,6 +122,10 @@ void expectClean(String directory) {
   expect(leftovers, isEmpty);
 }
 
+/// True if [bytes] contains [text] anywhere.
+Matcher containsOnce(String text) =>
+    predicate<List<int>>((bytes) => latin1.decode(bytes).contains(text), 'contains "$text"');
+
 void main() {
   final skip = missingEngines();
 
@@ -419,6 +423,87 @@ void main() {
       );
     });
 
+    test('location does not survive any planned conversion', () async {
+      final tagged = p.join(folder.path, 'tagged.mp4');
+      sh(tools.ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-i',
+        mp4,
+        '-c',
+        'copy',
+        '-metadata',
+        'location=+12.97+77.59/',
+        '-metadata',
+        'title=secret',
+        tagged,
+      ]);
+      expect(File(tagged).readAsBytesSync(), containsOnce('secret'));
+      for (final id in ['video-to-mov', 'video-compress', 'fit-whatsapp-video', 'video-mute']) {
+        final out = (await runAction(id, [tagged])).single;
+        expect(File(out).readAsBytesSync(), isNot(containsOnce('secret')), reason: id);
+      }
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('WhatsApp output plays: 720p H.264 under the limit', () async {
+      final big = p.join(folder.path, 'hd.mp4');
+      sh(tools.ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        'testsrc2=duration=2:size=1920x1080:rate=15',
+        '-f',
+        'lavfi',
+        '-i',
+        'sine=duration=2',
+        '-c:v',
+        'h264_videotoolbox',
+        '-b:v',
+        '8000k',
+        '-c:a',
+        'aac',
+        big,
+      ]);
+      final out = (await runAction('fit-whatsapp-video', [big])).single;
+      expect(File(out).lengthSync(), lessThanOrEqualTo(16 * 1024 * 1024));
+      final result = Process.runSync(tools.ffprobe, [
+        '-v',
+        'error',
+        '-select_streams',
+        'v',
+        '-show_entries',
+        'stream=codec_name,width,height',
+        '-of',
+        'csv=p=0',
+        out,
+      ]);
+      expect((result.stdout as String).trim(), 'h264,1280,720');
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('MP4 to MOV copies the streams rather than re-encoding', () async {
+      final out = (await runAction('video-to-mov', [mp4])).single;
+      List<String> packets(String path) {
+        final result = Process.runSync(tools.ffprobe, [
+          '-v',
+          'error',
+          '-select_streams',
+          'v',
+          '-show_entries',
+          'packet=size',
+          '-of',
+          'csv=p=0',
+          path,
+        ]);
+        return (result.stdout as String).trim().split('\n');
+      }
+
+      expect(packets(out), packets(mp4));
+    });
+
     test('mute removes the sound', () async {
       final out = (await runAction('video-mute', [mp4])).single;
       final result = Process.runSync(tools.ffprobe, [
@@ -523,6 +608,21 @@ void main() {
       test(id, () async {
         expect(await kindOf((await runAction(id, [wav])).single), kind);
       });
+    });
+
+    test('an M4A from an MP3 really holds AAC', () async {
+      final mp3 = (await runAction('audio-to-mp3', [wav])).single;
+      final out = (await runAction('audio-to-m4a', [mp3])).single;
+      final result = Process.runSync(tools.ffprobe, [
+        '-v',
+        'error',
+        '-show_entries',
+        'stream=codec_name',
+        '-of',
+        'csv=p=0',
+        out,
+      ]);
+      expect((result.stdout as String).trim(), 'aac');
     });
 
     test('wav output', () async {

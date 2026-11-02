@@ -42,14 +42,16 @@ class ConverterScreen extends StatefulWidget {
     required this.saveFile,
     this.converter = convert,
     this.mediaConverter = convertMedia,
-    this.mediaAvailable = mediaEngineAvailable,
+    this.mediaAvailable,
   });
 
   final FilesPicker pickFiles;
   final FileSaver saveFile;
   final Converter converter;
   final MediaConverter mediaConverter;
-  final bool mediaAvailable;
+
+  /// Whether this device can run video. Null asks the platform.
+  final bool? mediaAvailable;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -62,6 +64,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   bool _menuOpen = false;
   List<_Job> _jobs = const [];
   ConvertControl? _control;
+  late final bool _mediaAvailable = widget.mediaAvailable ?? mediaEngineAvailable();
 
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -157,7 +160,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
           for (var i = 0; i < outputs.length; i++)
             _Job(outputs[i].name, outputs.length == files.length ? files[i].size : before)
               ..state = FileChipState.done
-              ..output = outputs[i],
+              ..output = outputs[i]
+              ..saved = outputs[i].savedPath != null,
         ];
       });
     } on JobCancelled {
@@ -284,7 +288,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Widget _buildMenu(TextTheme styles) {
-    final actions = availableActions(_kinds, _mode, mediaAvailable: widget.mediaAvailable);
+    final actions = availableActions(_kinds, _mode, mediaAvailable: _mediaAvailable);
     return Column(
       children: [
         RadialMenu(
@@ -315,10 +319,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
       state: job.state,
       progress: job.progress ?? 0,
       indeterminate: job.state == FileChipState.working && job.progress == null,
-      detail: job.saved ? 'Saved. $sizes' : sizes,
+      detail: output?.savedPath != null
+          ? 'Saved beside the original. $sizes'
+          : job.saved
+          ? 'Saved. $sizes'
+          : sizes,
       message: job.message,
       fadeAfter: null,
-      onSave: output == null ? null : () => _save(job),
+      onSave: output == null || output.savedPath != null ? null : () => _save(job),
       onCancel: job.state == FileChipState.working ? _cancel : null,
     );
   }
