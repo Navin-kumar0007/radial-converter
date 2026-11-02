@@ -14,11 +14,12 @@ Everything is downloaded from the project website; Windows is also on the Micros
 | Folder | What lives there |
 | --- | --- |
 | `spike/` | Throwaway prototypes that prove risky ideas (Phase 0) |
+| `core/` | Dart package shared by every platform: file detection, actions, presets, naming, size targets |
 | `presets/` | Make-it-fit and form-ready presets, one JSON file each |
 | `test-files/` | Sample files for automated tests |
 | `docs/` | User guide, privacy policy, website |
 
-Added in later phases: `app/` (Flutter app), `core/` (Dart core package),
+Added in later phases: `app/` (Flutter app),
 `native/macos`, `native/windows`, `native/android`, `engines/`, `web/`, `.github/workflows/`.
 
 ## Phase 0 spike: Shift-drag on macOS
