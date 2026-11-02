@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Spike build output
+spike/macos-shift-drag/ShiftDragSpike
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# Xcode / macOS app
+**/macos/Flutter/ephemeral/
+**/xcuserdata/
+DerivedData/
+
+# Windows app
+**/windows/flutter/ephemeral/
+
+# Android app (never commit signing keys)
+**/android/.gradle/
+**/android/local.properties
+*.jks
+*.keystore
+key.properties
+
+# Editors
+.idea/
+*.iml
+
+# Secrets
+.env
