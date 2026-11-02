@@ -13,6 +13,14 @@ typedef Converter = Future<List<PortableFile>> Function(
   void Function(double progress) onProgress,
 );
 
+typedef MediaConverter = Future<List<ConvertedFile>> Function(
+  RadialAction action,
+  List<PickedFile> files,
+  List<FileKind> kinds,
+  void Function(double progress) onProgress,
+  ConvertControl control,
+);
+
 class _Job {
   _Job(this.name, this.bytesBefore);
 
@@ -20,7 +28,7 @@ class _Job {
   final int bytesBefore;
   FileChipState state = FileChipState.working;
   double? progress;
-  PortableFile? output;
+  ConvertedFile? output;
   String? message;
   bool saved = false;
 }
@@ -33,11 +41,15 @@ class ConverterScreen extends StatefulWidget {
     required this.pickFiles,
     required this.saveFile,
     this.converter = convert,
+    this.mediaConverter = convertMedia,
+    this.mediaAvailable = mediaEngineAvailable,
   });
 
   final FilesPicker pickFiles;
   final FileSaver saveFile;
   final Converter converter;
+  final MediaConverter mediaConverter;
+  final bool mediaAvailable;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -49,6 +61,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   ActionMode _mode = ActionMode.convert;
   bool _menuOpen = false;
   List<_Job> _jobs = const [];
+  ConvertControl? _control;
 
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -63,6 +76,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       return;
     }
     if (!mounted || files.isEmpty) return;
+    _stopRunningJob();
     setState(() {
       _files = files;
       _kinds = [for (final file in files) detectKind(file.head, fileName: file.name)];
@@ -82,27 +96,61 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return null;
   }
 
+  void _stopRunningJob() {
+    _control?.cancel?.call();
+    _control = null;
+  }
+
+  void _cancel() {
+    _stopRunningJob();
+    setState(() {
+      _jobs = const [];
+      _menuOpen = true;
+    });
+  }
+
+  /// Pictures and subtitles in memory, or video and audio piece by piece.
+  Future<List<ConvertedFile>> _run(
+    RadialAction action,
+    List<PickedFile> files,
+    List<FileKind> kinds,
+    void Function(double) onProgress,
+    ConvertControl control,
+  ) async {
+    if (!kinds.every((kind) => canRunPortably(action, kind))) {
+      return widget.mediaConverter(action, files, kinds, onProgress, control);
+    }
+    final tooLarge = _tooLarge();
+    if (tooLarge != null) throw EngineFailed(tooLarge);
+    final List<PortableFile> inputs;
+    try {
+      inputs = [for (final file in files) PortableFile(file.name, await file.read())];
+    } catch (_) {
+      throw const EngineFailed('This file could not be read. It may have moved or be too large.');
+    }
+    final outputs = await widget.converter(action, inputs, onProgress);
+    return [
+      for (final output in outputs)
+        ConvertedFile(name: output.name, size: output.bytes.length, inMemory: output),
+    ];
+  }
+
   Future<void> _start(RadialAction action) async {
     final before = _files.fold<int>(0, (sum, file) => sum + file.size);
     final files = _files;
     final jobs = [_Job(_workingName(), before)];
+    final control = ConvertControl();
+    _stopRunningJob();
+    _control = control;
     setState(() {
       _menuOpen = false;
       _jobs = jobs;
     });
     final job = jobs.single;
     try {
-      final tooLarge = _tooLarge();
-      if (tooLarge != null) throw EngineFailed(tooLarge);
-      final List<PortableFile> inputs;
-      try {
-        inputs = [for (final file in files) PortableFile(file.name, await file.read())];
-      } catch (_) {
-        throw const EngineFailed('This file could not be read. It may have moved or be too large.');
-      }
-      final outputs = await widget.converter(action, inputs, (progress) {
+      final outputs = await _run(action, files, _kinds, (progress) {
         if (mounted && identical(_jobs, jobs)) setState(() => job.progress = progress);
-      });
+      }, control);
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         _jobs = [
@@ -112,6 +160,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
               ..output = outputs[i],
         ];
       });
+    } on JobCancelled {
+      // The screen already moved on.
     } on EngineFailed catch (error) {
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
@@ -139,7 +189,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (output == null) return;
     final bool saved;
     try {
-      saved = await widget.saveFile(output);
+      final inMemory = output.inMemory;
+      if (inMemory != null) {
+        saved = await widget.saveFile(inMemory);
+      } else {
+        output.download?.call();
+        saved = true;
+      }
     } catch (_) {
       if (mounted) _say('This file could not be saved. Try again.');
       return;
@@ -228,7 +284,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Widget _buildMenu(TextTheme styles) {
-    final actions = availableActions(_kinds, _mode);
+    final actions = availableActions(_kinds, _mode, mediaAvailable: widget.mediaAvailable);
     return Column(
       children: [
         RadialMenu(
@@ -253,7 +309,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final output = job.output;
     final sizes = output == null
         ? null
-        : '${formatBytes(job.bytesBefore)} to ${formatBytes(output.bytes.length)}';
+        : '${formatBytes(job.bytesBefore)} to ${formatBytes(output.size)}';
     return FileChip(
       name: job.name,
       state: job.state,
@@ -263,6 +319,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       message: job.message,
       fadeAfter: null,
       onSave: output == null ? null : () => _save(job),
+      onCancel: job.state == FileChipState.working ? _cancel : null,
     );
   }
 }

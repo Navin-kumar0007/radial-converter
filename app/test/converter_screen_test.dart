@@ -65,6 +65,7 @@ void main() {
             if (saveWorks) saved.add(file);
             return saveWorks;
           },
+          mediaAvailable: false,
           // Isolates need real time, so tests run the conversion directly.
           converter:
               converter ??
@@ -149,6 +150,7 @@ void main() {
         home: ConverterScreen(
           pickFiles: () async => toPick,
           saveFile: (file) async => throw StateError('disk full'),
+          mediaAvailable: false,
           converter: (action, files, onProgress) => runPortable(action, files),
         ),
       ),
@@ -266,6 +268,7 @@ void main() {
         home: ConverterScreen(
           pickFiles: () async => throw StateError('no access'),
           saveFile: (file) async => false,
+          mediaAvailable: false,
         ),
       ),
     );
@@ -330,18 +333,48 @@ void main() {
 
   group('availableActions', () {
     test('runs on every platform and needs no extra screen', () {
-      final ids = availableActions(const [FileKind.jpg], ActionMode.tools).map((a) => a.id);
+      final ids = availableActions(
+        const [FileKind.jpg],
+        ActionMode.tools,
+        mediaAvailable: false,
+      ).map((a) => a.id);
       expect(ids, contains('image-rotate'));
       expect(ids, isNot(contains('image-crop')));
     });
 
-    test('video has nothing yet', () {
-      expect(availableActions(const [FileKind.mp4], ActionMode.convert), isEmpty);
-      expect(availableActions(const [FileKind.mp4], ActionMode.tools), isEmpty);
+    test('video needs the platform engine', () {
+      expect(
+        availableActions(const [FileKind.mp4], ActionMode.convert, mediaAvailable: false),
+        isEmpty,
+      );
+      final withEngine = availableActions(
+        const [FileKind.mp4],
+        ActionMode.convert,
+        mediaAvailable: true,
+      ).map((a) => a.id);
+      expect(withEngine, contains('fit-whatsapp-video'));
+      expect(withEngine, isNot(contains('video-to-mp4')));
+    });
+
+    test('actions needing a screen stay hidden', () {
+      final tools = availableActions(
+        const [FileKind.mp4],
+        ActionMode.tools,
+        mediaAvailable: true,
+      ).map((a) => a.id);
+      expect(tools, isNot(contains('video-trim')));
+      expect(tools, contains('video-mute'));
     });
 
     test('a mix must all be supported', () {
-      expect(availableActions(const [FileKind.jpg, FileKind.heic], ActionMode.convert), isEmpty);
+      expect(
+        availableActions(
+          const [FileKind.jpg, FileKind.heic],
+          ActionMode.convert,
+          mediaAvailable: true,
+        ),
+        isEmpty,
+      );
     });
   });
 

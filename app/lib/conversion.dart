@@ -1,43 +1,31 @@
-import 'dart:typed_data';
-
 import 'package:radial_core/radial_core.dart';
 
 export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
+export 'picked_file.dart';
 
 /// Actions that need a screen we have not built yet, such as the crop frame.
-const _needsScreen = {'image-crop', 'subtitle-shift'};
+const _needsScreen = {'image-crop', 'subtitle-shift', 'video-trim', 'audio-trim'};
 
-/// What the menu offers for these files on this device. Every action here runs on all
-/// platforms; native engines add more as they arrive.
-List<RadialAction> availableActions(List<FileKind> kinds, ActionMode mode) {
+/// What the menu offers for these files on this device. Pictures and subtitles run on all
+/// platforms; video and audio need that platform's engine.
+List<RadialAction> availableActions(
+  List<FileKind> kinds,
+  ActionMode mode, {
+  required bool mediaAvailable,
+}) {
+  bool canRun(RadialAction action, FileKind kind) {
+    return canRunPortably(action, kind) || (mediaAvailable && canPlanMedia(action, kind));
+  }
+
   return [
     for (final action in actionsFor(kinds, mode))
-      if (!_needsScreen.contains(action.id) && kinds.every((kind) => canRunPortably(action, kind)))
-        action,
+      if (!_needsScreen.contains(action.id) && kinds.every((kind) => canRun(action, kind))) action,
   ];
 }
 
 /// Files larger than this are refused rather than read into memory. Everything converted so
 /// far works on a whole file in memory, and a browser cannot hold much more.
 const maxInMemoryBytes = 1024 * 1024 * 1024;
-
-/// A file the user chose. Only its start is read until it is needed, so choosing a very large
-/// file costs nothing, and files we cannot convert are never read at all.
-class PickedFile {
-  const PickedFile({
-    required this.name,
-    required this.size,
-    required this.head,
-    required this.read,
-  });
-
-  final String name;
-  final int size;
-
-  /// The start of the file, enough to identify it.
-  final List<int> head;
-  final Future<Uint8List> Function() read;
-}
 
 /// Readable sizes: `340 KB`, `2.5 MB`.
 String formatBytes(int bytes) {

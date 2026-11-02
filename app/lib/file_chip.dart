@@ -20,6 +20,7 @@ class FileChip extends StatefulWidget {
     this.detail,
     this.message,
     this.onSave,
+    this.onCancel,
     this.onCopy,
     this.onShowInFolder,
     this.onUndo,
@@ -42,6 +43,7 @@ class FileChip extends StatefulWidget {
   /// Why it failed, in plain words.
   final String? message;
   final VoidCallback? onSave;
+  final VoidCallback? onCancel;
   final VoidCallback? onCopy;
   final VoidCallback? onShowInFolder;
   final VoidCallback? onUndo;
@@ -107,6 +109,10 @@ class _FileChipState extends State<FileChip> {
               _buildLeading(colours),
               const SizedBox(width: 10),
               Flexible(child: _buildText(context)),
+              if (widget.state == FileChipState.working && widget.onCancel != null) ...[
+                const SizedBox(width: 6),
+                _action(Icons.close, 'Cancel', widget.onCancel),
+              ],
               if (widget.state == FileChipState.done) ...[
                 const SizedBox(width: 6),
                 if (widget.onSave != null) _action(Icons.save_alt, 'Save', widget.onSave),
@@ -162,11 +168,15 @@ class _FileChipState extends State<FileChip> {
   }
 
   Widget _action(IconData icon, String label, VoidCallback? onPressed) {
-    return IconButton(
-      icon: Icon(icon, size: 18),
-      tooltip: label,
-      onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
+    // A separate node, or a screen reader merges it into the progress ring and can't reach it.
+    return Semantics(
+      container: true,
+      child: IconButton(
+        icon: Icon(icon, size: 18),
+        tooltip: label,
+        onPressed: onPressed,
+        visualDensity: VisualDensity.compact,
+      ),
     );
   }
 }

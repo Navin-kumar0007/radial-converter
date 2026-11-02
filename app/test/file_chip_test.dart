@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radialconverter/file_chip.dart';
 
@@ -49,6 +50,28 @@ void main() {
       host(const FileChip(name: 'a', state: FileChipState.done, detail: '2 MB → 100 KB')),
     );
     expect(find.text('2 MB → 100 KB'), findsOneWidget);
+  });
+
+  testWidgets('cancel is its own button for screen readers while working', (tester) async {
+    final handle = tester.ensureSemantics();
+    var cancelled = 0;
+    await tester.pumpWidget(
+      host(
+        FileChip(
+          name: 'a.mp4',
+          state: FileChipState.working,
+          progress: 0.1,
+          onCancel: () => cancelled++,
+        ),
+      ),
+    );
+    final node = tester.getSemantics(find.byTooltip('Cancel'));
+    expect(node.getSemanticsData().tooltip, 'Cancel');
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(node.getSemanticsData().label, isNot(contains('a.mp4')));
+    await tester.tap(find.byTooltip('Cancel'));
+    expect(cancelled, 1);
+    handle.dispose();
   });
 
   testWidgets('an indeterminate ring has no value', (tester) async {

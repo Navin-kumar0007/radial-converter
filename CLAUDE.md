@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 355 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 66 tests. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 390 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 76 tests. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
 | `docs/` | User guide, privacy policy, website (later). |
@@ -75,6 +75,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Works on every platform, from one code path: images (JPG, PNG, WebP, GIF, BMP, TIFF, ICO in; JPG, PNG,
   WebP, GIF, TIFF, ICO, PDF out) and subtitles, through the app's pick, menu, convert, save flow.
   Tested for real only in Chrome so far; the others are built by CI but not yet run by anyone.
+- Video and audio work in browsers only so far. `core/lib/src/media_plan.dart` decides what each action
+  does, and each platform carries out that same plan. Web: `app/web/video_worker.js` with Mediabunny.
+  Still to wire up: Android (Media3 Transformer) and desktop (LGPL FFmpeg via `lib/engines.dart`). Until
+  then `mediaEngineAvailable` is false there and the app says video isn't available.
 - Desktop only, command line only: `lib/engines.dart` runs FFmpeg, libvips, qpdf and bsdtar (68 of 74
   actions). Not bundled with the app yet, so the app can't do video, audio, HEIC or PDF tools.
 - Not started: Shift-drag in the app, Android share target, web video and audio (ffmpeg.wasm).
@@ -102,6 +106,13 @@ Engine decisions that differ from the plan or are easy to get wrong:
 - In a browser, conversions run in a Web Worker (`app/web_worker/convert_worker.dart`), compiled into
   `app/web/convert_worker.js`, which is checked in. After changing conversions in `core/`, run
   `app/tool/build_worker.sh` or browser tests use the old code; release builds run it for you.
+- Web video uses Mediabunny 1.61.6 (MPL-2.0, vendored unmodified in `app/web/vendor/mediabunny/`), which
+  drives the browser's own encoders, so no FFmpeg, x264 or GPL. It reads and writes piece by piece and
+  stores results in the browser's private storage, so there's no 1 GB limit; a 1.4 GB file was tested.
+  MP3, FLAC, GIF and merge aren't planned yet: they need extra encoders or a compose step. Only MP4, MOV,
+  MKV and WebM open: Mediabunny doesn't list AVI or 3GP.
+- Streams are copied only when the codec is what people expect in that format. A container may allow MP3
+  in `.m4a` or VP9 in `.mp4`, but many players won't open those.
 - Chosen files are read only when needed. The web picker reads everything up front unless told not to
   (`pick_options_web.dart`), so check memory when touching file reading.
 - In a browser, Flutter fetches any font it lacks from Google. So the app ships Noto Sans Devanagari,

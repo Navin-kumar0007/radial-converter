@@ -6,6 +6,7 @@ export 'src/actions.dart';
 export 'src/detect.dart';
 export 'src/file_kind.dart';
 export 'src/job_queue.dart';
+export 'src/media_plan.dart';
 export 'src/menu_pages.dart';
 export 'src/naming.dart';
 export 'src/pdf_writer.dart';
