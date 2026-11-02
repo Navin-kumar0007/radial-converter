@@ -1,0 +1,12 @@
+/// Shared logic for Radial Converter. Safe on every platform, including the web.
+library;
+
+export 'src/actions.dart';
+export 'src/detect.dart';
+export 'src/file_kind.dart';
+export 'src/job_queue.dart';
+export 'src/naming.dart';
+export 'src/pdf_writer.dart';
+export 'src/preset.dart';
+export 'src/size_target.dart';
+export 'src/subtitles.dart';

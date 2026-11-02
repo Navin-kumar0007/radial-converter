@@ -33,3 +33,6 @@ key.properties
 
 # Secrets
 .env
+
+# Dart package lock (core is a library)
+core/pubspec.lock

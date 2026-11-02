@@ -52,13 +52,13 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, ~70-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths. 86 tests. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles. `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 279 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
 | `docs/` | User guide, privacy policy, website (later). |
 
-If `core/` is missing, it is in `radial-core.zip` (from the chat): run
-`unzip -o ~/Downloads/radial-core.zip` in the repo root, then `cd core && dart pub get && dart test`.
+The first `core/` (from `radial-core.zip` in the planning chat) never reached git. This one was
+rebuilt from the plan on 2 Nov. Run it with `cd core && dart pub get && dart test`.
 
 How the spike detects a drag: a 30 Hz timer checks left mouse button down + Shift held + the drag
 pasteboard's changeCount changed + it holds file URLs, then shows a borderless non-activating
@@ -69,8 +69,26 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 
 - Phase 0 (setup and proof): Shift-drag proof done. Still to do: run FFmpeg and libvips from
   Flutter as separate processes; wireframe the menu and chip.
-- Phase 1 (core engine) started: `core/` done for detection, actions, presets, naming, size targets.
-  Still to do: job queue (progress, cancel), history database (drift/SQLite), engine wrappers.
+- Phase 1 (core engine) in progress: `core/` done for detection, actions, presets, naming, size
+  targets, job queue, history database, engine wrappers (68 of 74 actions run) and the command-line
+  test tool (`cd core && dart run radial_core:radial list`). Not wired: `pdf-to-jpg`, `pdf-to-png`
+  (PDFium) and the four `document-to-*` actions. Still to do: those, 200+ sample files, CI on macOS
+  and Windows. History only records: moving an undone output to the Trash needs native code in the
+  app, and the app must call `prune` on launch. After changing the schema, run
+  `dart run build_runner build` in `core/`; `history_database.g.dart` is generated but checked in.
+
+Engine decisions that differ from the plan or are easy to get wrong:
+
+- Dev engines from Homebrew are GPL builds (FFmpeg with x264, libvips with Poppler). Local testing
+  only. Wrappers never ask for x264 or Poppler; shipping needs our own LGPL builds.
+- libvips has no PDF or ICO writer without ImageMagick: images to PDF uses our `buildImagePdf`, ICO
+  goes through FFmpeg.
+- Hardware encoders have no second pass, so size targets aim low and retry until the file fits.
+- Plan says strip GPS but keep other metadata. The libvips command line can't remove one field, so
+  outputs keep only the colour profile for now (`keep=icc`), with rotation applied first. Video drops
+  all metadata. Revisit if users want EXIF kept.
+- Lossless only for PDF (qpdf), so "under X KB" can fail on picture-heavy PDFs until PDFium arrives.
+- Passwords go to qpdf over stdin, never in arguments, which other processes can read.
 
 ## Next steps
 
