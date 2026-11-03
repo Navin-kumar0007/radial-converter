@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:radial_core/radial_core.dart';
 
@@ -18,6 +20,7 @@ typedef PdfConverter = Future<List<PdfResult>> Function(
   List<PortableFile> files,
   void Function(double progress) onProgress,
 );
+typedef PhotoDecoder = Future<Uint8List> Function(PickedFile file);
 typedef MediaConverter = Future<List<ConvertedFile>> Function(
   RadialAction action,
   List<PickedFile> files,
@@ -54,6 +57,7 @@ class ConverterScreen extends StatefulWidget {
     this.converter = convert,
     this.mediaConverter = convertMedia,
     this.pdfConverter = _defaultPdf,
+    this.photoDecoder = decodeHeic,
     this.mediaAvailable,
   });
 
@@ -62,6 +66,7 @@ class ConverterScreen extends StatefulWidget {
   final Converter converter;
   final MediaConverter mediaConverter;
   final PdfConverter pdfConverter;
+  final PhotoDecoder photoDecoder;
 
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
@@ -134,14 +139,23 @@ class _ConverterScreenState extends State<ConverterScreen> {
     ConvertControl control,
   ) async {
     final isPdf = kinds.every((kind) => canRunPdf(action, kind));
-    if (!isPdf && !kinds.every((kind) => canRunPortably(action, kind))) {
+    bool isPicture(FileKind kind) => canRunPortably(action, kind) || canRunDecoded(action, kind);
+    if (!isPdf && !kinds.every(isPicture)) {
       return widget.mediaConverter(action, files, kinds, onProgress, control);
     }
     final tooLarge = _tooLarge();
     if (tooLarge != null) throw EngineFailed(tooLarge);
     final List<PortableFile> inputs;
     try {
-      inputs = [for (final file in files) PortableFile(file.name, await file.read())];
+      inputs = [
+        for (var i = 0; i < files.length; i++)
+          PortableFile(
+            files[i].name,
+            kinds[i] == FileKind.heic ? await widget.photoDecoder(files[i]) : await files[i].read(),
+          ),
+      ];
+    } on EngineFailed {
+      rethrow;
     } catch (_) {
       throw const EngineFailed('This file could not be read. It may have moved or be too large.');
     }

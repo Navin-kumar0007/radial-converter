@@ -3,10 +3,14 @@ package io.github.navinkumar0007.radialconverter
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.ColorSpace
+import android.graphics.ImageDecoder
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
@@ -82,6 +86,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 cancel(call.argument<Int>("id")!!)
                 result.success(null)
             }
+            "decodePhoto" -> decodePhoto(call.argument<String>("path")!!, result)
             "save" -> save(call, result)
             else -> result.notImplemented()
         }
@@ -90,6 +95,40 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     fun stop() {
         channel.setMethodCallHandler(null)
         running.keys.toList().forEach(::cancel)
+    }
+
+    /** Writes a HEIC photo out as a PNG, upright, for the picture engine to read. */
+    private fun decodePhoto(path: String, result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            result.error("failed", "HEIC photos need Android 9 or newer.", null)
+            return
+        }
+        thread {
+            val png = try {
+                val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(File(path))) { decoder, _, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB))
+                }
+                val folder = File(outputs, "photo-${System.nanoTime()}").apply { mkdirs() }
+                val file = File(folder, "photo.png")
+                file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                bitmap.recycle()
+                file.path
+            } catch (error: IOException) {
+                Log.w(TAG, "Could not read a photo", error)
+                null
+            } catch (error: OutOfMemoryError) {
+                Log.w(TAG, "A photo was too large", error)
+                null
+            }
+            main.post {
+                if (png == null) {
+                    result.error("failed", "This photo could not be read. It may be damaged.", null)
+                } else {
+                    result.success(mapOf("path" to png))
+                }
+            }
+        }
     }
 
     private fun probe(path: String, result: MethodChannel.Result) {

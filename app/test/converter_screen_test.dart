@@ -405,12 +405,23 @@ void main() {
     test('a mix must all be supported', () {
       expect(
         availableActions(
-          const [FileKind.jpg, FileKind.heic],
+          const [FileKind.jpg, FileKind.avif],
           ActionMode.convert,
           mediaAvailable: true,
         ),
         isEmpty,
       );
+    });
+
+    test('a HEIC photo can join other pictures, given the engine that reads it', () {
+      const kinds = [FileKind.jpg, FileKind.heic];
+      final ids = availableActions(
+        kinds,
+        ActionMode.convert,
+        mediaAvailable: true,
+      ).map((a) => a.id);
+      expect(ids, contains('image-to-png'));
+      expect(availableActions(kinds, ActionMode.convert, mediaAvailable: false), isEmpty);
     });
   });
 

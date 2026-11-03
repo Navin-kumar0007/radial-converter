@@ -4,6 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:radial_core/engines.dart';
 import 'package:radial_core/radial_core.dart';
@@ -135,6 +136,28 @@ void main() {
       throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('no sound'))),
     );
   }, skip: skip);
+
+  group('HEIC photos', () {
+    final photo = p.join('..', 'test-files', 'portrait.heic');
+
+    test('come out upright, whole and in colour', () async {
+      final decoded = img.decodePng(await decodeHeicWith(tools, photo))!;
+      expect('${decoded.width}x${decoded.height}', '800x1200');
+      // The first bar of the picture, which is red once it is the right way up.
+      final top = decoded.getPixel(400, 100);
+      expect(top.r, greaterThan(200));
+      expect(top.g, lessThan(60));
+    }, skip: skip);
+
+    test('a damaged one fails in plain words', () async {
+      final junk = p.join(folder.path, 'junk.heic');
+      File(junk).writeAsBytesSync(List.filled(4096, 7));
+      await expectLater(
+        decodeHeicWith(tools, junk),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('damaged'))),
+      );
+    }, skip: skip);
+  });
 
   test('a file with no path on disk says so', () async {
     await expectLater(

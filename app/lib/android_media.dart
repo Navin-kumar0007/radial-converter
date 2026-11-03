@@ -34,6 +34,17 @@ Future<MediaInfo> probeOnPhone(String path) async {
   );
 }
 
+/// Reads a HEIC photo as a PNG. The phone writes it to a file, since 48 MP is a lot to pass across.
+Future<Uint8List> decodeHeicOnPhone(String path) async {
+  final reply = await _call<Map>('decodePhoto', {'path': path});
+  final png = reply['path'] as String;
+  try {
+    return await File(png).readAsBytes();
+  } finally {
+    await _removeResult(png);
+  }
+}
+
 Future<T> _call<T>(String method, Map<String, Object?> arguments) async {
   try {
     return (await mediaChannel.invokeMethod<T>(method, arguments)) as T;

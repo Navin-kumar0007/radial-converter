@@ -54,6 +54,22 @@ bool canRunPortably(RadialAction action, FileKind kind) {
   return _readable.contains(kind) && _writable.contains(action.outputFor(kind));
 }
 
+/// True if [action] can run on [kind] once the platform has decoded it to a PNG. Each platform reads
+/// HEIC its own way, and this engine takes it from there.
+bool canRunDecoded(RadialAction action, FileKind kind) {
+  return kind == FileKind.heic &&
+      action.accepts.contains(kind) &&
+      _writable.contains(action.outputFor(kind));
+}
+
+/// What [file] becomes. A decoded HEIC photo still has its own name, and becomes what a HEIC photo
+/// should rather than what its PNG would: compressing one must not make a huge PNG.
+FileKind _outputKind(RadialAction action, PortableFile file, FileKind kind) {
+  final name = file.name.toLowerCase();
+  final decoded = name.endsWith('.heic') || name.endsWith('.heif');
+  return action.outputFor(decoded ? FileKind.heic : kind);
+}
+
 /// Runs [action] on [files] and returns the results in memory. Only reads its inputs.
 ///
 /// [onProgress] gets 0 to 1. The work yields between steps, so a page can repaint in a
@@ -82,7 +98,7 @@ Future<List<PortableFile>> runPortable(
   final outputs = <PortableFile>[];
   for (var i = 0; i < files.length; i++) {
     void step(double progress) => onProgress?.call((i + progress) / files.length);
-    final kind = action.outputFor(kinds[i]);
+    final kind = _outputKind(action, files[i], kinds[i]);
     final bytes = kinds[i].family == FileFamily.subtitle
         ? _subtitles(action, files[i], kinds[i], options)
         : await _image(action, files[i], kind, options, step);

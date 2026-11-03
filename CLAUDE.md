@@ -56,11 +56,11 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 419 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 93 tests, plus 19 PDF ones needing `PDFIUM_PATH`. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 425 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 114 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `integration_test/` runs the real Android engine on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
-| `test-files/` | Sample files for tests (still to collect). |
+| `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
 | `docs/` | User guide, privacy policy, website (later). |
 
 The first `core/` (from `radial-core.zip` in the planning chat) never reached git. This one was
@@ -73,13 +73,18 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 
 ## Status
 
-- Works on every platform, from one code path: images (JPG, PNG, WebP, GIF, BMP, TIFF, ICO in; JPG, PNG,
+- Works on every platform, from one code path: images (JPG, PNG, WebP, GIF, BMP, TIFF, ICO, HEIC in; JPG, PNG,
   WebP, GIF, TIFF, ICO, PDF out) and subtitles, through the app's pick, menu, convert, save flow.
   Tested for real only in Chrome so far; the others are built by CI but not yet run by anyone.
 - Video and audio: `core/lib/src/media_plan.dart` decides what each action does, and each platform carries
   out that same plan. Web: `app/web/video_worker.js` with Mediabunny. Desktop: `ffmpeg_plan.dart` with a
-  bundled LGPL FFmpeg, saving beside the original. Android: still to do (Media3 Transformer), so
-  `mediaEngineAvailable()` is false there and the app says video isn't available.
+  bundled LGPL FFmpeg, saving beside the original. Android: `MediaEngine.kt` with Media3 Transformer and the
+  phone's encoders, saving through the system dialog. It writes only MP4 and M4A (`phoneMediaOutputs`), so the
+  phone's menu leaves out WebM, MOV, WAV and Opus.
+- HEIC: each platform decodes it to a PNG, then the picture engine takes over (`canRunDecoded`). Desktop: the
+  bundled FFmpeg. Android: `ImageDecoder`, Android 9 or newer. Web: `heic_worker.js` with libheif-js. Tested on
+  a made-up photo, not yet a real iPhone one. FFmpeg and libheif ignore the colour profile, so a wide-colour
+  photo may look a little duller, and FFmpeg drops transparency.
 - PDF on every platform through `app/lib/pdf_engine.dart`, using pdfrx 2.9.0 (MIT) and PDFium (BSD): to JPG or
   PNG, merge, split, rotate, compress, under a size limit. Compress and size limits redraw pages as
   pictures, because that is the only way to shrink a scan, and the result says text can't be selected.
@@ -87,11 +92,15 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   Size limits try a few sample pages first, because redrawing all of a long PDF per step takes minutes,
   and they stop at 72 dpi rather than produce something unreadable. It works on the page in a browser, so
   long PDFs stutter; moving JPEG encoding into the worker would fix that.
-- Tested for real: web in Chrome; the desktop path through its tests against the shipping macOS FFmpeg.
-  No one has yet run the macOS, Windows or Android apps themselves.
+- Tested for real: web in Chrome; the desktop path through its tests against the shipping macOS FFmpeg; the
+  Android engine on an emulator in CI, though its Save dialog has no test. No one has yet run the macOS, Windows
+  or Android apps themselves.
 - Desktop only, command line only so far: libvips, qpdf and bsdtar in `lib/engines.dart`. Not bundled with
-  the app yet, so the app can't do HEIC or PDF tools. `radial run` needs them, plus FFmpeg, installed.
+  the app yet. `radial run` needs them, plus FFmpeg, installed.
 - Not started: Shift-drag in the app, Android share target, trim and crop screens.
+- Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
+  video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
+  service yet.
 - History only records: moving an undone output to the Trash needs native code, and the app must
   call `prune` on launch. After changing the schema, run `dart run build_runner build` in `core/`;
   `history_database.g.dart` is generated but checked in.
@@ -119,6 +128,10 @@ Engine decisions that differ from the plan or are easy to get wrong:
 - In a browser, conversions run in a Web Worker (`app/web_worker/convert_worker.dart`), compiled into
   `app/web/convert_worker.js`, which is checked in. After changing conversions in `core/`, run
   `app/tool/build_worker.sh` or browser tests use the old code; release builds run it for you.
+- HEIC on web uses libheif-js 1.23.5 (LGPL-3.0, vendored unmodified in `app/web/vendor/libheif/`), loaded only
+  when a HEIC photo is chosen. It holds a software HEVC decoder, as FFmpeg does on desktop; Android uses the
+  phone's. Android and Safari could use their own, but one path for all browsers is simpler. Release checks
+  must keep the 2 MB file replaceable, which LGPL requires.
 - Web video uses Mediabunny 1.61.6 (MPL-2.0, vendored unmodified in `app/web/vendor/mediabunny/`), which
   drives the browser's own encoders, so no FFmpeg, x264 or GPL. It reads and writes piece by piece and
   stores results in the browser's private storage, so there's no 1 GB limit; a 1.4 GB file was tested.
@@ -137,11 +150,11 @@ Engine decisions that differ from the plan or are easy to get wrong:
 ## Next steps
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
-2. Android video and audio: Media3 Transformer in Kotlin, following the same `MediaPlan`.
+2. Try a real iPhone HEIC photo, on every platform.
 3. Screens for trim, crop and subtitle shift. Drag files onto the window. Some real DOCX files read as ZIP
    because their parts sit past the first 64 KB: detection should also read the end of a ZIP.
 4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
-5. HEIC on every platform, and archives (the `archive` package is already in). PDF password screens.
+5. Archives (the `archive` package is already in). PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.

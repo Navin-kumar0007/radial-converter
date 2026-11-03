@@ -51,6 +51,41 @@ bool mediaEngineAvailable() => Platform.isAndroid || mediaEngineAvailableWith(_a
 /// What video and audio can become here, or null for everything that can be planned.
 Set<FileKind>? mediaOutputsHere() => Platform.isAndroid ? phoneMediaOutputs : null;
 
+/// Reads a HEIC photo, upright, as a PNG. Desktops use the FFmpeg they already carry.
+Future<Uint8List> decodeHeicWith(EngineTools tools, String path) async {
+  final result = await Process.run(
+    tools.ffmpeg,
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      path,
+      '-frames:v',
+      '1',
+      '-c:v',
+      'png',
+      '-f',
+      'image2pipe',
+      '-',
+    ],
+    stdoutEncoding: null,
+    stderrEncoding: null,
+  );
+  final png = result.stdout as List<int>;
+  if (result.exitCode != 0 || png.isEmpty) {
+    throw const EngineFailed('This photo could not be read. It may be damaged.');
+  }
+  return Uint8List.fromList(png);
+}
+
+/// Reads a HEIC photo as a PNG, so the picture engine can take it from there.
+Future<Uint8List> decodeHeic(PickedFile file) async {
+  final path = file.path;
+  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  return Platform.isAndroid ? decodeHeicOnPhone(path) : decodeHeicWith(_appEngines(), path);
+}
+
 /// Runs the engine as a separate process and saves beside the original, so size is not limited
 /// by memory. The original is never touched.
 Future<List<ConvertedFile>> convertMedia(

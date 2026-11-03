@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -153,6 +154,20 @@ void main() {
     control.cancel!();
     await expectLater(running, throwsA(isA<JobCancelled>()));
     expect(outputs.listSync().length, before);
+  });
+
+  test('a HEIC photo comes out upright as a PNG', () async {
+    final folder = await getApplicationSupportDirectory();
+    final photo = p.join(folder.path, 'portrait.heic');
+    File(photo).writeAsBytesSync(base64.decode(portraitHeicBase64));
+    final png = await decodeHeicOnPhone(photo);
+    expect(detectKind(png), FileKind.png);
+    final decoded = img.decodePng(png)!;
+    expect('${decoded.width}x${decoded.height}', '800x1200');
+    // The first bar of the picture, which is red once it is the right way up.
+    final top = decoded.getPixel(400, 100);
+    expect(top.r, greaterThan(200));
+    expect(top.g, lessThan(60));
   });
 
   test('a damaged file fails in plain words', () async {

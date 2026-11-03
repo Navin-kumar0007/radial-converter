@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
@@ -208,5 +209,82 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('This video has no sound.'), findsOneWidget);
+  });
+
+  group('HEIC photos', () {
+    // Enough of a HEIC file's start for detection.
+    final heic = Uint8List.fromList(const [
+      0,
+      0,
+      0,
+      24,
+      0x66,
+      0x74,
+      0x79,
+      0x70,
+      0x68,
+      0x65,
+      0x69,
+      0x63,
+    ]);
+    final png = Uint8List.fromList(img.encodePng(img.Image(width: 4, height: 4)));
+
+    PickedFile photo() {
+      return PickedFile(name: 'photo.heic', size: heic.length, head: heic, read: () async => heic);
+    }
+
+    Future<void> pumpPhoto(
+      WidgetTester tester, {
+      required PhotoDecoder decoder,
+      Converter? converter,
+      bool mediaAvailable = true,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ConverterScreen(
+            pickFiles: () async => [photo()],
+            saveFile: (file) async => true,
+            photoDecoder: decoder,
+            converter: converter ?? (a, f, p) async => const [],
+            mediaAvailable: mediaAvailable,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choose files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    testWidgets('reach the picture engine already decoded, under their own name', (tester) async {
+      List<PortableFile>? received;
+      await pumpPhoto(
+        tester,
+        decoder: (file) async => png,
+        converter: (action, files, onProgress) async {
+          received = files;
+          return [PortableFile('photo (converted).jpg', png)];
+        },
+      );
+      expect(find.textContaining('in this build yet'), findsNothing);
+      await selectFirstSlice(tester);
+      await tester.pumpAndSettle();
+      expect(received!.single.name, 'photo.heic');
+      expect(received!.single.bytes, png);
+    });
+
+    testWidgets('without the engine it says so', (tester) async {
+      await pumpPhoto(tester, decoder: (file) async => png, mediaAvailable: false);
+      expect(find.textContaining('HEIC pictures'), findsOneWidget);
+    });
+
+    testWidgets('a photo that can\'t be read says why', (tester) async {
+      await pumpPhoto(
+        tester,
+        decoder: (file) async => throw const EngineFailed('HEIC photos need Android 9 or newer.'),
+      );
+      await selectFirstSlice(tester);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Android 9'), findsOneWidget);
+    });
   });
 }

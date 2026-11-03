@@ -61,6 +61,43 @@ Future<List<PortableFile>> convert(
   return done.future;
 }
 
+/// What the HEIC worker sends back.
+extension type _PhotoReply._(JSObject _) implements JSObject {
+  external JSUint8Array? get png;
+  external JSString? get failure;
+}
+
+/// Reads a HEIC photo as a PNG, so the picture engine can take it from there.
+Future<Uint8List> decodeHeic(PickedFile file) async {
+  const cannotStart = EngineFailed('HEIC photos could not start in this browser.');
+  final done = Completer<Uint8List>();
+  final web.Worker worker;
+  try {
+    worker = web.Worker('heic_worker.js'.toJS);
+  } catch (_) {
+    throw cannotStart;
+  }
+  worker.onmessage = ((web.MessageEvent event) {
+    final reply = event.data as _PhotoReply;
+    final png = reply.png;
+    if (png != null) {
+      done.complete(png.toDart);
+    } else {
+      done.completeError(EngineFailed(reply.failure?.toDart ?? 'This photo could not be read.'));
+    }
+  }).toJS;
+  worker.onerror = ((web.Event event) {
+    event.preventDefault();
+    if (!done.isCompleted) done.completeError(cannotStart);
+  }).toJS;
+  try {
+    worker.postMessage((await file.read()).toJS);
+    return await done.future;
+  } finally {
+    worker.terminate();
+  }
+}
+
 /// What the video worker sends back.
 extension type _MediaReply._(JSObject _) implements JSObject {
   external JSNumber? get progress;

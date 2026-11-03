@@ -10,7 +10,7 @@ export 'picked_file.dart';
 const _needsScreen = {'image-crop', 'subtitle-shift', 'video-trim', 'audio-trim'};
 
 /// What the menu offers for these files on this device. Pictures and subtitles run on all
-/// platforms; video and audio need that platform's engine.
+/// platforms; video, audio and HEIC photos need that platform's engine.
 List<RadialAction> availableActions(
   List<FileKind> kinds,
   ActionMode mode, {
@@ -23,7 +23,10 @@ List<RadialAction> availableActions(
   }
 
   bool canRun(RadialAction action, FileKind kind) {
-    return canRunPortably(action, kind) || canRunPdf(action, kind) || canRunMedia(action, kind);
+    return canRunPortably(action, kind) ||
+        canRunPdf(action, kind) ||
+        canRunMedia(action, kind) ||
+        (mediaAvailable && canRunDecoded(action, kind));
   }
 
   return [

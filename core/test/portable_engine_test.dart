@@ -510,4 +510,38 @@ void main() {
       expect(kind(out), FileKind.jpg);
     });
   });
+
+  group('a HEIC photo the platform has decoded', () {
+    PortableFile decoded() => PortableFile('photo.heic', img.encodePng(picture()));
+
+    test('can run what makes sense', () {
+      for (final id in ['image-to-jpg', 'image-to-png', 'image-compress', 'image-rotate']) {
+        expect(canRunDecoded(actionById(id)!, FileKind.heic), isTrue, reason: id);
+      }
+    });
+
+    test('nothing else is treated this way', () {
+      expect(canRunDecoded(actionById('image-to-png')!, FileKind.png), isFalse);
+      expect(canRunDecoded(actionById('video-mute')!, FileKind.heic), isFalse);
+      expect(canRunDecoded(actionById('image-to-avif')!, FileKind.heic), isFalse);
+    });
+
+    test('compressing makes a JPG rather than a huge PNG', () async {
+      final out = (await runPortable(actionById('image-compress')!, [decoded()])).single;
+      expect(out.name, 'photo (compressed).jpg');
+      expect(detectKind(out.bytes), FileKind.jpg);
+    });
+
+    test('asking for PNG still makes one', () async {
+      final out = (await runPortable(actionById('image-to-png')!, [decoded()])).single;
+      expect(out.name, 'photo (converted).png');
+      expect(detectKind(out.bytes), FileKind.png);
+    });
+
+    test('an ordinary PNG stays a PNG', () async {
+      final png = PortableFile('photo.png', img.encodePng(picture()));
+      final out = (await runPortable(actionById('image-compress')!, [png])).single;
+      expect(detectKind(out.bytes), FileKind.png);
+    });
+  });
 }

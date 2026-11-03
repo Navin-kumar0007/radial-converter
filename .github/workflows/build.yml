@@ -121,6 +121,9 @@ jobs:
       - name: Add the video engine
         shell: bash
         run: engines/fetch_ffmpeg_windows.sh app/build/windows/x64/runner/Release/engines
+      - name: Check the video engine reads HEIC photos
+        shell: bash
+        run: engines/check_heic.sh app/build/windows/x64/runner/Release/engines
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-windows
@@ -147,6 +150,8 @@ jobs:
       - name: Build the video engine
         if: steps.engine.outputs.cache-hit != 'true'
         run: engines/build_ffmpeg_macos.sh
+      - name: Check the video engine reads HEIC photos
+        run: engines/check_heic.sh engines/build/macos/bin
       - name: Add the video engine to the app
         run: |
           app=app/build/macos/Build/Products/Release/radialconverter.app
