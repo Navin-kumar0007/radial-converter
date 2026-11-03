@@ -70,7 +70,8 @@ void main() {
           // Isolates need real time, so tests run the conversion directly.
           converter:
               converter ??
-              (action, files, onProgress) => runPortable(action, files, onProgress: onProgress),
+              (action, files, onProgress, options) =>
+                  runPortable(action, files, options: options, onProgress: onProgress),
         ),
       ),
     );
@@ -152,7 +153,7 @@ void main() {
           pickFiles: () async => toPick,
           saveFile: (file) async => throw StateError('disk full'),
           mediaAvailable: false,
-          converter: (action, files, onProgress) => runPortable(action, files),
+          converter: (action, files, onProgress, options) => runPortable(action, files),
         ),
       ),
     );
@@ -191,7 +192,7 @@ void main() {
   testWidgets('a bad file shows why, in plain words', (tester) async {
     await pump(
       tester,
-      converter: (action, files, onProgress) async =>
+      converter: (action, files, onProgress, options) async =>
           throw const EngineFailed('Try another picture.'),
     );
     await chooseFiles(tester);
@@ -204,7 +205,7 @@ void main() {
   testWidgets('an unexpected error does not show technical text', (tester) async {
     await pump(
       tester,
-      converter: (action, files, onProgress) async => throw StateError('stack internals'),
+      converter: (action, files, onProgress, options) async => throw StateError('stack internals'),
     );
     await chooseFiles(tester);
     await selectFirstSlice(tester);
@@ -283,7 +284,7 @@ void main() {
     final finish = Completer<List<PortableFile>>();
     await pump(
       tester,
-      converter: (action, files, onProgress) {
+      converter: (action, files, onProgress, options) {
         report = onProgress;
         return finish.future;
       },
@@ -341,7 +342,7 @@ void main() {
   testWidgets('a slow job finishing after new files are picked is ignored', (tester) async {
     await pump(
       tester,
-      converter: (action, files, onProgress) {
+      converter: (action, files, onProgress, options) {
         return Future<List<PortableFile>>.delayed(
           const Duration(seconds: 5),
           () => [PortableFile('old (converted).png', files.first.bytes)],
@@ -359,14 +360,13 @@ void main() {
   });
 
   group('availableActions', () {
-    test('runs on every platform and needs no extra screen', () {
+    test('runs on every platform', () {
       final ids = availableActions(
         const [FileKind.jpg],
         ActionMode.tools,
         mediaAvailable: false,
       ).map((a) => a.id);
       expect(ids, contains('image-rotate'));
-      expect(ids, isNot(contains('image-crop')));
     });
 
     test('video needs the platform engine', () {
@@ -392,14 +392,28 @@ void main() {
       expect(ids, containsAll(['pdf-to-jpg', 'fit-pdf-100kb']));
     });
 
-    test('actions needing a screen stay hidden', () {
-      final tools = availableActions(
-        const [FileKind.mp4],
+    test('actions that ask first are offered', () {
+      List<String> tools(List<FileKind> kinds) {
+        return availableActions(
+          kinds,
+          ActionMode.tools,
+          mediaAvailable: true,
+        ).map((a) => a.id).toList();
+      }
+
+      expect(tools(const [FileKind.mp4]), contains('video-trim'));
+      expect(tools(const [FileKind.srt]), contains('subtitle-shift'));
+      expect(tools(const [FileKind.jpg]), contains('image-crop'));
+    });
+
+    test('crop is one picture at a time', () {
+      final ids = availableActions(
+        const [FileKind.jpg, FileKind.jpg],
         ActionMode.tools,
         mediaAvailable: true,
       ).map((a) => a.id);
-      expect(tools, isNot(contains('video-trim')));
-      expect(tools, contains('video-mute'));
+      expect(ids, isNot(contains('image-crop')));
+      expect(ids, contains('image-rotate'));
     });
 
     test('a mix must all be supported', () {

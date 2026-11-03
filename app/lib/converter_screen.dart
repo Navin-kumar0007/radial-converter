@@ -5,6 +5,7 @@ import 'package:radial_core/radial_core.dart';
 
 import 'conversion.dart';
 import 'file_chip.dart';
+import 'option_screens.dart';
 import 'radial_menu.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
@@ -13,6 +14,7 @@ typedef Converter = Future<List<PortableFile>> Function(
   RadialAction action,
   List<PortableFile> files,
   void Function(double progress) onProgress,
+  ActionOptions options,
 );
 
 typedef PdfConverter = Future<List<PdfResult>> Function(
@@ -27,6 +29,7 @@ typedef MediaConverter = Future<List<ConvertedFile>> Function(
   List<FileKind> kinds,
   void Function(double progress) onProgress,
   ConvertControl control,
+  ActionOptions options,
 );
 
 class _Job {
@@ -139,11 +142,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
     List<FileKind> kinds,
     void Function(double) onProgress,
     ConvertControl control,
+    ActionOptions options,
   ) async {
     final isPdf = kinds.every((kind) => canRunPdf(action, kind));
     bool isPicture(FileKind kind) => canRunPortably(action, kind) || canRunDecoded(action, kind);
     if (!isPdf && !kinds.every(isPicture)) {
-      return widget.mediaConverter(action, files, kinds, onProgress, control);
+      return widget.mediaConverter(action, files, kinds, onProgress, control, options);
     }
     final tooLarge = _tooLarge();
     if (tooLarge != null) throw EngineFailed(tooLarge);
@@ -173,14 +177,51 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ),
       ];
     }
-    final outputs = await widget.converter(action, inputs, onProgress);
+    final outputs = await widget.converter(action, inputs, onProgress, options);
     return [
       for (final output in outputs)
         ConvertedFile(name: output.name, size: output.bytes.length, inMemory: output),
     ];
   }
 
-  Future<void> _start(RadialAction action) async {
+  /// Asks anything the action needs to know, then starts it.
+  Future<void> _choose(RadialAction action) async {
+    if (!needsOptions(action)) {
+      await _start(action, const ActionOptions());
+      return;
+    }
+    if (action.id == 'image-crop') {
+      final tooLarge = _tooLarge();
+      if (tooLarge != null) {
+        _say(tooLarge);
+        return;
+      }
+    }
+    final file = _files.first;
+    final kind = _kinds.first;
+    final options = await askForOptions(
+      context,
+      action,
+      loadPicture: () => _pictureToShow(file, kind),
+    );
+    if (options != null && mounted) await _start(action, options);
+  }
+
+  /// The picture as something the screen can draw, with its pixels where the engine will see them.
+  Future<Uint8List> _pictureToShow(PickedFile file, FileKind kind) async {
+    if (kind == FileKind.heic) return widget.photoDecoder(file);
+    final bytes = await file.read();
+    if (kind != FileKind.tiff) return bytes;
+    final png = await widget.converter(
+      actionById('image-to-png')!,
+      [PortableFile(file.name, bytes)],
+      (_) {},
+      const ActionOptions(),
+    );
+    return png.single.bytes;
+  }
+
+  Future<void> _start(RadialAction action, ActionOptions options) async {
     final before = _files.fold<int>(0, (sum, file) => sum + file.size);
     final files = _files;
     final jobs = [_Job(_workingName(), before)];
@@ -193,9 +234,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
     final job = jobs.single;
     try {
-      final outputs = await _run(action, files, _kinds, (progress) {
-        if (mounted && identical(_jobs, jobs)) setState(() => job.progress = progress);
-      }, control);
+      final outputs = await _run(
+        action,
+        files,
+        _kinds,
+        (progress) {
+          if (mounted && identical(_jobs, jobs)) setState(() => job.progress = progress);
+        },
+        control,
+        options,
+      );
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         _jobs = [
@@ -345,7 +393,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         RadialMenu(
           actions: actions,
           fileCount: _files.length,
-          onSelected: _start,
+          onSelected: _choose,
           onCancelled: () => setState(() => _menuOpen = false),
         ),
         if (actions.isEmpty) ...[

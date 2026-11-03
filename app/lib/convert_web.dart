@@ -15,14 +15,15 @@ import 'worker_protocol.dart';
 Future<List<PortableFile>> convert(
   RadialAction action,
   List<PortableFile> files,
-  void Function(double progress) onProgress,
-) {
+  void Function(double progress) onProgress, [
+  ActionOptions options = const ActionOptions(),
+]) {
   final done = Completer<List<PortableFile>>();
   final web.Worker worker;
   try {
     worker = web.Worker('convert_worker.js'.toJS);
   } catch (_) {
-    return runPortable(action, files, onProgress: onProgress);
+    return runPortable(action, files, options: options, onProgress: onProgress);
   }
 
   worker.onmessage = ((web.MessageEvent event) {
@@ -48,7 +49,7 @@ Future<List<PortableFile>> convert(
     event.preventDefault();
     worker.terminate();
     if (!done.isCompleted) {
-      done.complete(runPortable(action, files, onProgress: onProgress));
+      done.complete(runPortable(action, files, options: options, onProgress: onProgress));
     }
   }).toJS;
 
@@ -56,6 +57,11 @@ Future<List<PortableFile>> convert(
     actionId: action.id.toJS,
     files: [for (final file in files) WorkerFile(name: file.name.toJS, bytes: file.bytes.toJS)]
         .toJS,
+    cropLeft: options.crop?.left.toJS,
+    cropTop: options.crop?.top.toJS,
+    cropWidth: options.crop?.width.toJS,
+    cropHeight: options.crop?.height.toJS,
+    shiftMilliseconds: options.shift?.inMilliseconds.toJS,
   );
   worker.postMessage(request);
   return done.future;
@@ -186,8 +192,9 @@ Future<List<ConvertedFile>> convertMedia(
   List<PickedFile> files,
   List<FileKind> kinds,
   void Function(double progress) onProgress,
-  ConvertControl control,
-) async {
+  ConvertControl control, [
+  ActionOptions options = const ActionOptions(),
+]) async {
   final worker = _VideoWorker();
   control.cancel = worker.stop;
   try {
@@ -200,8 +207,8 @@ Future<List<ConvertedFile>> convertMedia(
 
       final probe = await worker.send({'command': 'probe', 'url': url});
       final info = _readInfo(probe.info!);
-      final plans = planMedia(action, kinds[i], info);
-      final limit = mediaSizeLimit(action, const ActionOptions());
+      final plans = planMedia(action, kinds[i], info, options: options);
+      final limit = mediaSizeLimit(action, options);
 
       void Function(double)? report(int attempt) => (progress) {
         final part = (attempt + progress) / plans.length;

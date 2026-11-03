@@ -69,8 +69,9 @@ Future<List<ConvertedFile>> convertMediaOnPhone(
   List<PickedFile> files,
   List<FileKind> kinds,
   void Function(double progress) onProgress,
-  ConvertControl control,
-) async {
+  ConvertControl control, [
+  ActionOptions options = const ActionOptions(),
+]) async {
   _listenForProgress();
   var stopped = false;
   int? runningId;
@@ -88,8 +89,8 @@ Future<List<ConvertedFile>> convertMediaOnPhone(
       if (path == null) throw EngineFailed('${file.name} could not be read.');
 
       final info = await probeOnPhone(path);
-      final plans = planMedia(action, kinds[i], info);
-      final limit = mediaSizeLimit(action, const ActionOptions());
+      final plans = planMedia(action, kinds[i], info, options: options);
+      final limit = mediaSizeLimit(action, options);
       final name = freeOutputName(
         inputName: file.name,
         extension: plans.first.output.extension,

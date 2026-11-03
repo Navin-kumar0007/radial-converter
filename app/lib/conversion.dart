@@ -6,9 +6,6 @@ export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
 export 'pdf_engine.dart' show PdfResult, canRunPdf, convertPdf;
 export 'picked_file.dart';
 
-/// Actions that need a screen we have not built yet, such as the crop frame.
-const _needsScreen = {'image-crop', 'subtitle-shift', 'video-trim', 'audio-trim'};
-
 /// What the menu offers for these files on this device. Pictures and subtitles run on all
 /// platforms; video, audio and HEIC photos need that platform's engine.
 List<RadialAction> availableActions(
@@ -31,7 +28,10 @@ List<RadialAction> availableActions(
 
   return [
     for (final action in actionsFor(kinds, mode))
-      if (!_needsScreen.contains(action.id) && kinds.every((kind) => canRun(action, kind))) action,
+      // The crop frame is drawn on one picture, and wouldn't fit any others.
+      if (!(action.id == 'image-crop' && kinds.length > 1) &&
+          kinds.every((kind) => canRun(action, kind)))
+        action,
   ];
 }
 

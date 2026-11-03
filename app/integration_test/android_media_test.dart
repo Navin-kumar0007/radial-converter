@@ -156,6 +156,21 @@ void main() {
     expect(outputs.listSync().length, before);
   });
 
+  test('trim keeps only the part asked for', () async {
+    final results = await convertMedia(
+      actionById('video-trim')!,
+      [picked()],
+      const [FileKind.mp4],
+      (_) {},
+      ConvertControl(),
+      const ActionOptions(endSeconds: 1),
+    );
+    expect(results.single.name, 'clip (trimmed).mp4');
+    final info = await probeOnPhone(await where(results.single));
+    expect(info.seconds, closeTo(1, 0.2));
+    expect(info.videoCodec, 'avc');
+  });
+
   test('a HEIC photo comes out upright as a PNG', () async {
     final folder = await getApplicationSupportDirectory();
     final photo = p.join(folder.path, 'portrait.heic');

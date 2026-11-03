@@ -15,6 +15,25 @@ void main() {
   }).toJS;
 }
 
+ActionOptions _options(WorkerRequest request) {
+  final left = request.cropLeft;
+  final top = request.cropTop;
+  final width = request.cropWidth;
+  final height = request.cropHeight;
+  final shift = request.shiftMilliseconds;
+  return ActionOptions(
+    crop: left == null || top == null || width == null || height == null
+        ? null
+        : (
+            left: left.toDartInt,
+            top: top.toDartInt,
+            width: width.toDartInt,
+            height: height.toDartInt,
+          ),
+    shift: shift == null ? null : Duration(milliseconds: shift.toDartInt),
+  );
+}
+
 Future<void> _handle(WorkerRequest request) async {
   void reply(WorkerReply message) => _self.postMessage(message);
   try {
@@ -24,6 +43,7 @@ Future<void> _handle(WorkerRequest request) async {
     final outputs = await runPortable(
       actionById(request.actionId.toDart)!,
       files,
+      options: _options(request),
       onProgress: (progress) => reply(WorkerReply(progress: progress.toJS)),
     );
     reply(

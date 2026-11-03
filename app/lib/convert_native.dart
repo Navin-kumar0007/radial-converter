@@ -9,14 +9,15 @@ import 'android_media.dart';
 import 'picked_file.dart';
 
 class _Request {
-  const _Request(this.actionId, this.files);
+  const _Request(this.actionId, this.files, this.options);
 
   final String actionId;
   final List<PortableFile> files;
+  final ActionOptions options;
 }
 
 Future<List<PortableFile>> _run(_Request request) {
-  return runPortable(actionById(request.actionId)!, request.files);
+  return runPortable(actionById(request.actionId)!, request.files, options: request.options);
 }
 
 /// Converts in a background isolate, so the app stays responsive. Isolates report no progress
@@ -24,9 +25,10 @@ Future<List<PortableFile>> _run(_Request request) {
 Future<List<PortableFile>> convert(
   RadialAction action,
   List<PortableFile> files,
-  void Function(double progress) onProgress,
-) {
-  return compute(_run, _Request(action.id, files));
+  void Function(double progress) onProgress, [
+  ActionOptions options = const ActionOptions(),
+]) {
+  return compute(_run, _Request(action.id, files, options));
 }
 
 /// On a desktop the engines ship inside the app.
@@ -93,10 +95,11 @@ Future<List<ConvertedFile>> convertMedia(
   List<PickedFile> files,
   List<FileKind> kinds,
   void Function(double progress) onProgress,
-  ConvertControl control,
-) async {
+  ConvertControl control, [
+  ActionOptions options = const ActionOptions(),
+]) async {
   if (Platform.isAndroid) {
-    return convertMediaOnPhone(action, files, kinds, onProgress, control);
+    return convertMediaOnPhone(action, files, kinds, onProgress, control, options);
   }
   final paths = <String>[];
   for (final file in files) {
@@ -110,7 +113,7 @@ Future<List<ConvertedFile>> convertMedia(
   final results = <ConvertedFile>[];
   try {
     for (var i = 0; i < paths.length; i++) {
-      final job = queue.add((context) => runner.run(action, [paths[i]], context));
+      final job = queue.add((context) => runner.run(action, [paths[i]], context, options: options));
       control.cancel = job.cancel;
       final progress = queue.changes.listen((changed) {
         if (identical(changed, job) && changed.progress > 0) {

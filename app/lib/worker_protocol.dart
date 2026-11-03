@@ -10,10 +10,23 @@ extension type WorkerFile._(JSObject _) implements JSObject {
 
 /// What the page sends the worker.
 extension type WorkerRequest._(JSObject _) implements JSObject {
-  external factory WorkerRequest({JSString actionId, JSArray<WorkerFile> files});
+  external factory WorkerRequest({
+    JSString actionId,
+    JSArray<WorkerFile> files,
+    JSNumber? cropLeft,
+    JSNumber? cropTop,
+    JSNumber? cropWidth,
+    JSNumber? cropHeight,
+    JSNumber? shiftMilliseconds,
+  });
 
   external JSString get actionId;
   external JSArray<WorkerFile> get files;
+  external JSNumber? get cropLeft;
+  external JSNumber? get cropTop;
+  external JSNumber? get cropWidth;
+  external JSNumber? get cropHeight;
+  external JSNumber? get shiftMilliseconds;
 }
 
 /// What the worker sends back: progress, then the results or why it failed.

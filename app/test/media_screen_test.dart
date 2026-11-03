@@ -85,13 +85,13 @@ void main() {
   }
 
   testWidgets('a video gets a menu when the engine is here', (tester) async {
-    await pump(tester, [video()], (a, f, k, p, c) async => []);
+    await pump(tester, [video()], (a, f, k, p, c, o) async => []);
     expect(find.text('WhatsApp'), findsOneWidget);
     expect(find.textContaining('in this build yet'), findsNothing);
   });
 
   testWidgets('without the engine it says so', (tester) async {
-    await pump(tester, [video()], (a, f, k, p, c) async => [], mediaAvailable: false);
+    await pump(tester, [video()], (a, f, k, p, c, o) async => [], mediaAvailable: false);
     expect(find.text('WhatsApp'), findsNothing);
     expect(find.textContaining('Videos on this device'), findsOneWidget);
   });
@@ -100,7 +100,7 @@ void main() {
     var reads = 0;
     await pump(tester, [
       video(size: 5 * 1024 * 1024 * 1024, onRead: () => reads++),
-    ], (a, f, k, p, c) async => [result('clip (converted).mov')]);
+    ], (a, f, k, p, c, o) async => [result('clip (converted).mov')]);
     expect(find.textContaining('5.0 GB'), findsOneWidget);
     await selectFirstSlice(tester);
     await tester.pump();
@@ -113,7 +113,7 @@ void main() {
   testWidgets('the engine gets the file and what it is', (tester) async {
     List<FileKind>? kinds;
     String? url;
-    await pump(tester, [video()], (a, files, k, p, c) async {
+    await pump(tester, [video()], (a, files, k, p, c, o) async {
       kinds = k;
       url = files.single.webUrl;
       return [result('x.mov')];
@@ -127,7 +127,7 @@ void main() {
   testWidgets('progress shows, then save uses the download', (tester) async {
     late void Function(double) report;
     final finish = Completer<List<ConvertedFile>>();
-    await pump(tester, [video()], (a, f, k, onProgress, c) {
+    await pump(tester, [video()], (a, f, k, onProgress, c, o) {
       report = onProgress;
       return finish.future;
     });
@@ -152,7 +152,7 @@ void main() {
   testWidgets('a long job can be cancelled, and leaves the menu to try again', (tester) async {
     var cancelled = 0;
     final finish = Completer<List<ConvertedFile>>();
-    await pump(tester, [video()], (a, f, k, p, control) {
+    await pump(tester, [video()], (a, f, k, p, control, o) {
       control.cancel = () => cancelled++;
       return finish.future;
     });
@@ -174,7 +174,7 @@ void main() {
 
   testWidgets('choosing new files stops the running job', (tester) async {
     var cancelled = 0;
-    await pump(tester, [video()], (a, f, k, p, control) {
+    await pump(tester, [video()], (a, f, k, p, control, o) {
       control.cancel = () => cancelled++;
       return Completer<List<ConvertedFile>>().future;
     });
@@ -190,7 +190,7 @@ void main() {
     await pump(
       tester,
       [video()],
-      (a, f, k, p, c) async => [
+      (a, f, k, p, c, o) async => [
         const ConvertedFile(name: 'clip (compressed).mp4', size: 500, savedPath: '/x/clip.mp4'),
       ],
     );
@@ -204,7 +204,7 @@ void main() {
   testWidgets('a failure from the engine is shown in its words', (tester) async {
     await pump(tester, [
       video(),
-    ], (a, f, k, p, c) async => throw const EngineFailed('This video has no sound.'));
+    ], (a, f, k, p, c, o) async => throw const EngineFailed('This video has no sound.'));
     await selectFirstSlice(tester);
     await tester.pump();
     await tester.pump();
@@ -245,7 +245,7 @@ void main() {
             pickFiles: () async => [photo()],
             saveFile: (file) async => true,
             photoDecoder: decoder,
-            converter: converter ?? (a, f, p) async => const [],
+            converter: converter ?? (a, f, p, o) async => const [],
             mediaAvailable: mediaAvailable,
           ),
         ),
@@ -260,7 +260,7 @@ void main() {
       await pumpPhoto(
         tester,
         decoder: (file) async => png,
-        converter: (action, files, onProgress) async {
+        converter: (action, files, onProgress, options) async {
           received = files;
           return [PortableFile('photo (converted).jpg', png)];
         },
@@ -303,7 +303,7 @@ void main() {
           pickFiles: () async => [file],
           saveFile: (file) async => true,
           mediaAvailable: false,
-          converter: (action, files, onProgress) async => [
+          converter: (action, files, onProgress, options) async => [
             PortableFile('a.txt', Uint8List(2048)),
             PortableFile('b.txt', Uint8List(4096)),
           ],
