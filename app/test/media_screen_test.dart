@@ -73,7 +73,14 @@ void main() {
   }
 
   ConvertedFile result(String name) {
-    return ConvertedFile(name: name, size: 1000, download: () => downloaded.add(name));
+    return ConvertedFile(
+      name: name,
+      size: 1000,
+      download: () async {
+        downloaded.add(name);
+        return true;
+      },
+    );
   }
 
   testWidgets('a video gets a menu when the engine is here', (tester) async {

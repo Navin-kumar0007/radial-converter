@@ -74,6 +74,9 @@ extension type _MediaReply._(JSObject _) implements JSObject {
 /// Browsers can convert video themselves, with their own hardware encoders.
 bool mediaEngineAvailable() => true;
 
+/// What video and audio can become here, or null for everything that can be planned.
+Set<FileKind>? mediaOutputsHere() => null;
+
 class _VideoWorker {
   _VideoWorker() : _worker = web.Worker('video_worker.js'.toJS, web.WorkerOptions(type: 'module')) {
     _worker.onmessage = ((web.MessageEvent event) {
@@ -198,7 +201,10 @@ Future<List<ConvertedFile>> convertMedia(
         ConvertedFile(
           name: name,
           size: done.size!.toDartInt,
-          download: () => _download(blob, name),
+          download: () async {
+            _download(blob, name);
+            return true;
+          },
         ),
       );
     }

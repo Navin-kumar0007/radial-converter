@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:radial_core/engines.dart';
 import 'package:radial_core/radial_core.dart';
 
+import 'android_media.dart';
 import 'picked_file.dart';
 
 class _Request {
@@ -38,13 +39,17 @@ EngineTools _appEngines() {
   );
 }
 
-/// True if these tools can run video. Phones run it differently, and that is still to come.
+/// True if these tools can run video on a desktop.
 bool mediaEngineAvailableWith(EngineTools tools) {
   if (!Platform.isMacOS && !Platform.isWindows) return false;
   return tools.find('ffmpeg') != null && tools.find('ffprobe') != null;
 }
 
-bool mediaEngineAvailable() => mediaEngineAvailableWith(_appEngines());
+/// Android brings its own encoders.
+bool mediaEngineAvailable() => Platform.isAndroid || mediaEngineAvailableWith(_appEngines());
+
+/// What video and audio can become here, or null for everything that can be planned.
+Set<FileKind>? mediaOutputsHere() => Platform.isAndroid ? phoneMediaOutputs : null;
 
 /// Runs the engine as a separate process and saves beside the original, so size is not limited
 /// by memory. The original is never touched.
@@ -55,6 +60,9 @@ Future<List<ConvertedFile>> convertMedia(
   void Function(double progress) onProgress,
   ConvertControl control,
 ) async {
+  if (Platform.isAndroid) {
+    return convertMediaOnPhone(action, files, kinds, onProgress, control);
+  }
   final paths = <String>[];
   for (final file in files) {
     final path = file.path;

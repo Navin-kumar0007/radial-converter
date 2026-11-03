@@ -29,7 +29,7 @@ class PickedFile {
 }
 
 /// A finished result. Pictures are in memory. A video may be too large for that, so it is
-/// already saved on a desktop, or brings its own way to save in a browser.
+/// already saved on a desktop, or brings its own way to save in a browser or on a phone.
 class ConvertedFile {
   const ConvertedFile({
     required this.name,
@@ -43,7 +43,9 @@ class ConvertedFile {
   final String name;
   final int size;
   final PortableFile? inMemory;
-  final void Function()? download;
+
+  /// Saves a result that is not in memory. False if the user changed their mind.
+  final Future<bool> Function()? download;
 
   /// Where the result already is, on a desktop.
   final String? savedPath;

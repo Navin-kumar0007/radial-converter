@@ -223,8 +223,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (inMemory != null) {
         saved = await widget.saveFile(inMemory);
       } else {
-        output.download?.call();
-        saved = true;
+        saved = await output.download?.call() ?? false;
       }
     } catch (_) {
       if (mounted) _say('This file could not be saved. Try again.');
@@ -314,7 +313,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Widget _buildMenu(TextTheme styles) {
-    final actions = availableActions(_kinds, _mode, mediaAvailable: _mediaAvailable);
+    final actions = availableActions(
+      _kinds,
+      _mode,
+      mediaAvailable: _mediaAvailable,
+      mediaOutputs: mediaOutputsHere(),
+    );
     return Column(
       children: [
         RadialMenu(

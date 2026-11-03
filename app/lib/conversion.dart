@@ -15,11 +15,15 @@ List<RadialAction> availableActions(
   List<FileKind> kinds,
   ActionMode mode, {
   required bool mediaAvailable,
+  Set<FileKind>? mediaOutputs,
 }) {
+  bool canRunMedia(RadialAction action, FileKind kind) {
+    if (!mediaAvailable || !canPlanMedia(action, kind)) return false;
+    return mediaOutputs == null || mediaOutputs.contains(action.outputFor(kind));
+  }
+
   bool canRun(RadialAction action, FileKind kind) {
-    return canRunPortably(action, kind) ||
-        canRunPdf(action, kind) ||
-        (mediaAvailable && canPlanMedia(action, kind));
+    return canRunPortably(action, kind) || canRunPdf(action, kind) || canRunMedia(action, kind);
   }
 
   return [

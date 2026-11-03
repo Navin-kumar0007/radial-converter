@@ -301,4 +301,13 @@ void main() {
     expect(map['videoCodec'], 'vp9');
     expect(map['dropAudio'], false);
   });
+
+  test('everything a phone can make can be planned', () {
+    for (final kind in phoneMediaOutputs) {
+      final makes = actionCatalogue.where((a) => a.accepts.contains(FileKind.mp4)).where((a) {
+        return canPlanMedia(a, FileKind.mp4) && a.outputFor(FileKind.mp4) == kind;
+      });
+      expect(makes, isNotEmpty, reason: kind.extension);
+    }
+  });
 }

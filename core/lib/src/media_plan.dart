@@ -118,6 +118,9 @@ const _audioInputs = {
 const _videoOutputs = {FileKind.mp4, FileKind.mov, FileKind.mkv, FileKind.webm};
 const _audioOutputs = {FileKind.m4a, FileKind.wav, FileKind.opus};
 
+/// Android's encoders write only MP4-family files, so these are all a phone can make.
+const phoneMediaOutputs = {FileKind.mp4, FileKind.m4a};
+
 const _plannedActions = {
   'video-to-mp4',
   'video-to-mov',
