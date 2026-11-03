@@ -79,13 +79,13 @@ void main() {
   testWidgets('a video gets a menu when the engine is here', (tester) async {
     await pump(tester, [video()], (a, f, k, p, c) async => []);
     expect(find.text('WhatsApp'), findsOneWidget);
-    expect(find.textContaining('not available'), findsNothing);
+    expect(find.textContaining('in this build yet'), findsNothing);
   });
 
   testWidgets('without the engine it says so', (tester) async {
     await pump(tester, [video()], (a, f, k, p, c) async => [], mediaAvailable: false);
     expect(find.text('WhatsApp'), findsNothing);
-    expect(find.textContaining('not available'), findsOneWidget);
+    expect(find.textContaining('Videos on this device'), findsOneWidget);
   });
 
   testWidgets('a huge video is never read into memory', (tester) async {

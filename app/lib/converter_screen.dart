@@ -300,7 +300,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         if (actions.isEmpty) ...[
           const SizedBox(height: 12),
           Text(
-            'This type of file is not available in this build yet.',
+            notAvailableMessage(_kinds, _mode),
             textAlign: TextAlign.center,
             style: styles.bodyMedium,
           ),

@@ -27,6 +27,29 @@ List<RadialAction> availableActions(
 /// far works on a whole file in memory, and a browser cannot hold much more.
 const maxInMemoryBytes = 1024 * 1024 * 1024;
 
+/// Says what the file is, so the user knows it was recognised and what is missing.
+String notAvailableMessage(List<FileKind> kinds, ActionMode mode) {
+  final names = {for (final kind in kinds) _kindName(kind)};
+  if (names.length != 1) return 'These files can\'t be converted together in this build yet.';
+  final name = names.single;
+  if (kinds.first == FileKind.unknown) return 'This type of file isn\'t supported yet.';
+  return '$name can\'t be converted in this build yet.';
+}
+
+String _kindName(FileKind kind) {
+  return switch (kind.family) {
+    FileFamily.pdf => 'PDF files',
+    FileFamily.video => 'Videos on this device',
+    FileFamily.audio => 'Audio on this device',
+    FileFamily.document => '${kind.extension.toUpperCase()} documents',
+    FileFamily.archive => 'Archives',
+    FileFamily.folder => 'Folders',
+    FileFamily.image => '${kind.extension.toUpperCase()} pictures',
+    FileFamily.subtitle => 'Subtitles',
+    FileFamily.unknown => 'This file',
+  };
+}
+
 /// Readable sizes: `340 KB`, `2.5 MB`.
 String formatBytes(int bytes) {
   if (bytes < 1024) return '$bytes B';

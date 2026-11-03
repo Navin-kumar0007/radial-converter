@@ -216,7 +216,7 @@ void main() {
     toPick = [picked('clip.mp4', _mp4)];
     await pump(tester);
     await chooseFiles(tester);
-    expect(find.textContaining('not available in this build'), findsOneWidget);
+    expect(find.textContaining("can't be converted in this build"), findsOneWidget);
     expect(find.text('Nothing fits'), findsOneWidget);
   });
 
@@ -394,6 +394,16 @@ void main() {
       );
       expect(odd, isEmpty, reason: file.path);
     }
+  });
+
+  group('notAvailableMessage names what it found', () {
+    String say(List<FileKind> kinds) => notAvailableMessage(kinds, ActionMode.convert);
+
+    test('PDF', () => expect(say(const [FileKind.pdf]), contains('PDF files')));
+    test('HEIC', () => expect(say(const [FileKind.heic]), contains('HEIC pictures')));
+    test('Word', () => expect(say(const [FileKind.docx]), contains('DOCX documents')));
+    test('a mix', () => expect(say(const [FileKind.pdf, FileKind.jpg]), contains('together')));
+    test('unknown', () => expect(say(const [FileKind.unknown]), contains('isn\'t supported')));
   });
 
   test('formatBytes picks a sensible unit', () {
