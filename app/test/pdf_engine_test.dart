@@ -1,0 +1,254 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:archive/archive.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:pdfrx/pdfrx.dart';
+import 'package:radial_core/radial_core.dart';
+import 'package:radialconverter/pdf_engine.dart';
+
+/// A picture full of detail, so PDF sizes behave like a real scan.
+Uint8List scan({int width = 1200, int height = 1600, int seed = 1}) {
+  final image = img.Image(width: width, height: height);
+  var state = seed;
+  for (final pixel in image) {
+    state = (state * 1103515245 + 12345) & 0x7FFFFFFF;
+    pixel
+      ..r = (pixel.x + state) % 256
+      ..g = (pixel.y + (state >> 8)) % 256
+      ..b = (state >> 16) % 256;
+  }
+  return img.encodeJpg(image, quality: 95);
+}
+
+/// A PDF with [count] pages, each a picture.
+PortableFile pdf(String name, int count, {int seed = 1, int width = 1200, int height = 1600}) {
+  final bytes = buildImagePdf([
+    for (var i = 0; i < count; i++) scan(width: width, height: height, seed: seed + i),
+  ]);
+  return PortableFile(name, bytes);
+}
+
+Future<int> pagesIn(Uint8List bytes) async {
+  final document = await PdfDocument.openData(bytes, sourceName: 'check-${bytes.hashCode}');
+  try {
+    return document.pages.length;
+  } finally {
+    await document.dispose();
+  }
+}
+
+Future<List<PdfResult>> run(
+  String id,
+  List<PortableFile> files, {
+  ActionOptions options = const ActionOptions(),
+}) {
+  return convertPdf(actionById(id)!, files, (_) {}, options: options);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // A test has no app bundle holding PDFium, so these need a copy, named in PDFIUM_PATH. Without
+  // one they are skipped: the app itself is checked in a browser and by building for each platform.
+  final pdfium = Platform.environment['PDFIUM_PATH'];
+  final skipReal = pdfium == null ? 'Set PDFIUM_PATH to run against real PDFium' : null;
+
+  setUpAll(() async {
+    if (pdfium == null) return;
+    // PDFium asks for a temporary folder through a plugin, which tests don't have.
+    final temporary = Directory.systemTemp.createTempSync('radial_pdf_');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async => temporary.path,
+    );
+    Pdfrx.pdfiumModulePath = pdfium;
+    await pdfrxFlutterInitialize();
+  });
+
+  group('which actions run', () {
+    test('the ones PDFium can do', () {
+      for (final id in [
+        'pdf-to-jpg',
+        'pdf-to-png',
+        'pdf-merge',
+        'pdf-split',
+        'pdf-rotate',
+        'pdf-compress',
+        'fit-email-pdf',
+        'fit-pdf-100kb',
+      ]) {
+        expect(canRunPdf(actionById(id)!, FileKind.pdf), isTrue, reason: id);
+      }
+    });
+
+    test('passwords and page picking wait for their screens', () {
+      for (final id in ['pdf-add-password', 'pdf-remove-password', 'pdf-extract-pages']) {
+        expect(canRunPdf(actionById(id)!, FileKind.pdf), isFalse, reason: id);
+      }
+    });
+
+    test('only PDFs', () {
+      expect(canRunPdf(actionById('pdf-merge')!, FileKind.jpg), isFalse);
+    });
+  });
+
+  group('to pictures', skip: skipReal, () {
+    test('one page makes one picture', () async {
+      final out = (await run('pdf-to-jpg', [pdf('doc.pdf', 1)])).single.file;
+      expect(out.name, 'doc (converted).jpg');
+      expect(detectKind(out.bytes), FileKind.jpg);
+    });
+
+    test('several pages make a ZIP, in order', () async {
+      final out = (await run('pdf-to-png', [pdf('doc.pdf', 3)])).single.file;
+      expect(out.name, 'doc (converted).zip');
+      final archive = ZipDecoder().decodeBytes(out.bytes);
+      expect(archive.files.map((f) => f.name), [
+        'doc page 1.png',
+        'doc page 2.png',
+        'doc page 3.png',
+      ]);
+      expect(detectKind(archive.files.first.content), FileKind.png);
+    });
+
+    test('the page size is right at 150 dpi', () async {
+      // 720 by 1080 points is 10 by 15 inches, so 1500 by 2250 pixels.
+      final out = (await run('pdf-to-png', [pdf('doc.pdf', 1, width: 720, height: 1080)])).single;
+      final decoded = img.decodePng(out.file.bytes)!;
+      expect('${decoded.width}x${decoded.height}', '1500x2250');
+    });
+
+    test('the picture is really drawn, not blank', () async {
+      final out = (await run('pdf-to-png', [pdf('doc.pdf', 1, width: 200, height: 200)])).single;
+      final decoded = img.decodePng(out.file.bytes)!;
+      final colours = {for (final pixel in decoded) '${pixel.r},${pixel.g},${pixel.b}'};
+      expect(colours.length, greaterThan(50));
+    });
+  });
+
+  group('pages', skip: skipReal, () {
+    test('merge adds them up, in the order chosen', () async {
+      final out = (await run('pdf-merge', [pdf('a.pdf', 2), pdf('b.pdf', 3, seed: 9)])).single;
+      expect(out.file.name, 'a (merged).pdf');
+      expect(await pagesIn(out.file.bytes), 5);
+    });
+
+    test('merge needs two files', () async {
+      await expectLater(run('pdf-merge', [pdf('a.pdf', 1)]), throwsA(isA<EngineFailed>()));
+    });
+
+    test('split makes one PDF per page in a ZIP', () async {
+      final out = (await run('pdf-split', [pdf('doc.pdf', 3)])).single.file;
+      expect(out.name, 'doc (split).zip');
+      final archive = ZipDecoder().decodeBytes(out.bytes);
+      expect(archive.files, hasLength(3));
+      for (final file in archive.files) {
+        expect(await pagesIn(file.content), 1, reason: file.name);
+      }
+    });
+
+    test('a single page has nothing to split', () async {
+      await expectLater(
+        run('pdf-split', [pdf('doc.pdf', 1)]),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('one page'))),
+      );
+    });
+
+    test('rotate keeps every page and turns them', () async {
+      final out = (await run('pdf-rotate', [pdf('doc.pdf', 2, width: 720, height: 1080)])).single;
+      final document = await PdfDocument.openData(out.file.bytes, sourceName: 'rotated');
+      try {
+        expect(document.pages, hasLength(2));
+        expect(document.pages.first.rotation, PdfPageRotation.clockwise90);
+        expect(document.pages.first.width, greaterThan(document.pages.first.height));
+      } finally {
+        await document.dispose();
+      }
+    });
+
+    test('rotate refuses other angles', () async {
+      await expectLater(
+        run('pdf-rotate', [pdf('doc.pdf', 1)], options: const ActionOptions(degrees: 45)),
+        throwsA(isA<EngineFailed>()),
+      );
+    });
+  });
+
+  group('making it smaller', skip: skipReal, () {
+    test('compress keeps the pages, says what it did, and is smaller', () async {
+      final source = pdf('doc.pdf', 2);
+      final out = (await run('pdf-compress', [source])).single;
+      expect(out.file.bytes.length, lessThan(source.bytes.length));
+      expect(await pagesIn(out.file.bytes), 2);
+      expect(out.note, contains('pictures'));
+    });
+
+    test('a page keeps its physical size', () async {
+      final source = pdf('doc.pdf', 1, width: 720, height: 1080);
+      final out = (await run('pdf-compress', [source])).single;
+      final document = await PdfDocument.openData(out.file.bytes, sourceName: 'same-size');
+      try {
+        expect(document.pages.first.width, closeTo(720, 1));
+        expect(document.pages.first.height, closeTo(1080, 1));
+      } finally {
+        await document.dispose();
+      }
+    });
+
+    test('under a limit really is', () async {
+      final source = pdf('doc.pdf', 1);
+      expect(source.bytes.length, greaterThan(100 * 1024));
+      final out = (await run('fit-pdf-100kb', [source])).single;
+      expect(out.file.bytes.length, lessThanOrEqualTo(100 * 1024));
+      expect(out.file.name, 'doc (under 100 KB).pdf');
+      expect(out.note, contains('pictures'));
+    });
+
+    test('a PDF that already fits stays as it is, with no note', () async {
+      final source = pdf('doc.pdf', 1, width: 100, height: 100);
+      final out = (await run('fit-pdf-1mb', [source])).single;
+      expect(out.note, isNull);
+      expect(await pagesIn(out.file.bytes), 1);
+    });
+
+    test('too many pages to fit says so rather than making it unreadable', () async {
+      await expectLater(
+        run('fit-pdf-100kb', [pdf('doc.pdf', 40, width: 300, height: 400)]),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('too many'))),
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+  });
+
+  group('safety', skip: skipReal, () {
+    test('the input is not changed', () async {
+      final source = pdf('doc.pdf', 2);
+      final before = Uint8List.fromList(source.bytes);
+      await run('pdf-rotate', [source]);
+      await run('pdf-compress', [source]);
+      expect(source.bytes, before);
+    });
+
+    test('a batch handles each file', () async {
+      final out = await run('pdf-rotate', [pdf('a.pdf', 1), pdf('b.pdf', 1, seed: 5)]);
+      expect(out.map((r) => r.file.name), ['a (rotated).pdf', 'b (rotated).pdf']);
+    });
+
+    test('progress goes up to 1', () async {
+      final seen = <double>[];
+      await convertPdf(actionById('pdf-to-jpg')!, [pdf('doc.pdf', 2)], seen.add);
+      expect(seen.last, 1);
+      expect(seen, everyElement(inInclusiveRange(0, 1)));
+    });
+
+    test('a damaged PDF is a plain error', () async {
+      final junk = PortableFile('bad.pdf', utf8.encode('%PDF-1.7 this is not really a PDF'));
+      await expectLater(
+        run('pdf-to-jpg', [junk]),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('bad.pdf'))),
+      );
+    });
+  });
+}

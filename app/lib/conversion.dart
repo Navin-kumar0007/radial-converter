@@ -1,6 +1,9 @@
 import 'package:radial_core/radial_core.dart';
 
+import 'pdf_engine.dart';
+
 export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
+export 'pdf_engine.dart' show PdfResult, canRunPdf, convertPdf;
 export 'picked_file.dart';
 
 /// Actions that need a screen we have not built yet, such as the crop frame.
@@ -14,7 +17,9 @@ List<RadialAction> availableActions(
   required bool mediaAvailable,
 }) {
   bool canRun(RadialAction action, FileKind kind) {
-    return canRunPortably(action, kind) || (mediaAvailable && canPlanMedia(action, kind));
+    return canRunPortably(action, kind) ||
+        canRunPdf(action, kind) ||
+        (mediaAvailable && canPlanMedia(action, kind));
   }
 
   return [

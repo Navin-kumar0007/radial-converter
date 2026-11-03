@@ -160,7 +160,7 @@ class _FileChipState extends State<FileChip> {
       children: [
         Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: styles.bodyMedium),
         if (widget.state == FileChipState.done && detail != null)
-          Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: styles.bodySmall),
+          Text(detail, maxLines: 3, overflow: TextOverflow.ellipsis, style: styles.bodySmall),
         if (widget.state == FileChipState.failed && message != null)
           Text(message, maxLines: 2, overflow: TextOverflow.ellipsis, style: styles.bodySmall),
       ],

@@ -13,6 +13,11 @@ typedef Converter = Future<List<PortableFile>> Function(
   void Function(double progress) onProgress,
 );
 
+typedef PdfConverter = Future<List<PdfResult>> Function(
+  RadialAction action,
+  List<PortableFile> files,
+  void Function(double progress) onProgress,
+);
 typedef MediaConverter = Future<List<ConvertedFile>> Function(
   RadialAction action,
   List<PickedFile> files,
@@ -35,6 +40,12 @@ class _Job {
 
 /// Pick files, choose a slice, save the result. The same screen on every platform. On desktop
 /// the Shift-drag trigger will open the same menu at the cursor.
+Future<List<PdfResult>> _defaultPdf(
+  RadialAction action,
+  List<PortableFile> files,
+  void Function(double) onProgress,
+) => convertPdf(action, files, onProgress);
+
 class ConverterScreen extends StatefulWidget {
   const ConverterScreen({
     super.key,
@@ -42,6 +53,7 @@ class ConverterScreen extends StatefulWidget {
     required this.saveFile,
     this.converter = convert,
     this.mediaConverter = convertMedia,
+    this.pdfConverter = _defaultPdf,
     this.mediaAvailable,
   });
 
@@ -49,6 +61,7 @@ class ConverterScreen extends StatefulWidget {
   final FileSaver saveFile;
   final Converter converter;
   final MediaConverter mediaConverter;
+  final PdfConverter pdfConverter;
 
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
@@ -120,7 +133,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
     void Function(double) onProgress,
     ConvertControl control,
   ) async {
-    if (!kinds.every((kind) => canRunPortably(action, kind))) {
+    final isPdf = kinds.every((kind) => canRunPdf(action, kind));
+    if (!isPdf && !kinds.every((kind) => canRunPortably(action, kind))) {
       return widget.mediaConverter(action, files, kinds, onProgress, control);
     }
     final tooLarge = _tooLarge();
@@ -130,6 +144,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
       inputs = [for (final file in files) PortableFile(file.name, await file.read())];
     } catch (_) {
       throw const EngineFailed('This file could not be read. It may have moved or be too large.');
+    }
+    if (isPdf) {
+      final results = await widget.pdfConverter(action, inputs, onProgress);
+      return [
+        for (final result in results)
+          ConvertedFile(
+            name: result.file.name,
+            size: result.file.bytes.length,
+            inMemory: result.file,
+            note: result.note,
+          ),
+      ];
     }
     final outputs = await widget.converter(action, inputs, onProgress);
     return [
@@ -311,9 +337,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   Widget _buildChip(_Job job) {
     final output = job.output;
+    final note = output?.note;
     final sizes = output == null
         ? null
-        : '${formatBytes(job.bytesBefore)} to ${formatBytes(output.size)}';
+        : '${formatBytes(job.bytesBefore)} to ${formatBytes(output.size)}'
+              '${note == null ? '' : '\n$note'}';
     return FileChip(
       name: job.name,
       state: job.state,

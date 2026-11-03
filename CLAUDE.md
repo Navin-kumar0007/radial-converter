@@ -57,7 +57,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 419 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 83 tests. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 93 tests, plus 19 PDF ones needing `PDFIUM_PATH`. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests (still to collect). |
@@ -80,6 +80,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   out that same plan. Web: `app/web/video_worker.js` with Mediabunny. Desktop: `ffmpeg_plan.dart` with a
   bundled LGPL FFmpeg, saving beside the original. Android: still to do (Media3 Transformer), so
   `mediaEngineAvailable()` is false there and the app says video isn't available.
+- PDF on every platform through `app/lib/pdf_engine.dart`, using pdfrx 2.9.0 (MIT) and PDFium (BSD): to JPG or
+  PNG, merge, split, rotate, compress, under a size limit. Compress and size limits redraw pages as
+  pictures, because that is the only way to shrink a scan, and the result says text can't be selected.
+  Passwords and page picking need screens; adding a password needs qpdf, since PDFium can't.
 - Tested for real: web in Chrome; the desktop path through its tests against the shipping macOS FFmpeg.
   No one has yet run the macOS, Windows or Android apps themselves.
 - Desktop only, command line only so far: libvips, qpdf and bsdtar in `lib/engines.dart`. Not bundled with
@@ -133,7 +137,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 2. Android video and audio: Media3 Transformer in Kotlin, following the same `MediaPlan`.
 3. Screens for trim, crop and subtitle shift. Drag files onto the window.
 4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
-5. PDF tools and HEIC on every platform. Bundle desktop engines; web needs pdf-lib and wasm-vips.
+5. HEIC on every platform, and archives (the `archive` package is already in). PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.

@@ -37,6 +37,7 @@ class ConvertedFile {
     this.inMemory,
     this.download,
     this.savedPath,
+    this.note,
   });
 
   final String name;
@@ -46,6 +47,9 @@ class ConvertedFile {
 
   /// Where the result already is, on a desktop.
   final String? savedPath;
+
+  /// Anything the user should know about the result.
+  final String? note;
 }
 
 /// Lets the screen stop a running conversion.

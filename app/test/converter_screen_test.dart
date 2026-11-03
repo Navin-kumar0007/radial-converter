@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -301,6 +302,32 @@ void main() {
     expect(find.text('done.png'), findsOneWidget);
   });
 
+  testWidgets('a PDF gets a menu, and its note shows', (tester) async {
+    final pdfBytes = Uint8List.fromList(utf8.encode('%PDF-1.7 pretend'));
+    toPick = [picked('form.pdf', pdfBytes)];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConverterScreen(
+          pickFiles: () async => toPick,
+          saveFile: (file) async => true,
+          mediaAvailable: false,
+          pdfConverter: (action, files, onProgress) async => [
+            PdfResult(
+              PortableFile('form (converted).jpg', pdfBytes),
+              note: 'Pages are now pictures.',
+            ),
+          ],
+        ),
+      ),
+    );
+    await chooseFiles(tester);
+    expect(find.text('JPG'), findsOneWidget);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(find.textContaining('Pages are now pictures.'), findsOneWidget);
+    expect(find.byTooltip('Save'), findsOneWidget);
+  });
+
   testWidgets('the mode switch changes the slices', (tester) async {
     await pump(tester);
     await chooseFiles(tester);
@@ -354,6 +381,15 @@ void main() {
       ).map((a) => a.id);
       expect(withEngine, contains('fit-whatsapp-video'));
       expect(withEngine, isNot(contains('video-to-mp4')));
+    });
+
+    test('PDFs run without the video engine', () {
+      final ids = availableActions(
+        const [FileKind.pdf],
+        ActionMode.convert,
+        mediaAvailable: false,
+      ).map((a) => a.id);
+      expect(ids, containsAll(['pdf-to-jpg', 'fit-pdf-100kb']));
     });
 
     test('actions needing a screen stay hidden', () {
