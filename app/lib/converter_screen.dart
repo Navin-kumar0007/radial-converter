@@ -1,14 +1,16 @@
-import 'dart:typed_data';
-
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:radial_core/radial_core.dart';
 
 import 'conversion.dart';
+import 'drop_files.dart';
 import 'file_chip.dart';
 import 'option_screens.dart';
 import 'radial_menu.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
+typedef DropReader = Future<List<PickedFile>> Function(List<DropItem> items);
 typedef FileSaver = Future<bool> Function(PortableFile file);
 typedef Converter = Future<List<PortableFile>> Function(
   RadialAction action,
@@ -63,7 +65,9 @@ class ConverterScreen extends StatefulWidget {
     this.mediaConverter = convertMedia,
     this.pdfConverter = _defaultPdf,
     this.photoDecoder = decodeHeic,
+    this.dropReader = readDroppedFiles,
     this.mediaAvailable,
+    this.acceptsDrops,
   });
 
   final FilesPicker pickFiles;
@@ -72,9 +76,14 @@ class ConverterScreen extends StatefulWidget {
   final MediaConverter mediaConverter;
   final PdfConverter pdfConverter;
   final PhotoDecoder photoDecoder;
+  final DropReader dropReader;
 
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
+
+  /// Whether files can be dropped on the window. Null asks the platform: phones have no window to
+  /// drag onto, and sharing is how files arrive there.
+  final bool? acceptsDrops;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -88,6 +97,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
   List<_Job> _jobs = const [];
   ConvertControl? _control;
   late final bool _mediaAvailable = widget.mediaAvailable ?? mediaEngineAvailable();
+  late final bool _acceptsDrops =
+      widget.acceptsDrops ??
+      (kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows);
+  bool _dragging = false;
 
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -101,7 +116,34 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (mounted) _say('These files could not be opened. Try again.');
       return;
     }
-    if (!mounted || files.isEmpty) return;
+    if (mounted) _open(files);
+  }
+
+  /// Files dropped on the window, which then behave as if they had been chosen.
+  Future<void> _dropped(List<DropItem> items) async {
+    final files = [
+      for (final item in items)
+        if (item is! DropItemDirectory) item,
+    ];
+    final leftOut = files.length < items.length;
+    if (files.isEmpty) {
+      if (leftOut) _say('Folders can\'t be dropped yet. Drop the files inside instead.');
+      return;
+    }
+    final List<PickedFile> read;
+    try {
+      read = await widget.dropReader(files);
+    } catch (_) {
+      if (mounted) _say('These files could not be opened. Try again.');
+      return;
+    }
+    if (!mounted) return;
+    _open(read);
+    if (leftOut) _say('Folders were left out. Drop the files inside them.');
+  }
+
+  void _open(List<PickedFile> files) {
+    if (files.isEmpty) return;
     _stopRunningJob();
     setState(() {
       _files = files;
@@ -305,7 +347,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   @override
   Widget build(BuildContext context) {
     final styles = Theme.of(context).textTheme;
-    return Scaffold(
+    final screen = Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -329,6 +371,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     label: Text(_files.isEmpty ? 'Choose files' : 'Choose other files'),
                   ),
                 ),
+                if (_files.isEmpty && _acceptsDrops) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'or drop them anywhere here',
+                    style: styles.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 if (_files.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(_summary(), textAlign: TextAlign.center, style: styles.bodyMedium),
@@ -354,6 +404,26 @@ class _ConverterScreenState extends State<ConverterScreen> {
             ),
           ),
         ),
+      ),
+    );
+    if (!_acceptsDrops) return screen;
+    return DropTarget(
+      onDragEntered: (_) => setState(() => _dragging = true),
+      onDragExited: (_) => setState(() => _dragging = false),
+      onDragDone: (details) {
+        setState(() => _dragging = false);
+        _dropped(details.files);
+      },
+      child: Stack(fit: StackFit.expand, children: [screen, if (_dragging) _buildDropHint(styles)]),
+    );
+  }
+
+  Widget _buildDropHint(TextTheme styles) {
+    final colours = Theme.of(context).colorScheme;
+    return IgnorePointer(
+      child: ColoredBox(
+        color: colours.surface.withValues(alpha: 0.92),
+        child: Center(child: Text('Drop to convert', style: styles.headlineSmall)),
       ),
     );
   }

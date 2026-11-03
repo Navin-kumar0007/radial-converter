@@ -57,7 +57,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 474 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 138 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `integration_test/` runs the real Android engine on an emulator, in CI. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 147 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `integration_test/` runs the real Android engine on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
@@ -104,6 +104,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   the app yet. `radial run` needs them, plus FFmpeg, installed.
 - Crop, trim and subtitle shift ask first (`option_screens.dart`), and what is chosen reaches every engine.
   Crop has a frame to drag plus the same four numbers typed; trim takes typed times, as nothing plays video yet.
+- Files can be dropped on the window on macOS, Windows and web (`drop_files_*.dart`, `desktop_drop`, Apache), kept at
+  0.8.x because 0.9 needs a `cross_file` that `file_picker` doesn't allow. Folders aren't handled yet.
 - Not started: Shift-drag in the app, Android share target, video preview for trim.
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
   video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
@@ -141,7 +143,8 @@ Engine decisions that differ from the plan or are easy to get wrong:
   must keep the 2 MB file replaceable, which LGPL requires.
 - Web video uses Mediabunny 1.61.6 (MPL-2.0, vendored unmodified in `app/web/vendor/mediabunny/`), which
   drives the browser's own encoders, so no FFmpeg, x264 or GPL. It reads and writes piece by piece and
-  stores results in the browser's private storage, so there's no 1 GB limit; a 1.4 GB file was tested.
+  stores results in the browser's private storage, so there's no 1 GB limit; a 3 GB file was tested. Never ask for a large file as a blob (`response.blob()`,
+  or the picker's `readAsByteStream`): it fails on them. Read `blob:` addresses in pieces (`readBlobHead`, `UrlSource`).
   MP3, FLAC, GIF and merge aren't planned yet: they need extra encoders or a compose step. Only MP4, MOV,
   MKV and WebM open: Mediabunny doesn't list AVI or 3GP.
 - Streams are copied only when the codec is what people expect in that format. A container may allow MP3
@@ -158,7 +161,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Drag files onto the window. Video preview for trim.
+3. Video preview for trim. Dropping folders.
 4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
 5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
