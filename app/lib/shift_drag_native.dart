@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
 
-/// `MainFlutterWindow.swift` on the other side.
+/// `MainFlutterWindow.swift` or `shift_drag.cpp` on the other side.
 const shiftDragChannel = MethodChannel('radial/shift_drag');
 
 /// Answers the system-wide Shift-drag menu: what these files can become, and what was chosen. Returns
@@ -13,7 +13,7 @@ void Function() listenForShiftDrag({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
   required void Function(RadialAction action, List<String> paths) chosen,
 }) {
-  if (!Platform.isMacOS) return () {};
+  if (!Platform.isMacOS && !Platform.isWindows) return () {};
   shiftDragChannel.setMethodCallHandler((call) async {
     final arguments = call.arguments as Map;
     final paths = (arguments['paths'] as List).cast<String>();
@@ -59,5 +59,5 @@ Future<String> saveBesideOriginal(String originalPath, PortableFile file) async 
 
 /// Brings the window forward, as the user may have closed it or be in another app.
 void showAppWindow() {
-  if (Platform.isMacOS) shiftDragChannel.invokeMethod<void>('showWindow');
+  if (Platform.isMacOS || Platform.isWindows) shiftDragChannel.invokeMethod<void>('showWindow');
 }

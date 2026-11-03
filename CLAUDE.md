@@ -113,7 +113,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   (`_menuFor`) and runs the choice, and results save beside the original. Actions that ask first aren't offered.
   Closing the window leaves the app running. `app/tool/check_shift_drag.sh` tests what it can without a real drag;
   nobody has dragged from Finder with it yet.
-- Not started: Shift-drag on Windows, video preview for trim.
+- Shift-drag on Windows: `windows/runner/shift_drag.cpp`. Windows has no drag pasteboard, so while Shift and the left
+  button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
+  plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.
+- Not started: video preview for trim, tray icon.
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
   video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
   service yet.
@@ -169,7 +172,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
 3. Video preview for trim. Dropping folders.
-4. Shift-drag on Windows (C++). Try the macOS one from Finder.
+4. Try Shift-drag from Finder and from Explorer in the Windows VM.
 5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
