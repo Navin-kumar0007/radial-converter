@@ -126,14 +126,13 @@ void main() {
       await pump(tester);
       final path = aPhoto('photo.png');
       final before = File(path).readAsBytesSync();
-      await tester.runAsync(() async {
-        chosen(actionById('image-to-jpg')!, [path]);
-        for (var i = 0; i < 50; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          if (File(p.join(folder.path, 'photo (converted).jpg')).existsSync()) break;
-        }
-      });
-      await tester.pump();
+      // Real file work, outside the test's fake clock. The screen updates just after the file lands.
+      await tester.runAsync(() async => chosen(actionById('image-to-jpg')!, [path]));
+      final saved = find.textContaining('Saved beside the original');
+      for (var i = 0; i < 250 && saved.evaluate().isEmpty; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
       final result = File(p.join(folder.path, 'photo (converted).jpg'));
       expect(result.existsSync(), isTrue);
       expect(detectKind(result.readAsBytesSync()), FileKind.jpg);
