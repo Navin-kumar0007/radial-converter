@@ -89,12 +89,40 @@ FileKind _detectZip(List<int> head, String ext) {
     final mime = _ascii(head, 38, 38 + FileKind.odt.mime.length);
     if (mime == FileKind.odt.mime) return FileKind.odt;
   }
-  final isOffice = _indexOf(head, '[Content_Types].xml') >= 0 || _indexOf(head, '_rels/.rels') >= 0;
-  if (!isOffice) return FileKind.zip;
-  if (_indexOf(head, 'word/') >= 0) return FileKind.docx;
-  if (_indexOf(head, 'ppt/') >= 0) return FileKind.pptx;
-  if (_indexOf(head, 'xl/') >= 0) return FileKind.xlsx;
-  // An Office file whose parts sit past the bytes we read: the name settles it.
+  if (_indexOf(head, '[Content_Types].xml') >= 0 || _indexOf(head, '_rels/.rels') >= 0) {
+    if (_indexOf(head, 'word/') >= 0) return FileKind.docx;
+    if (_indexOf(head, 'ppt/') >= 0) return FileKind.pptx;
+    if (_indexOf(head, 'xl/') >= 0) return FileKind.xlsx;
+    // An Office file whose parts sit past the bytes we read: the name settles it.
+    return _officeFromName(ext);
+  }
+  // Some writers put those markers last, past big pictures, so look for the main part instead.
+  for (final (part, kind) in _officeMainParts) {
+    if (_indexOf(head, part) >= 0) return kind;
+  }
+  return _startsLikeOffice(head) ? _officeFromName(ext) : FileKind.zip;
+}
+
+const _officeMainParts = [
+  ('word/document.xml', FileKind.docx),
+  ('word/_rels/document.xml.rels', FileKind.docx),
+  ('ppt/presentation.xml', FileKind.pptx),
+  ('ppt/_rels/presentation.xml.rels', FileKind.pptx),
+  ('xl/workbook.xml', FileKind.xlsx),
+  ('xl/_rels/workbook.xml.rels', FileKind.xlsx),
+];
+
+const _officeFolders = ['word/', 'ppt/', 'xl/', 'docProps/', 'customXml/'];
+
+/// True if the ZIP's first entry is in a folder only Office files use. Not enough alone, since
+/// anyone can zip a folder called `word`.
+bool _startsLikeOffice(List<int> head) {
+  if (head.length < 30) return false;
+  final name = _ascii(head, 30, 30 + (head[26] | head[27] << 8));
+  return _officeFolders.any(name.startsWith);
+}
+
+FileKind _officeFromName(String ext) {
   return switch (ext) {
     'docx' => FileKind.docx,
     'pptx' => FileKind.pptx,

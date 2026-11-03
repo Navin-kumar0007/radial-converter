@@ -133,6 +133,20 @@ void main() {
       expect(detectKind(zipEntry('[Content_Types].xml'), fileName: 'a.docx'), FileKind.docx);
       expect(detectKind(zipEntry('[Content_Types].xml'), fileName: 'a.bin'), FileKind.zip);
     });
+    test('Office parts first and the markers past what we read', () {
+      expect(detectKind(zipEntry('word/_rels/document.xml.rels')), FileKind.docx);
+      expect(detectKind(zipEntry('word/theme/theme1.xml', ['word/document.xml'])), FileKind.docx);
+      expect(detectKind(zipEntry('ppt/_rels/presentation.xml.rels')), FileKind.pptx);
+      expect(detectKind(zipEntry('xl/_rels/workbook.xml.rels')), FileKind.xlsx);
+    });
+    test('only big pictures in reach: the name settles it', () {
+      expect(detectKind(zipEntry('word/media/1.png'), fileName: 'a.docx'), FileKind.docx);
+      expect(detectKind(zipEntry('docProps/thumbnail.jpeg'), fileName: 'a.pptx'), FileKind.pptx);
+    });
+    test('a folder called word in an ordinary ZIP stays a ZIP', () {
+      expect(detectKind(zipEntry('word/notes.txt'), fileName: 'mine.zip'), FileKind.zip);
+      expect(detectKind(zipEntry('word/notes.txt')), FileKind.zip);
+    });
     test('a plain ZIP named .docx stays a ZIP', () {
       expect(detectKind(zipEntry('notes.txt'), fileName: 'report.docx'), FileKind.zip);
     });
