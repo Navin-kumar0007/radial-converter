@@ -14,21 +14,12 @@ Future<List<PickedFile>> pickFilesFromDevice() async {
       PickedFile(
         name: file.name,
         size: await file.length() ?? 0,
-        head: await _readHead(file),
+        head: await readPickedHead(file),
         read: file.readAsBytes,
         webUrl: kIsWeb ? file.uri.toString() : null,
         path: kIsWeb ? null : file.path,
       ),
   ];
-}
-
-Future<List<int>> _readHead(PlatformFile file) async {
-  final head = <int>[];
-  await for (final chunk in file.readAsByteStream()) {
-    head.addAll(chunk);
-    if (head.length >= detectHeadBytes) break;
-  }
-  return head.length <= detectHeadBytes ? head : head.sublist(0, detectHeadBytes);
 }
 
 /// Opens the system save dialog, or downloads the file in a browser. False if cancelled.

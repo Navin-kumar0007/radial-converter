@@ -4,7 +4,6 @@
 
 import {
   ALL_FORMATS,
-  BlobSource,
   BufferTarget,
   Conversion,
   Input,
@@ -15,6 +14,7 @@ import {
   Output,
   Quality,
   StreamTarget,
+  UrlSource,
   WavOutputFormat,
   WebMOutputFormat,
 } from './vendor/mediabunny/mediabunny.min.mjs';
@@ -28,9 +28,8 @@ async function storage() {
 }
 
 async function openInput(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
+  // Piece by piece. Asking for the whole file as a blob fails on very large files.
+  return new Input({ source: new UrlSource(url), formats: ALL_FORMATS });
 }
 
 async function probe(url) {
