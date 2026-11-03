@@ -13,6 +13,7 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/android_media.dart';
 import 'package:radialconverter/convert_native.dart';
 import 'package:radialconverter/picked_file.dart';
+import 'package:radialconverter/shared_files.dart';
 
 import 'clip_data.dart';
 
@@ -184,6 +185,19 @@ void main() {
     expect(top.r, greaterThan(200));
     expect(top.g, lessThan(60));
   });
+
+  // `tool/test_android_device.sh` keeps sharing a file with the app from outside it, as another
+  // app would, through the real share filter. See the debug-only TestShareProvider.
+  test('a file shared from another app arrives, by its own name', () async {
+    final shared = await listenForSharedFiles()
+        .firstWhere((event) => !event.receiving)
+        .timeout(const Duration(minutes: 5));
+    final file = shared.files.first;
+    expect(file.name, 'shared notes.srt');
+    expect(shared.failed, 0);
+    expect(utf8.decode(await file.read()), contains('From another app'));
+    expect(detectKind(file.head, fileName: file.name), FileKind.srt);
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   test('a damaged file fails in plain words', () async {
     final junk = p.join(p.dirname(clip), 'junk.mp4');

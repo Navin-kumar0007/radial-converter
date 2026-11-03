@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import 'drop_files.dart';
 import 'file_chip.dart';
 import 'option_screens.dart';
 import 'radial_menu.dart';
+import 'shared_files.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
 typedef DropReader = Future<List<PickedFile>> Function(List<DropItem> items);
@@ -66,6 +69,7 @@ class ConverterScreen extends StatefulWidget {
     this.pdfConverter = _defaultPdf,
     this.photoDecoder = decodeHeic,
     this.dropReader = readDroppedFiles,
+    this.sharedFiles = listenForSharedFiles,
     this.mediaAvailable,
     this.acceptsDrops,
   });
@@ -77,6 +81,9 @@ class ConverterScreen extends StatefulWidget {
   final PdfConverter pdfConverter;
   final PhotoDecoder photoDecoder;
   final DropReader dropReader;
+
+  /// What other apps share with this one. Called once.
+  final Stream<SharedFiles> Function() sharedFiles;
 
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
@@ -103,6 +110,34 @@ class _ConverterScreenState extends State<ConverterScreen> {
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.windows);
   bool _dragging = false;
+  bool _receiving = false;
+  late final StreamSubscription<SharedFiles> _shares;
+
+  @override
+  void initState() {
+    super.initState();
+    _shares = widget.sharedFiles().listen(_shared);
+  }
+
+  @override
+  void dispose() {
+    _shares.cancel();
+    super.dispose();
+  }
+
+  void _shared(SharedFiles shared) {
+    if (!mounted) return;
+    setState(() => _receiving = shared.receiving);
+    if (shared.receiving) return;
+    _open(shared.files);
+    if (shared.failed > 0) {
+      _say(
+        shared.files.isEmpty
+            ? 'What was shared could not be opened. Only files can be converted.'
+            : 'Some of what was shared could not be opened.',
+      );
+    }
+  }
 
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -371,6 +406,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     label: Text(_files.isEmpty ? 'Choose files' : 'Choose other files'),
                   ),
                 ),
+                if (_receiving) ...[
+                  const SizedBox(height: 24),
+                  const Center(child: CircularProgressIndicator()),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Getting what you shared...',
+                    style: styles.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 if (_files.isEmpty && _acceptsDrops) ...[
                   const SizedBox(height: 12),
                   Text(
