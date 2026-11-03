@@ -38,7 +38,13 @@ const _picturesNote = 'Pages are now pictures, so text can\'t be selected.';
 const _pictureDpi = 150.0;
 
 /// Tried in turn to fit a size limit: sharpest first.
-const _shrinkSteps = [(150.0, 70), (120.0, 55), (96.0, 45), (72.0, 35), (72.0, 20), (50.0, 20)];
+///
+/// The last is about the limit of what can still be read, so it stops there rather than make a
+/// file that fits but is useless.
+const _shrinkSteps = [(150.0, 70), (120.0, 55), (96.0, 45), (72.0, 35)];
+
+/// A few pages are tried first, because drawing every page for each step takes minutes.
+const _samplePages = 3;
 
 int _sourceCounter = 0;
 
@@ -117,17 +123,33 @@ Future<PdfResult> _one(
       final bytes = await document.encodePdf();
       return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes));
     case 'pdf-compress':
-      final (dpi, quality) = _shrinkSteps.first;
-      final bytes = await _asPictures(file, document, dpi, quality, step);
-      if (bytes.length >= file.bytes.length) {
-        throw const EngineFailed('This PDF is already as small as it can usefully get.');
-      }
-      return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes), note: _picturesNote);
+      return _compress(action, file, document, step);
   }
   return _fit(action, file, document, step);
 }
 
-/// Keeps the PDF as it is if it already fits. Otherwise shrinks it step by step.
+/// Uses the sharpest step that a few sample pages suggest will really help. Pages that are mostly
+/// text are small already, and pictures of them can come out larger, so that takes a lower step.
+Future<PdfResult> _compress(
+  RadialAction action,
+  PortableFile file,
+  PdfDocument document,
+  void Function(double) step,
+) async {
+  final original = file.bytes.length;
+  for (final (dpi, quality) in _shrinkSteps) {
+    // Only worth losing selectable text for a real saving.
+    if (await _estimateBytes(document, dpi, quality) > original * 0.9) continue;
+    final bytes = await _asPictures(file, document, dpi, quality, step);
+    if (bytes.length < original) {
+      return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes), note: _picturesNote);
+    }
+  }
+  throw const EngineFailed('This PDF is already as small as it can usefully get.');
+}
+
+/// Keeps the PDF as it is if it already fits. Otherwise shrinks it, going straight to the first
+/// step that a few sample pages suggest will fit, and says so at once if none will.
 Future<PdfResult> _fit(
   RadialAction action,
   PortableFile file,
@@ -139,14 +161,32 @@ Future<PdfResult> _fit(
   final same = await document.encodePdf();
   if (same.length <= limit) return PdfResult(PortableFile(name, same));
 
-  for (var i = 0; i < _shrinkSteps.length; i++) {
-    final (dpi, quality) = _shrinkSteps[i];
-    final bytes = await _asPictures(file, document, dpi, quality, (progress) {
-      step((i + progress) / _shrinkSteps.length);
-    });
+  final total = document.pages.length;
+  for (final (dpi, quality) in _shrinkSteps) {
+    final estimate = await _estimateBytes(document, dpi, quality);
+    // Sample pages are only a guide, so a near miss is still worth trying.
+    if (estimate > limit * 1.15) continue;
+    final bytes = await _asPictures(file, document, dpi, quality, step);
     if (bytes.length <= limit) return PdfResult(PortableFile(name, bytes), note: _picturesNote);
   }
-  throw EngineFailed('This PDF has too many pages to fit "${action.label}" and still be readable.');
+  throw EngineFailed(
+    '${total == 1 ? 'This page has' : 'These $total pages have'} too much in them to fit '
+    '"${action.label}" and still be readable. Try a larger limit, or Compress.',
+  );
+}
+
+/// Roughly how big the whole PDF would be, from pages spread through it.
+Future<int> _estimateBytes(PdfDocument document, double dpi, int quality) async {
+  final total = document.pages.length;
+  final count = total < _samplePages ? total : _samplePages;
+  var bytes = 0;
+  for (var i = 0; i < count; i++) {
+    final picture = await _draw(document.pages[i * total ~/ count], dpi);
+    if (picture == null) continue;
+    await _breathe();
+    bytes += img.encodeJpg(picture, quality: quality).length;
+  }
+  return count == 0 ? 0 : bytes * total ~/ count;
 }
 
 /// Draws one page at [dpi], on white. Null if PDFium could not draw it.

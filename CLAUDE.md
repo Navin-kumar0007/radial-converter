@@ -84,6 +84,9 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   PNG, merge, split, rotate, compress, under a size limit. Compress and size limits redraw pages as
   pictures, because that is the only way to shrink a scan, and the result says text can't be selected.
   Passwords and page picking need screens; adding a password needs qpdf, since PDFium can't.
+  Size limits try a few sample pages first, because redrawing all of a long PDF per step takes minutes,
+  and they stop at 72 dpi rather than produce something unreadable. It works on the page in a browser, so
+  long PDFs stutter; moving JPEG encoding into the worker would fix that.
 - Tested for real: web in Chrome; the desktop path through its tests against the shipping macOS FFmpeg.
   No one has yet run the macOS, Windows or Android apps themselves.
 - Desktop only, command line only so far: libvips, qpdf and bsdtar in `lib/engines.dart`. Not bundled with
@@ -135,7 +138,8 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Android video and audio: Media3 Transformer in Kotlin, following the same `MediaPlan`.
-3. Screens for trim, crop and subtitle shift. Drag files onto the window.
+3. Screens for trim, crop and subtitle shift. Drag files onto the window. Some real DOCX files read as ZIP
+   because their parts sit past the first 64 KB: detection should also read the end of a ZIP.
 4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
 5. HEIC on every platform, and archives (the `archive` package is already in). PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.

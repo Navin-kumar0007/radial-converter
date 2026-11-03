@@ -217,7 +217,7 @@ void main() {
     test('too many pages to fit says so rather than making it unreadable', () async {
       await expectLater(
         run('fit-pdf-100kb', [pdf('doc.pdf', 40, width: 300, height: 400)]),
-        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('too many'))),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('too much'))),
       );
     }, timeout: const Timeout(Duration(minutes: 2)));
   });
