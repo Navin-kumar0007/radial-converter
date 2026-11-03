@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
 import 'package:test/test.dart';
@@ -78,11 +79,11 @@ void main() {
       (action) => action.accepts.any((kind) => canRunPortably(action, kind)),
     );
 
-    test('images and subtitles do, and nothing else', () {
+    test('images, subtitles and archives do, and nothing else', () {
       for (final action in portable) {
         final families = action.accepts.map((kind) => kind.family).toSet();
         expect(
-          families.intersection({FileFamily.image, FileFamily.subtitle}),
+          families.intersection({FileFamily.image, FileFamily.subtitle, FileFamily.archive}),
           isNotEmpty,
           reason: action.id,
         );
@@ -102,17 +103,22 @@ void main() {
       expect(canRunPortably(actionById('pdf-merge')!, FileKind.pdf), isFalse);
     });
 
-    test('every portable action really runs on a JPG or an SRT', () async {
+    test('every portable action really runs on a JPG, an SRT or a ZIP', () async {
       const srt = '1\n00:00:01,000 --> 00:00:02,000\nHi\n';
       const options = ActionOptions(
         crop: (left: 0, top: 0, width: 10, height: 10),
         shift: Duration(seconds: 1),
       );
       for (final action in portable) {
-        final isSubtitle = action.accepts.contains(FileKind.srt);
-        final file = isSubtitle
-            ? PortableFile('a.srt', utf8.encode(srt))
-            : PortableFile('a.jpg', jpg);
+        final PortableFile file;
+        if (action.accepts.contains(FileKind.srt)) {
+          file = PortableFile('a.srt', utf8.encode(srt));
+        } else if (action.accepts.contains(FileKind.zip)) {
+          final archive = Archive()..addFile(ArchiveFile.string('a.txt', 'x'));
+          file = PortableFile('a.zip', ZipEncoder().encodeBytes(archive));
+        } else {
+          file = PortableFile('a.jpg', jpg);
+        }
         final outputs = await runPortable(action, [file], options: options);
         expect(outputs.single.bytes, isNotEmpty, reason: action.id);
       }

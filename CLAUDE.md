@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 425 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 114 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `integration_test/` runs the real Android engine on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 456 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 117 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `integration_test/` runs the real Android engine on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
@@ -81,6 +81,11 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   bundled LGPL FFmpeg, saving beside the original. Android: `MediaEngine.kt` with Media3 Transformer and the
   phone's encoders, saving through the system dialog. It writes only MP4 and M4A (`phoneMediaOutputs`), so the
   phone's menu leaves out WebM, MOV, WAV and Opus.
+- Archives on every platform through `core/lib/src/portable_archive.dart` (pure Dart, `archive` package, MIT):
+  ZIP, TAR, TAR.GZ and GZ to ZIP or TAR.GZ, and Extract. Extract gives each file its own Save button, flat, up to
+  50 files, since a browser or phone can't simply save a folder. Saving a whole folder needs screens per platform.
+  It refuses `../` paths and stops past 1 GB opened, counting what really comes out. 7z and RAR are not read,
+  and 7z not written, until libarchive is bundled.
 - HEIC: each platform decodes it to a PNG, then the picture engine takes over (`canRunDecoded`). Desktop: the
   bundled FFmpeg. Android: `ImageDecoder`, Android 9 or newer. Web: `heic_worker.js` with libheif-js. Tested on
   a made-up photo, not yet a real iPhone one. FFmpeg and libheif ignore the colour profile, so a wide-colour
@@ -151,10 +156,9 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Screens for trim, crop and subtitle shift. Drag files onto the window. Some real DOCX files read as ZIP
-   because their parts sit past the first 64 KB: detection should also read the end of a ZIP.
+3. Screens for trim, crop and subtitle shift. Drag files onto the window.
 4. Real triggers per platform: Shift-drag on macOS (Swift) and Windows (C++), sharing on Android.
-5. Archives (the `archive` package is already in). PDF password screens.
+5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.

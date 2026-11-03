@@ -54,7 +54,7 @@ String _kindName(FileKind kind) {
     FileFamily.video => 'Videos on this device',
     FileFamily.audio => 'Audio on this device',
     FileFamily.document => '${kind.extension.toUpperCase()} documents',
-    FileFamily.archive => 'Archives',
+    FileFamily.archive => '${kind.extension.toUpperCase()} archives',
     FileFamily.folder => 'Folders',
     FileFamily.image => '${kind.extension.toUpperCase()} pictures',
     FileFamily.subtitle => 'Subtitles',

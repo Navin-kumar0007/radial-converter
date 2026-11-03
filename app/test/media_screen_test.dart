@@ -287,4 +287,36 @@ void main() {
       expect(find.textContaining('Android 9'), findsOneWidget);
     });
   });
+
+  testWidgets('files from one archive show their own size, not a comparison', (tester) async {
+    final zip = Uint8List.fromList(const [
+      0x50,
+      0x4B,
+      0x03,
+      0x04,
+      ...[0, 0, 0, 0, 0, 0, 0, 0],
+    ]);
+    final file = PickedFile(name: 'box.zip', size: 5000, head: zip, read: () async => zip);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConverterScreen(
+          pickFiles: () async => [file],
+          saveFile: (file) async => true,
+          mediaAvailable: false,
+          converter: (action, files, onProgress) async => [
+            PortableFile('a.txt', Uint8List(2048)),
+            PortableFile('b.txt', Uint8List(4096)),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('Choose files'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    await selectFirstSlice(tester);
+    await tester.pumpAndSettle();
+    expect(find.text('2 KB'), findsOneWidget);
+    expect(find.text('4 KB'), findsOneWidget);
+    expect(find.textContaining(' to '), findsNothing);
+  });
 }

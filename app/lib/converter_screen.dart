@@ -33,7 +33,9 @@ class _Job {
   _Job(this.name, this.bytesBefore);
 
   final String name;
-  final int bytesBefore;
+
+  /// What this result can fairly be compared with. Null for one of many files from one archive.
+  final int? bytesBefore;
   FileChipState state = FileChipState.working;
   double? progress;
   ConvertedFile? output;
@@ -198,7 +200,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       setState(() {
         _jobs = [
           for (var i = 0; i < outputs.length; i++)
-            _Job(outputs[i].name, outputs.length == files.length ? files[i].size : before)
+            _Job(outputs[i].name, _comparedWith(outputs.length, files, i, before))
               ..state = FileChipState.done
               ..output = outputs[i]
               ..saved = outputs[i].savedPath != null,
@@ -221,6 +223,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ..message = 'Something went wrong. This file could not be converted.';
       });
     }
+  }
+
+  int? _comparedWith(int outputCount, List<PickedFile> files, int index, int before) {
+    if (outputCount == files.length) return files[index].size;
+    return outputCount < files.length ? before : null;
   }
 
   String _workingName() {
@@ -356,9 +363,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget _buildChip(_Job job) {
     final output = job.output;
     final note = output?.note;
+    final before = job.bytesBefore;
     final sizes = output == null
         ? null
-        : '${formatBytes(job.bytesBefore)} to ${formatBytes(output.size)}'
+        : '${before == null ? '' : '${formatBytes(before)} to '}${formatBytes(output.size)}'
               '${note == null ? '' : '\n$note'}';
     return FileChip(
       name: job.name,

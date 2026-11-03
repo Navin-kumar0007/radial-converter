@@ -413,6 +413,20 @@ void main() {
       );
     });
 
+    test('archives need no engine, but 7z and RAR wait for one', () {
+      List<String> ids(FileKind kind) {
+        return [
+          for (final mode in ActionMode.values)
+            for (final action in availableActions([kind], mode, mediaAvailable: false)) action.id,
+        ];
+      }
+
+      expect(ids(FileKind.zip), containsAll(['archive-to-targz', 'archive-extract']));
+      expect(ids(FileKind.zip), isNot(contains('archive-to-7z')));
+      expect(ids(FileKind.sevenZip), isEmpty);
+      expect(ids(FileKind.rar), isEmpty);
+    });
+
     test('a HEIC photo can join other pictures, given the engine that reads it', () {
       const kinds = [FileKind.jpg, FileKind.heic];
       final ids = availableActions(
@@ -448,6 +462,7 @@ void main() {
 
     test('PDF', () => expect(say(const [FileKind.pdf]), contains('PDF files')));
     test('HEIC', () => expect(say(const [FileKind.heic]), contains('HEIC pictures')));
+    test('7z', () => expect(say(const [FileKind.sevenZip]), contains('7Z archives')));
     test('Word', () => expect(say(const [FileKind.docx]), contains('DOCX documents')));
     test('a mix', () => expect(say(const [FileKind.pdf, FileKind.jpg]), contains('together')));
     test('unknown', () => expect(say(const [FileKind.unknown]), contains('isn\'t supported')));

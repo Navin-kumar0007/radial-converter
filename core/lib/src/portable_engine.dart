@@ -9,6 +9,7 @@ import 'detect.dart';
 import 'file_kind.dart';
 import 'naming.dart';
 import 'pdf_writer.dart';
+import 'portable_archive.dart';
 import 'size_target.dart';
 import 'subtitles.dart';
 
@@ -51,6 +52,7 @@ const _combines = {'images-to-pdf'};
 bool canRunPortably(RadialAction action, FileKind kind) {
   if (!action.accepts.contains(kind)) return false;
   if (kind.family == FileFamily.subtitle) return true;
+  if (kind.family == FileFamily.archive) return canRunArchive(action, kind);
   return _readable.contains(kind) && _writable.contains(action.outputFor(kind));
 }
 
@@ -98,6 +100,11 @@ Future<List<PortableFile>> runPortable(
   final outputs = <PortableFile>[];
   for (var i = 0; i < files.length; i++) {
     void step(double progress) => onProgress?.call((i + progress) / files.length);
+    if (kinds[i].family == FileFamily.archive) {
+      outputs.addAll(runArchive(action, files[i], kinds[i]));
+      step(1);
+      continue;
+    }
     final kind = _outputKind(action, files[i], kinds[i]);
     final bytes = kinds[i].family == FileFamily.subtitle
         ? _subtitles(action, files[i], kinds[i], options)
