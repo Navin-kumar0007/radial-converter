@@ -11,9 +11,14 @@ import 'file_chip.dart';
 import 'option_screens.dart';
 import 'radial_menu.dart';
 import 'shared_files.dart';
+import 'shift_drag.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
 typedef DropReader = Future<List<PickedFile>> Function(List<DropItem> items);
+typedef ShiftDragListener = void Function() Function({
+  required Future<List<RadialAction>> Function(List<String> paths) menuFor,
+  required void Function(RadialAction action, List<String> paths) chosen,
+});
 typedef FileSaver = Future<bool> Function(PortableFile file);
 typedef Converter = Future<List<PortableFile>> Function(
   RadialAction action,
@@ -36,6 +41,9 @@ typedef MediaConverter = Future<List<ConvertedFile>> Function(
   ConvertControl control,
   ActionOptions options,
 );
+
+/// As many slices as the Shift-drag menu can label readably.
+const _shiftDragSlices = 8;
 
 class _Job {
   _Job(this.name, this.bytesBefore);
@@ -70,6 +78,7 @@ class ConverterScreen extends StatefulWidget {
     this.photoDecoder = decodeHeic,
     this.dropReader = readDroppedFiles,
     this.sharedFiles = listenForSharedFiles,
+    this.shiftDrag = listenForShiftDrag,
     this.mediaAvailable,
     this.acceptsDrops,
   });
@@ -84,6 +93,9 @@ class ConverterScreen extends StatefulWidget {
 
   /// What other apps share with this one. Called once.
   final Stream<SharedFiles> Function() sharedFiles;
+
+  /// Starts listening for the system-wide Shift-drag menu, and returns how to stop.
+  final ShiftDragListener shiftDrag;
 
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
@@ -112,17 +124,81 @@ class _ConverterScreenState extends State<ConverterScreen> {
   bool _dragging = false;
   bool _receiving = false;
   late final StreamSubscription<SharedFiles> _shares;
+  late final void Function() _stopShiftDrag;
 
   @override
   void initState() {
     super.initState();
     _shares = widget.sharedFiles().listen(_shared);
+    _stopShiftDrag = widget.shiftDrag(menuFor: _menuFor, chosen: _chosenFromShiftDrag);
   }
 
   @override
   void dispose() {
     _shares.cancel();
+    _stopShiftDrag();
     super.dispose();
+  }
+
+  /// What the Shift-drag menu offers. It has room for few slices, and a drag can't stop to ask
+  /// questions, so actions that ask first are left out.
+  Future<List<RadialAction>> _menuFor(List<String> paths) async {
+    final List<PickedFile> files;
+    try {
+      files = await widget.dropReader([for (final path in paths) DropItemFile(path)]);
+    } catch (_) {
+      return const [];
+    }
+    final kinds = [for (final file in files) detectKind(file.head, fileName: file.name)];
+    return availableActions(
+      kinds,
+      ActionMode.convert,
+      mediaAvailable: _mediaAvailable,
+      mediaOutputs: mediaOutputsHere(),
+    ).where((action) => !needsOptions(action)).take(_shiftDragSlices).toList();
+  }
+
+  /// A slice was chosen outside the window, so results go straight beside the originals.
+  Future<void> _chosenFromShiftDrag(RadialAction action, List<String> paths) async {
+    final List<PickedFile> files;
+    try {
+      files = await widget.dropReader([for (final path in paths) DropItemFile(path)]);
+    } catch (_) {
+      showAppWindow();
+      if (mounted) _say('These files could not be opened. Try again.');
+      return;
+    }
+    if (!mounted) return;
+    _open(files);
+    await _start(action, const ActionOptions(), saveBeside: true);
+  }
+
+  /// Saves results held in memory next to what they came from. Video is already there.
+  Future<List<ConvertedFile>> _saveBeside(
+    List<ConvertedFile> outputs,
+    List<PickedFile> files,
+  ) async {
+    final saved = <ConvertedFile>[];
+    for (var i = 0; i < outputs.length; i++) {
+      final output = outputs[i];
+      final inMemory = output.inMemory;
+      final original = files[outputs.length == files.length ? i : 0].path;
+      if (inMemory == null || original == null) {
+        saved.add(output);
+        continue;
+      }
+      final path = await saveBesideOriginal(original, inMemory);
+      saved.add(
+        ConvertedFile(
+          name: output.name,
+          size: output.size,
+          inMemory: inMemory,
+          savedPath: path,
+          note: output.note,
+        ),
+      );
+    }
+    return saved;
   }
 
   void _shared(SharedFiles shared) {
@@ -298,7 +374,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return png.single.bytes;
   }
 
-  Future<void> _start(RadialAction action, ActionOptions options) async {
+  Future<void> _start(RadialAction action, ActionOptions options, {bool saveBeside = false}) async {
     final before = _files.fold<int>(0, (sum, file) => sum + file.size);
     final files = _files;
     final jobs = [_Job(_workingName(), before)];
@@ -311,7 +387,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
     final job = jobs.single;
     try {
-      final outputs = await _run(
+      var outputs = await _run(
         action,
         files,
         _kinds,
@@ -321,6 +397,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         control,
         options,
       );
+      if (saveBeside) outputs = await _saveBeside(outputs, files);
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         _jobs = [
@@ -334,6 +411,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     } on JobCancelled {
       // The screen already moved on.
     } on EngineFailed catch (error) {
+      if (saveBeside) showAppWindow();
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         job
@@ -341,6 +419,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ..message = error.message;
       });
     } catch (error) {
+      if (saveBeside) showAppWindow();
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         job

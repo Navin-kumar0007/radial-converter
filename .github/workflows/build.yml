@@ -138,6 +138,8 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Check Shift-drag
+        run: app/tool/check_shift_drag.sh
       - name: Build
         working-directory: app
         run: flutter build macos --release
