@@ -174,8 +174,25 @@ List<PortableFile> _extract(PortableFile file, List<ArchiveFile> entries) {
   final used = <String>{};
   return [
     for (final entry in files)
-      PortableFile(_freeName(_lastPart(entry.name), used), entry.readBytes() ?? Uint8List(0)),
+      PortableFile(
+        _freeName(_lastPart(entry.name), used, 'extracted'),
+        entry.readBytes() ?? Uint8List(0),
+      ),
   ];
+}
+
+/// Results together in one ZIP, for places that would otherwise ask where to save each one. They
+/// are stored as they are: pictures and PDFs barely shrink, and this runs while the user waits.
+PortableFile zipFiles(List<PortableFile> files) {
+  final archive = Archive();
+  final used = <String>{};
+  for (final file in files) {
+    archive.addFile(
+      ArchiveFile.bytes(_freeName(file.name, used, 'copy'), file.bytes)
+        ..compression = CompressionType.none,
+    );
+  }
+  return PortableFile('converted files.zip', ZipEncoder().encodeBytes(archive));
 }
 
 String _lastPart(String name) => name.split(RegExp(r'[/\\]')).last;
@@ -184,12 +201,12 @@ bool _isMacClutter(String name) {
   return name.split('/').first == '__MACOSX' || _lastPart(name) == '.DS_Store';
 }
 
-String _freeName(String name, Set<String> used) {
+String _freeName(String name, Set<String> used, String suffix) {
   final free = used.contains(name)
       ? freeOutputName(
           inputName: name,
           extension: splitFileName(name).extension,
-          suffix: 'extracted',
+          suffix: suffix,
           exists: used.contains,
         )
       : name;

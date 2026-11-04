@@ -32,7 +32,7 @@ Stream<SharedFiles> listenOnShareChannel() {
           final files = <PickedFile>[];
           for (final path in paths) {
             try {
-              files.addAll(await readDroppedFiles([DropItemFile(path)]));
+              files.addAll((await readDroppedFiles([DropItemFile(path)])).loose);
             } on FileSystemException {
               failed++;
             }

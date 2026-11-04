@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
@@ -57,10 +59,11 @@ void main() {
     saveWorks = true;
   });
 
-  Future<void> pump(WidgetTester tester, {Converter? converter}) async {
+  Future<void> pump(WidgetTester tester, {Converter? converter, bool? savesBeside}) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ConverterScreen(
+          savesBeside: savesBeside,
           pickFiles: () async => toPick,
           saveFile: (file) async {
             if (saveWorks) saved.add(file);
@@ -251,6 +254,135 @@ void main() {
     await settleWork(tester);
     expect(find.textContaining('too large'), findsOneWidget);
     expect(reads, 0);
+  });
+
+  testWidgets('files too large for memory only together say so, without reading them', (
+    tester,
+  ) async {
+    var reads = 0;
+    final half = maxInMemoryBytes ~/ 2 + 1;
+    toPick = [
+      picked('a.jpg', jpeg(), size: half, onRead: () => reads++),
+      picked('b.jpg', jpeg(), size: half, onRead: () => reads++),
+    ];
+    await pump(tester);
+    await chooseFiles(tester);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(find.textContaining('too large to convert together'), findsOneWidget);
+    expect(reads, 0);
+  });
+
+  group('saving many results at once', () {
+    final saveAll = find.textContaining('Save all');
+
+    testWidgets('one result has only its own Save', (tester) async {
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.byTooltip('Save'), findsOneWidget);
+      expect(saveAll, findsNothing);
+    });
+
+    testWidgets('many results go into one ZIP, with one question', (tester) async {
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg())];
+      await pump(tester, savesBeside: false);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.text('Save all as one ZIP'), findsOneWidget);
+      await tester.ensureVisible(saveAll);
+      await tester.tap(saveAll);
+      await settleWork(tester);
+      expect(saved, hasLength(1));
+      expect(saved.single.name, 'converted files.zip');
+      expect(detectKind(saved.single.bytes), FileKind.zip);
+      expect(ZipDecoder().decodeBytes(saved.single.bytes).files, hasLength(2));
+      expect(find.textContaining('Saved.'), findsNWidgets(2));
+      expect(saveAll, findsNothing);
+    });
+
+    testWidgets('a cancelled ZIP dialog leaves them unsaved', (tester) async {
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg())];
+      await pump(tester, savesBeside: false);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      saveWorks = false;
+      await tester.ensureVisible(saveAll);
+      await tester.tap(saveAll);
+      await settleWork(tester);
+      expect(find.textContaining('Saved.'), findsNothing);
+      expect(saveAll, findsOneWidget);
+      expect(
+        tester
+            .widget<ButtonStyleButton>(
+              find.ancestor(of: saveAll, matching: find.bySubtype<ButtonStyleButton>()),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('one already saved is not saved again', (tester) async {
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg()), picked('c.jpg', jpeg())];
+      await pump(tester, savesBeside: false);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.ensureVisible(find.byTooltip('Save').first);
+      await tester.tap(find.byTooltip('Save').first);
+      await settleWork(tester);
+      expect(saved, hasLength(1));
+      await tester.ensureVisible(saveAll);
+      await tester.tap(saveAll);
+      await settleWork(tester);
+      expect(saved, hasLength(2));
+      expect(ZipDecoder().decodeBytes(saved.last.bytes).files, hasLength(2));
+    });
+
+    testWidgets('on a desktop each goes beside its own original, with no question', (tester) async {
+      final folder = Directory.systemTemp.createTempSync('radial_save_all_');
+      addTearDown(() => folder.deleteSync(recursive: true));
+      final one = Directory(p.join(folder.path, 'one'))..createSync();
+      final two = Directory(p.join(folder.path, 'two'))..createSync();
+      final bytes = jpeg();
+      PickedFile onDisk(Directory where) {
+        final path = p.join(where.path, 'same.jpg');
+        File(path).writeAsBytesSync(bytes);
+        return PickedFile(
+          name: 'same.jpg',
+          size: bytes.length,
+          head: bytes,
+          read: () async => bytes,
+          path: path,
+        );
+      }
+
+      toPick = [onDisk(one), onDisk(two)];
+      await pump(tester, savesBeside: true);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.text('Save all beside the originals'), findsOneWidget);
+      await tester.ensureVisible(saveAll);
+      await tester.tap(saveAll);
+      final done = find.textContaining('Saved beside the original');
+      for (var i = 0; i < 250 && done.evaluate().length < 2; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+      expect(done, findsNWidgets(2));
+      expect(saved, isEmpty);
+      for (final where in [one, two]) {
+        final names = where.listSync().map((e) => p.basename(e.path)).toSet();
+        expect(names, hasLength(2), reason: '$names');
+        expect(names, contains('same.jpg'));
+        expect(File(p.join(where.path, 'same.jpg')).readAsBytesSync(), bytes);
+      }
+      expect(saveAll, findsNothing);
+    });
   });
 
   testWidgets('a file that cannot be read says so', (tester) async {

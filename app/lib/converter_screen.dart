@@ -14,7 +14,7 @@ import 'shared_files.dart';
 import 'shift_drag.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
-typedef DropReader = Future<List<PickedFile>> Function(List<DropItem> items);
+typedef DropReader = Future<DroppedFiles> Function(List<DropItem> items);
 typedef ShiftDragListener = void Function() Function({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
   required void Function(RadialAction action, List<String> paths) chosen,
@@ -81,6 +81,7 @@ class ConverterScreen extends StatefulWidget {
     this.shiftDrag = listenForShiftDrag,
     this.mediaAvailable,
     this.acceptsDrops,
+    this.savesBeside,
   });
 
   final FilesPicker pickFiles;
@@ -104,6 +105,10 @@ class ConverterScreen extends StatefulWidget {
   /// drag onto, and sharing is how files arrive there.
   final bool? acceptsDrops;
 
+  /// Whether many results can go straight beside their originals. Null asks the platform: a phone's
+  /// copies sit in a cache nobody would look in, and a browser has no folders to write to.
+  final bool? savesBeside;
+
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
 }
@@ -121,6 +126,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
       (kIsWeb ||
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.windows);
+  late final bool _savesBeside =
+      widget.savesBeside ??
+      (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.windows));
+  bool _savingAll = false;
   bool _dragging = false;
   bool _receiving = false;
   late final StreamSubscription<SharedFiles> _shares;
@@ -145,7 +156,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<List<RadialAction>> _menuFor(List<String> paths) async {
     final List<PickedFile> files;
     try {
-      files = await widget.dropReader([for (final path in paths) DropItemFile(path)]);
+      files = (await _readDrop([for (final path in paths) DropItemFile(path)])).files;
     } catch (_) {
       return const [];
     }
@@ -162,7 +173,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<void> _chosenFromShiftDrag(RadialAction action, List<String> paths) async {
     final List<PickedFile> files;
     try {
-      files = await widget.dropReader([for (final path in paths) DropItemFile(path)]);
+      files = (await _readDrop([for (final path in paths) DropItemFile(path)])).files;
     } catch (_) {
       showAppWindow();
       if (mounted) _say('These files could not be opened. Try again.');
@@ -187,18 +198,19 @@ class _ConverterScreenState extends State<ConverterScreen> {
         saved.add(output);
         continue;
       }
-      final path = await saveBesideOriginal(original, inMemory);
-      saved.add(
-        ConvertedFile(
-          name: output.name,
-          size: output.size,
-          inMemory: inMemory,
-          savedPath: path,
-          note: output.note,
-        ),
-      );
+      saved.add(_savedAt(output, await saveBesideOriginal(original, inMemory)));
     }
     return saved;
+  }
+
+  ConvertedFile _savedAt(ConvertedFile output, String path) {
+    return ConvertedFile(
+      name: output.name,
+      size: output.size,
+      inMemory: output.inMemory,
+      savedPath: path,
+      note: output.note,
+    );
   }
 
   void _shared(SharedFiles shared) {
@@ -230,27 +242,55 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (mounted) _open(files);
   }
 
+  /// What a drop opens. Files from folders are narrowed to those that can go together.
+  Future<({List<PickedFile> files, int leftOut, DroppedFiles dropped})> _readDrop(
+    List<DropItem> items,
+  ) async {
+    final dropped = await widget.dropReader(items);
+    final inFolders = dropped.inFolders;
+    final kept = pickFromFolder([
+      for (final file in inFolders) detectKind(file.head, fileName: file.name),
+    ], canUse: _canUse);
+    return (
+      files: [...dropped.loose, for (final i in kept) inFolders[i]],
+      leftOut: inFolders.length - kept.length,
+      dropped: dropped,
+    );
+  }
+
+  bool _canUse(FileKind kind) {
+    return ActionMode.values.any((mode) {
+      return availableActions(
+        [kind],
+        mode,
+        mediaAvailable: _mediaAvailable,
+        mediaOutputs: mediaOutputsHere(),
+      ).isNotEmpty;
+    });
+  }
+
   /// Files dropped on the window, which then behave as if they had been chosen.
   Future<void> _dropped(List<DropItem> items) async {
-    final files = [
-      for (final item in items)
-        if (item is! DropItemDirectory) item,
-    ];
-    final leftOut = files.length < items.length;
-    if (files.isEmpty) {
-      if (leftOut) _say('Folders can\'t be dropped yet. Drop the files inside instead.');
-      return;
-    }
-    final List<PickedFile> read;
+    final ({List<PickedFile> files, int leftOut, DroppedFiles dropped}) read;
     try {
-      read = await widget.dropReader(files);
+      read = await _readDrop(items);
     } catch (_) {
       if (mounted) _say('These files could not be opened. Try again.');
       return;
     }
     if (!mounted) return;
-    _open(read);
-    if (leftOut) _say('Folders were left out. Drop the files inside them.');
+    if (read.files.isEmpty) {
+      if (read.dropped.folders > 0) _say('Nothing in that folder can be converted.');
+      return;
+    }
+    _open(read.files);
+    if (read.dropped.tooMany) {
+      _say('Only the first $maxFolderFiles files in that folder were looked at.');
+    } else if (read.leftOut == 1) {
+      _say('1 other file in that folder was left out.');
+    } else if (read.leftOut > 1) {
+      _say('${read.leftOut} other files in that folder were left out.');
+    }
   }
 
   void _open(List<PickedFile> files) {
@@ -266,13 +306,17 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   /// A failure message, or null if these files can be read into memory.
   String? _tooLarge() {
+    var total = 0;
     for (final file in _files) {
       if (file.size > maxInMemoryBytes) {
         return '${file.name} is too large to convert here (limit '
             '${formatBytes(maxInMemoryBytes)}).';
       }
+      total += file.size;
     }
-    return null;
+    if (total <= maxInMemoryBytes) return null;
+    return 'These files are too large to convert together (limit '
+        '${formatBytes(maxInMemoryBytes)}). Try fewer at a time.';
   }
 
   void _stopRunningJob() {
@@ -458,6 +502,51 @@ class _ConverterScreenState extends State<ConverterScreen> {
     setState(() => job.saved = true);
   }
 
+  /// Results that have no home yet and can be saved with others. Video brings its own way to save.
+  List<_Job> get _waitingToSave => [
+    for (final job in _jobs)
+      if (job.output?.inMemory != null && job.output?.savedPath == null && !job.saved) job,
+  ];
+
+  /// Beside the originals where there's a folder to write to. Elsewhere one ZIP, as each file would
+  /// otherwise ask where to go.
+  Future<void> _saveAll() async {
+    final waiting = _waitingToSave;
+    final jobs = _jobs;
+    setState(() => _savingAll = true);
+    try {
+      if (_savesBeside) {
+        for (final job in waiting) {
+          final output = job.output!;
+          final index = jobs.length == _files.length ? jobs.indexOf(job) : 0;
+          final path = await saveBesideOriginal(_files[index].path!, output.inMemory!);
+          if (!mounted) return;
+          setState(() {
+            job
+              ..output = _savedAt(output, path)
+              ..saved = true;
+          });
+        }
+      } else {
+        final saved = await widget.saveFile(
+          zipFiles([for (final job in waiting) job.output!.inMemory!]),
+        );
+        if (!mounted || !saved) return;
+        setState(() {
+          for (final job in waiting) {
+            job.saved = true;
+          }
+        });
+      }
+    } on EngineFailed catch (error) {
+      if (mounted) _say(error.message);
+    } catch (_) {
+      if (mounted) _say('These files could not be saved. Try again.');
+    } finally {
+      if (mounted) setState(() => _savingAll = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final styles = Theme.of(context).textTheme;
@@ -515,6 +604,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Center(child: _buildChip(job)),
+                  ),
+                if (_waitingToSave.length > 1)
+                  Center(
+                    child: FilledButton.tonalIcon(
+                      onPressed: _savingAll ? null : _saveAll,
+                      icon: const Icon(Icons.save_alt),
+                      label: Text(
+                        _savesBeside ? 'Save all beside the originals' : 'Save all as one ZIP',
+                      ),
+                    ),
                   ),
                 if (_files.isNotEmpty && !_menuOpen)
                   Center(

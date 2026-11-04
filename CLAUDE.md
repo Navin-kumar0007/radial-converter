@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 474 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 163 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 485 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 183 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
@@ -105,7 +105,12 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Crop, trim and subtitle shift ask first (`option_screens.dart`), and what is chosen reaches every engine.
   Crop has a frame to drag plus the same four numbers typed; trim takes typed times, as nothing plays video yet.
 - Files can be dropped on the window on macOS, Windows and web (`drop_files_*.dart`, `desktop_drop`, Apache), kept at
-  0.8.x because 0.9 needs a `cross_file` that `file_picker` doesn't allow. Folders aren't handled yet.
+  0.8.x because 0.9 needs a `cross_file` that `file_picker` doesn't allow. Folders open too, and Shift-drag takes them,
+  up to `maxFolderFiles` (200), without hidden files or links. The menu only offers what all files share, so a folder
+  keeps its biggest family that this device can run (`pickFromFolder`) and says how many it left out. Windows reports a
+  dropped folder as a file, so ask the disk, not the plugin. One unreadable picture still fails the whole batch.
+- Many results get one "Save all": beside the originals on a desktop, one ZIP (`zipFiles`) in a browser or on a phone.
+  Results not held in memory, such as browser and phone video, keep their own Save.
 - Android share menu: `ShareReceiver.kt` takes files from other apps, copies each into the cache, since engines need a
   real path, and the app opens as if they were chosen. Only `content:` addresses, and names lose any folders, since
   the sender may be hostile. `launchMode` is `singleTask`, or each share would open another copy of the app.
@@ -142,8 +147,11 @@ Engine decisions that differ from the plan or are easy to get wrong:
 - Lossless only for PDF (qpdf), so "under X KB" can fail on picture-heavy PDFs until PDFium arrives.
 - Passwords go to qpdf over stdin, never in arguments, which other processes can read.
 - The portable engine (`image` package, MIT) is the shared baseline; native engines add speed and
-  formats later. It works on whole files in memory: pictures up to 210 MP, files up to 1 GB
-  (`maxInMemoryBytes`). Video can't use this approach.
+  formats later. It works on whole files in memory: pictures up to 210 MP, up to 1 GB across all the
+  files in a job (`maxInMemoryBytes`). Video can't use this approach.
+- The macOS FFmpeg holds Apple Silicon and Intel, as the app does, and asks for macOS 12 like the app.
+  Set `MACOSX_DEPLOYMENT_TARGET` or it asks for whatever built it. It needs `nasm`. This Mac has no
+  Rosetta, so only the `macos-intel` CI job can run the Intel half.
 - In a browser, conversions run in a Web Worker (`app/web_worker/convert_worker.dart`), compiled into
   `app/web/convert_worker.js`, which is checked in. After changing conversions in `core/`, run
   `app/tool/build_worker.sh` or browser tests use the old code; release builds run it for you.
@@ -171,7 +179,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Video preview for trim. Dropping folders.
+3. Video preview for trim.
 4. Try Shift-drag from Finder and from Explorer in the Windows VM.
 5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.

@@ -140,6 +140,31 @@ void main() {
       expect(find.textContaining('Saved beside the original'), findsOneWidget);
     });
 
+    testWidgets('a folder dragged in offers what its files can do', (tester) async {
+      await pump(tester);
+      final holiday = Directory(p.join(folder.path, 'holiday'))..createSync();
+      File(p.join(holiday.path, 'a.png'))
+          .writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+      final actions = await tester.runAsync(() => menuFor([holiday.path]));
+      expect(actions, isNotEmpty);
+    });
+
+    testWidgets('a folder\'s results go beside each file', (tester) async {
+      await pump(tester);
+      final holiday = Directory(p.join(folder.path, 'holiday'))..createSync();
+      final bytes = img.encodePng(img.Image(width: 8, height: 8));
+      File(p.join(holiday.path, 'a.png')).writeAsBytesSync(bytes);
+      File(p.join(holiday.path, 'b.png')).writeAsBytesSync(bytes);
+      await tester.runAsync(() async => chosen(actionById('image-to-jpg')!, [holiday.path]));
+      final saved = find.textContaining('Saved beside the original');
+      for (var i = 0; i < 250 && saved.evaluate().length < 2; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+      final names = holiday.listSync().map((e) => p.basename(e.path)).toSet();
+      expect(names, {'a.png', 'b.png', 'a (converted).jpg', 'b (converted).jpg'});
+    });
+
     testWidgets('it stops listening when the screen goes', (tester) async {
       await pump(tester);
       await tester.pumpWidget(const SizedBox());

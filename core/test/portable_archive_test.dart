@@ -257,4 +257,47 @@ void main() {
       await expectLater(run('archive-extract', cut), failsSaying('damaged'));
     });
   });
+
+  group('zipping results to save them together', () {
+    Uint8List bytesOf(String text) => Uint8List.fromList(utf8.encode(text));
+
+    Archive opened(PortableFile zip) => ZipDecoder().decodeBytes(zip.bytes);
+
+    test('every file goes in, whole', () {
+      final zip = zipFiles([
+        PortableFile('a.png', bytesOf('first')),
+        PortableFile('b.png', bytesOf('second')),
+      ]);
+      expect(zip.name, 'converted files.zip');
+      expect(detectKind(zip.bytes), FileKind.zip);
+      final archive = opened(zip);
+      expect(archive.files.map((file) => file.name), ['a.png', 'b.png']);
+      expect(utf8.decode(archive.files[1].readBytes()!), 'second');
+    });
+
+    test('files with one name from different folders both survive', () {
+      final archive = opened(
+        zipFiles([
+          PortableFile('1.png', bytesOf('from a')),
+          PortableFile('1.png', bytesOf('from b')),
+          PortableFile('1.png', bytesOf('from c')),
+        ]),
+      );
+      final names = archive.files.map((file) => file.name).toList();
+      expect(names.toSet(), hasLength(3));
+      expect(names.first, '1.png');
+      expect(names.every((name) => name.endsWith('.png')), isTrue);
+      expect(archive.files.map((file) => utf8.decode(file.readBytes()!)), [
+        'from a',
+        'from b',
+        'from c',
+      ]);
+    });
+
+    test('results that are already compressed are not squeezed again', () {
+      final bytes = Uint8List(100000);
+      final zip = zipFiles([PortableFile('blank.png', bytes)]);
+      expect(zip.bytes.length, greaterThan(bytes.length));
+    });
+  });
 }
