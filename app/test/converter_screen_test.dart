@@ -385,6 +385,108 @@ void main() {
     });
   });
 
+  group('one file at a time', () {
+    Uint8List broken() {
+      // A JPEG's start, so it is taken for one, and nothing after it.
+      return Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0, 16, 1, 2, 3]);
+    }
+
+    Future<void> convertAll(WidgetTester tester, {Converter? converter, bool? savesBeside}) async {
+      await pump(tester, converter: converter, savesBeside: savesBeside);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+    }
+
+    testWidgets('one damaged picture leaves the others, and says which', (tester) async {
+      toPick = [picked('a.jpg', jpeg()), picked('bad.jpg', broken()), picked('c.jpg', jpeg())];
+      await convertAll(tester);
+      expect(find.textContaining('a (converted)'), findsOneWidget);
+      expect(find.textContaining('c (converted)'), findsOneWidget);
+      expect(find.text('bad.jpg'), findsOneWidget);
+      expect(find.textContaining('could not be read as a picture'), findsOneWidget);
+      expect(find.byTooltip('Save'), findsNWidgets(2));
+    });
+
+    testWidgets('Save all leaves out what failed', (tester) async {
+      toPick = [picked('a.jpg', jpeg()), picked('bad.jpg', broken()), picked('c.jpg', jpeg())];
+      await convertAll(tester, savesBeside: false);
+      final saveAll = find.textContaining('Save all');
+      await tester.ensureVisible(saveAll);
+      await tester.tap(saveAll);
+      await settleWork(tester);
+      expect(ZipDecoder().decodeBytes(saved.single.bytes).files, hasLength(2));
+    });
+
+    testWidgets('all of them failing shows each', (tester) async {
+      toPick = [picked('bad 1.jpg', broken()), picked('bad 2.jpg', broken())];
+      await convertAll(tester);
+      expect(find.textContaining('could not be read as a picture'), findsNWidgets(2));
+      expect(find.textContaining('Save all'), findsNothing);
+    });
+
+    testWidgets('only one file is read at a time', (tester) async {
+      final calls = <int>[];
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg()), picked('c.jpg', jpeg())];
+      await convertAll(
+        tester,
+        converter: (action, files, onProgress, options) async {
+          calls.add(files.length);
+          return runPortable(action, files, options: options);
+        },
+      );
+      expect(calls, [1, 1, 1]);
+      expect(find.byTooltip('Save'), findsNWidgets(3));
+    });
+
+    testWidgets('progress runs across the whole batch', (tester) async {
+      final release = Completer<void>();
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg())];
+      await convertAll(
+        tester,
+        converter: (action, files, onProgress, options) async {
+          onProgress(0.5);
+          if (files.single.name == 'b.jpg') await release.future;
+          return runPortable(action, files, options: options);
+        },
+      );
+      final ring = tester.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator));
+      expect(ring.value, closeTo(0.75, 0.001));
+      release.complete();
+      await settleWork(tester);
+    });
+
+    testWidgets('cancelling stops the files not yet started', (tester) async {
+      final started = <String>[];
+      final release = Completer<void>();
+      toPick = [picked('a.jpg', jpeg()), picked('b.jpg', jpeg()), picked('c.jpg', jpeg())];
+      await convertAll(
+        tester,
+        converter: (action, files, onProgress, options) async {
+          started.add(files.single.name);
+          await release.future;
+          return runPortable(action, files, options: options);
+        },
+      );
+      expect(started, ['a.jpg']);
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pump();
+      release.complete();
+      await settleWork(tester);
+      expect(started, ['a.jpg']);
+      expect(find.byType(RadialMenu), findsOneWidget);
+    });
+
+    testWidgets('sizes are compared with each result\'s own file', (tester) async {
+      final big = Uint8List.fromList([...jpeg(), ...List.filled(5000, 0)]);
+      final small = jpeg();
+      toPick = [picked('bad.jpg', broken()), picked('big.jpg', big), picked('small.jpg', small)];
+      await convertAll(tester);
+      expect(find.textContaining('${formatBytes(big.length)} to'), findsOneWidget);
+      expect(find.textContaining('${formatBytes(small.length)} to'), findsOneWidget);
+    });
+  });
+
   testWidgets('a file that cannot be read says so', (tester) async {
     toPick = [
       PickedFile(name: 'gone.jpg', size: 10, head: jpeg(), read: () async => throw StateError('x')),

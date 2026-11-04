@@ -45,8 +45,6 @@ const _writable = {
   FileKind.pdf,
 };
 
-const _combines = {'images-to-pdf'};
-
 /// True if [action] can run on [kind] with pure Dart: on every platform, with no engines
 /// installed. Video, audio, PDF tools, archives, HEIC and AVIF need native engines.
 bool canRunPortably(RadialAction action, FileKind kind) {
@@ -92,7 +90,7 @@ Future<List<PortableFile>> runPortable(
     }
   }
 
-  if (_combines.contains(action.id)) {
+  if (combinesFiles(action)) {
     final bytes = await _imagesToPdf(files, onProgress);
     return [PortableFile(_outputName(action, files.first.name, FileKind.pdf), bytes)];
   }

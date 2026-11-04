@@ -165,6 +165,61 @@ void main() {
       expect(names, {'a.png', 'b.png', 'a (converted).jpg', 'b (converted).jpg'});
     });
 
+    Future<void> untilSaved(WidgetTester tester, int count) async {
+      final saved = find.textContaining('Saved beside the original');
+      for (var i = 0; i < 250 && saved.evaluate().length < count; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+    }
+
+    testWidgets('after a damaged file each result still goes beside its own original', (
+      tester,
+    ) async {
+      var shown = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(shiftDragChannel, (
+        call,
+      ) async {
+        if (call.method == 'showWindow') shown++;
+        return null;
+      });
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(shiftDragChannel, null);
+      });
+      await pump(tester);
+      final bad = Directory(p.join(folder.path, 'bad'))..createSync();
+      final good = Directory(p.join(folder.path, 'good'))..createSync();
+      final broken = p.join(bad.path, 'same.png');
+      File(broken).writeAsBytesSync([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3]);
+      final fine = p.join(good.path, 'same.png');
+      File(fine).writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+      await tester.runAsync(() async => chosen(actionById('image-to-jpg')!, [broken, fine]));
+      await untilSaved(tester, 1);
+      expect(bad.listSync().map((e) => p.basename(e.path)), ['same.png']);
+      expect(good.listSync().map((e) => p.basename(e.path)).toSet(), {
+        'same.png',
+        'same (converted).jpg',
+      });
+      expect(find.textContaining('could not be read as a picture'), findsOneWidget);
+      expect(shown, 1, reason: 'The window comes forward, or nobody learns a file failed');
+    });
+
+    testWidgets('making one PDF still takes all the files together', (tester) async {
+      final calls = <int>[];
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          calls.add(files.length);
+          return runPortable(action, files, options: options);
+        },
+      );
+      final paths = [aPhoto('a.png'), aPhoto('b.png')];
+      await tester.runAsync(() async => chosen(actionById('images-to-pdf')!, paths));
+      await untilSaved(tester, 1);
+      expect(calls, [2]);
+      expect(folder.listSync().where((e) => e.path.endsWith('.pdf')), hasLength(1));
+    });
+
     testWidgets('it stops listening when the screen goes', (tester) async {
       await pump(tester);
       await tester.pumpWidget(const SizedBox());

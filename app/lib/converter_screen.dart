@@ -45,6 +45,16 @@ typedef MediaConverter = Future<List<ConvertedFile>> Function(
 /// As many slices as the Shift-drag menu can label readably.
 const _shiftDragSlices = 8;
 
+/// A result, and the original it belongs beside. Files can fail along the way, so position in the
+/// list says nothing about that.
+class _Result {
+  _Result(this.output, this.from, this.bytesBefore);
+
+  final ConvertedFile output;
+  final PickedFile from;
+  final int? bytesBefore;
+}
+
 class _Job {
   _Job(this.name, this.bytesBefore);
 
@@ -55,6 +65,7 @@ class _Job {
   FileChipState state = FileChipState.working;
   double? progress;
   ConvertedFile? output;
+  PickedFile? from;
   String? message;
   bool saved = false;
 }
@@ -185,20 +196,17 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   /// Saves results held in memory next to what they came from. Video is already there.
-  Future<List<ConvertedFile>> _saveBeside(
-    List<ConvertedFile> outputs,
-    List<PickedFile> files,
-  ) async {
-    final saved = <ConvertedFile>[];
-    for (var i = 0; i < outputs.length; i++) {
-      final output = outputs[i];
-      final inMemory = output.inMemory;
-      final original = files[outputs.length == files.length ? i : 0].path;
+  Future<List<_Result>> _saveBeside(List<_Result> results) async {
+    final saved = <_Result>[];
+    for (final result in results) {
+      final inMemory = result.output.inMemory;
+      final original = result.from.path;
       if (inMemory == null || original == null) {
-        saved.add(output);
+        saved.add(result);
         continue;
       }
-      saved.add(_savedAt(output, await saveBesideOriginal(original, inMemory)));
+      final path = await saveBesideOriginal(original, inMemory);
+      saved.add(_Result(_savedAt(result.output, path), result.from, result.bytesBefore));
     }
     return saved;
   }
@@ -332,8 +340,65 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
   }
 
+  /// True if these are worked on whole in memory, rather than piece by piece as video is.
+  bool _inMemory(RadialAction action, List<FileKind> kinds) {
+    return kinds.every((kind) {
+      return canRunPdf(action, kind) || canRunPortably(action, kind) || canRunDecoded(action, kind);
+    });
+  }
+
+  /// Runs each file alone unless the action combines them. So one damaged file costs only itself,
+  /// joining [failed], and only one file is held in memory on its way in.
+  Future<List<_Result>> _run(
+    RadialAction action,
+    List<PickedFile> files,
+    List<FileKind> kinds,
+    void Function(double) onProgress,
+    ConvertControl control,
+    ActionOptions options, {
+    required List<_Job> failed,
+    required bool Function() wanted,
+  }) async {
+    if (_inMemory(action, kinds)) {
+      final tooLarge = _tooLarge();
+      if (tooLarge != null) throw EngineFailed(tooLarge);
+    }
+    if (files.length == 1 || combinesFiles(action)) {
+      return _runTogether(action, files, kinds, onProgress, control, options);
+    }
+    _Job failure(PickedFile file, String message) {
+      return _Job(file.name, null)
+        ..state = FileChipState.failed
+        ..message = message;
+    }
+
+    final results = <_Result>[];
+    for (var i = 0; i < files.length; i++) {
+      if (!wanted()) throw const JobCancelled();
+      try {
+        results.addAll(
+          await _runTogether(
+            action,
+            [files[i]],
+            [kinds[i]],
+            (progress) => onProgress((i + progress) / files.length),
+            control,
+            options,
+          ),
+        );
+      } on JobCancelled {
+        rethrow;
+      } on EngineFailed catch (error) {
+        failed.add(failure(files[i], error.message));
+      } catch (_) {
+        failed.add(failure(files[i], 'Something went wrong. This file could not be converted.'));
+      }
+    }
+    return results;
+  }
+
   /// Pictures and subtitles in memory, or video and audio piece by piece.
-  Future<List<ConvertedFile>> _run(
+  Future<List<_Result>> _runTogether(
     RadialAction action,
     List<PickedFile> files,
     List<FileKind> kinds,
@@ -341,13 +406,22 @@ class _ConverterScreenState extends State<ConverterScreen> {
     ConvertControl control,
     ActionOptions options,
   ) async {
-    final isPdf = kinds.every((kind) => canRunPdf(action, kind));
-    bool isPicture(FileKind kind) => canRunPortably(action, kind) || canRunDecoded(action, kind);
-    if (!isPdf && !kinds.every(isPicture)) {
-      return widget.mediaConverter(action, files, kinds, onProgress, control, options);
+    final before = files.fold<int>(0, (sum, file) => sum + file.size);
+    List<_Result> matched(List<ConvertedFile> outputs) {
+      return [
+        for (var i = 0; i < outputs.length; i++)
+          outputs.length == files.length
+              ? _Result(outputs[i], files[i], files[i].size)
+              : _Result(outputs[i], files.first, outputs.length < files.length ? before : null),
+      ];
     }
-    final tooLarge = _tooLarge();
-    if (tooLarge != null) throw EngineFailed(tooLarge);
+
+    final isPdf = kinds.every((kind) => canRunPdf(action, kind));
+    if (!_inMemory(action, kinds)) {
+      return matched(
+        await widget.mediaConverter(action, files, kinds, onProgress, control, options),
+      );
+    }
     final List<PortableFile> inputs;
     try {
       inputs = [
@@ -364,7 +438,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     }
     if (isPdf) {
       final results = await widget.pdfConverter(action, inputs, onProgress);
-      return [
+      return matched([
         for (final result in results)
           ConvertedFile(
             name: result.file.name,
@@ -372,13 +446,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
             inMemory: result.file,
             note: result.note,
           ),
-      ];
+      ]);
     }
     final outputs = await widget.converter(action, inputs, onProgress, options);
-    return [
+    return matched([
       for (final output in outputs)
         ConvertedFile(name: output.name, size: output.bytes.length, inMemory: output),
-    ];
+    ]);
   }
 
   /// Asks anything the action needs to know, then starts it.
@@ -430,8 +504,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _jobs = jobs;
     });
     final job = jobs.single;
+    final failed = <_Job>[];
     try {
-      var outputs = await _run(
+      var results = await _run(
         action,
         files,
         _kinds,
@@ -440,16 +515,23 @@ class _ConverterScreenState extends State<ConverterScreen> {
         },
         control,
         options,
+        failed: failed,
+        wanted: () => mounted && identical(_jobs, jobs),
       );
-      if (saveBeside) outputs = await _saveBeside(outputs, files);
+      if (saveBeside) {
+        results = await _saveBeside(results);
+        if (failed.isNotEmpty) showAppWindow();
+      }
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
         _jobs = [
-          for (var i = 0; i < outputs.length; i++)
-            _Job(outputs[i].name, _comparedWith(outputs.length, files, i, before))
+          for (final result in results)
+            _Job(result.output.name, result.bytesBefore)
               ..state = FileChipState.done
-              ..output = outputs[i]
-              ..saved = outputs[i].savedPath != null,
+              ..output = result.output
+              ..from = result.from
+              ..saved = result.output.savedPath != null,
+          ...failed,
         ];
       });
     } on JobCancelled {
@@ -471,11 +553,6 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ..message = 'Something went wrong. This file could not be converted.';
       });
     }
-  }
-
-  int? _comparedWith(int outputCount, List<PickedFile> files, int index, int before) {
-    if (outputCount == files.length) return files[index].size;
-    return outputCount < files.length ? before : null;
   }
 
   String _workingName() {
@@ -512,14 +589,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
   /// otherwise ask where to go.
   Future<void> _saveAll() async {
     final waiting = _waitingToSave;
-    final jobs = _jobs;
     setState(() => _savingAll = true);
     try {
       if (_savesBeside) {
         for (final job in waiting) {
           final output = job.output!;
-          final index = jobs.length == _files.length ? jobs.indexOf(job) : 0;
-          final path = await saveBesideOriginal(_files[index].path!, output.inMemory!);
+          final path = await saveBesideOriginal(job.from!.path!, output.inMemory!);
           if (!mounted) return;
           setState(() {
             job

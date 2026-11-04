@@ -148,4 +148,20 @@ void main() {
       expect(FileKind.ofFamily(FileFamily.image), contains(FileKind.heic));
     });
   });
+
+  group('combinesFiles', () {
+    test('merging and making one PDF take all the files together', () {
+      for (final id in ['pdf-merge', 'video-merge', 'audio-merge', 'images-to-pdf']) {
+        expect(combinesFiles(actionById(id)!), isTrue, reason: id);
+      }
+    });
+
+    test('everything else works on each file alone', () {
+      for (final id in ['image-to-jpg', 'pdf-compress', 'archive-extract', 'video-to-mp4']) {
+        final action = actionById(id);
+        expect(action, isNotNull, reason: id);
+        expect(combinesFiles(action!), isFalse, reason: id);
+      }
+    });
+  });
 }
