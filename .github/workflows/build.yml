@@ -151,7 +151,9 @@ jobs:
           key: ffmpeg-macos-${{ hashFiles('engines/build_ffmpeg_macos.sh') }}
       - name: Build the video engine
         if: steps.engine.outputs.cache-hit != 'true'
-        run: engines/build_ffmpeg_macos.sh
+        run: |
+          brew install nasm pkg-config
+          engines/build_ffmpeg_macos.sh
       - name: Check the video engine reads HEIC photos
         run: engines/check_heic.sh engines/build/macos/bin
       - name: Add the video engine to the app
@@ -166,3 +168,35 @@ jobs:
         with:
           name: radial-converter-macos
           path: radial-converter-macos.zip
+
+  # The build machines are Apple Silicon, and nothing else here can run the Intel half.
+  macos-intel:
+    needs: macos
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: radial-converter-macos
+      - name: Run the download on an Intel Mac
+        run: |
+          [ "$(uname -m)" = x86_64 ]
+          ditto -x -k radial-converter-macos.zip unpacked
+          app=unpacked/radialconverter.app
+          engines/check_heic.sh "$app/Contents/Resources/engines"
+          # Not the hardware encoder, which a virtual machine may not have.
+          "$app/Contents/Resources/engines/ffmpeg" -hide_banner -loglevel error \
+            -f lavfi -i testsrc=duration=1:size=160x120 -f lavfi -i sine=duration=1 \
+            -c:v libvpx-vp9 -c:a libopus out.webm
+          "$app/Contents/Resources/engines/ffprobe" -hide_banner -loglevel error \
+            -show_entries stream=codec_name -of csv=p=0 out.webm | tee streams.txt
+          grep -q vp9 streams.txt
+          grep -q opus streams.txt
+      - name: Start the app on an Intel Mac
+        run: |
+          app=unpacked/radialconverter.app
+          "$app/Contents/MacOS/radialconverter" &
+          pid=$!
+          sleep 15
+          kill -0 "$pid"
+          kill "$pid"
