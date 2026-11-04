@@ -201,7 +201,13 @@ void main() {
         'same (converted).jpg',
       });
       expect(find.textContaining('could not be read as a picture'), findsOneWidget);
-      expect(shown, 1, reason: 'The window comes forward, or nobody learns a file failed');
+      // Only these have a window to bring forward. Elsewhere there's no Shift-drag to come from.
+      final hasWindow = Platform.isMacOS || Platform.isWindows;
+      expect(
+        shown,
+        hasWindow ? 1 : 0,
+        reason: 'The window comes forward, or nobody learns a file failed',
+      );
     });
 
     testWidgets('making one PDF still takes all the files together', (tester) async {
