@@ -51,6 +51,32 @@ void main() {
     return results.single;
   }
 
+  testWidgets('a frame comes back as a small picture', (tester) async {
+    final frame = await videoFrame(picked(), 0.5);
+    expect(detectKind(frame), FileKind.jpg);
+    final picture = img.decodeJpg(frame)!;
+    expect(picture.width, lessThanOrEqualTo(480));
+    expect(picture.height, lessThanOrEqualTo(480));
+  });
+
+  testWidgets('a file with no pictures is a plain error', (tester) async {
+    final folder = await getApplicationSupportDirectory();
+    final notes = p.join(folder.path, 'notes.mp4');
+    File(notes).writeAsBytesSync(List.filled(100, 1));
+    final file = PickedFile(
+      name: 'notes.mp4',
+      size: 100,
+      head: const [],
+      read: () => File(notes).readAsBytes(),
+      path: notes,
+    );
+    await expectLater(videoFrame(file, 0), throwsA(isA<EngineFailed>()));
+  });
+
+  testWidgets('looking inside says how long it is', (tester) async {
+    expect((await probeMedia(picked())).seconds, greaterThan(0));
+  });
+
   /// The results wait in the cache, and the file it says is really there.
   Future<String> where(ConvertedFile result) async {
     final cache = await getTemporaryDirectory();

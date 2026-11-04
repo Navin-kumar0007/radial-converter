@@ -88,6 +88,22 @@ Future<Uint8List> decodeHeic(PickedFile file) async {
   return Platform.isAndroid ? decodeHeicOnPhone(path) : decodeHeicWith(_appEngines(), path);
 }
 
+/// What is inside a video or audio file, read without changing it.
+Future<MediaInfo> probeMedia(PickedFile file) async {
+  final path = file.path;
+  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  return Platform.isAndroid ? probeOnPhone(path) : ActionRunner(_appEngines()).probe(path);
+}
+
+/// One frame of a video, to show before trimming.
+Future<Uint8List> videoFrame(PickedFile file, double seconds) async {
+  final path = file.path;
+  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  return Platform.isAndroid
+      ? videoFrameOnPhone(path, seconds)
+      : ActionRunner(_appEngines()).frameAt(path, seconds);
+}
+
 /// Runs the engine as a separate process and saves beside the original, so size is not limited
 /// by memory. The original is never touched.
 Future<List<ConvertedFile>> convertMedia(

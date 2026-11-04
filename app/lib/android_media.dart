@@ -45,6 +45,11 @@ Future<Uint8List> decodeHeicOnPhone(String path) async {
   }
 }
 
+/// One frame of the video at [path], as a small JPEG.
+Future<Uint8List> videoFrameOnPhone(String path, double seconds) {
+  return _call<Uint8List>('videoFrame', {'path': path, 'seconds': seconds});
+}
+
 Future<T> _call<T>(String method, Map<String, Object?> arguments) async {
   try {
     return (await mediaChannel.invokeMethod<T>(method, arguments)) as T;

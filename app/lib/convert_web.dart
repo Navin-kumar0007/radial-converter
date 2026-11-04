@@ -108,6 +108,7 @@ Future<Uint8List> decodeHeic(PickedFile file) async {
 extension type _MediaReply._(JSObject _) implements JSObject {
   external JSNumber? get progress;
   external JSObject? get info;
+  external JSUint8Array? get frame;
   external web.Blob? get file;
   external JSNumber? get size;
   external JSString? get failure;
@@ -184,6 +185,31 @@ void _download(web.Blob file, String name) {
     ..click();
   // The browser needs the address until the download starts.
   Timer(const Duration(minutes: 1), () => web.URL.revokeObjectURL(url));
+}
+
+/// What is inside a video or audio file, read without changing it.
+Future<MediaInfo> probeMedia(PickedFile file) async {
+  final url = file.webUrl;
+  if (url == null) throw const EngineFailed('This file could not be read.');
+  final worker = _VideoWorker();
+  try {
+    return _readInfo((await worker.send({'command': 'probe', 'url': url})).info!);
+  } finally {
+    worker.stop();
+  }
+}
+
+/// One frame of a video, to show before trimming.
+Future<Uint8List> videoFrame(PickedFile file, double seconds) async {
+  final url = file.webUrl;
+  if (url == null) throw const EngineFailed('This file could not be read.');
+  final worker = _VideoWorker();
+  try {
+    final reply = await worker.send({'command': 'frame', 'url': url, 'seconds': seconds});
+    return reply.frame!.toDart;
+  } finally {
+    worker.stop();
+  }
 }
 
 /// Converts each file piece by piece in a worker. A size target retries lower until it fits.

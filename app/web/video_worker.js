@@ -5,6 +5,7 @@
 import {
   ALL_FORMATS,
   BufferTarget,
+  CanvasSink,
   Conversion,
   Input,
   MkvOutputFormat,
@@ -44,6 +45,25 @@ async function probe(url) {
       width: video ? video.displayWidth : null,
       height: video ? video.displayHeight : null,
     };
+  } finally {
+    input.dispose?.();
+  }
+}
+
+// One frame as a small JPEG, to show before trimming.
+async function frameAt(url, seconds) {
+  const input = await openInput(url);
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (track === null || !(await track.canDecode())) {
+      throw new Plain('This video has no picture to show here.');
+    }
+    const sink = new CanvasSink(track, { width: Math.min(480, track.displayWidth), poolSize: 1 });
+    // Before the first frame there is none, so the first one stands in.
+    const found = (await sink.getCanvas(seconds)) ?? (await sink.getCanvas(await track.getFirstTimestamp()));
+    if (found === null) throw new Plain('This video has no picture to show here.');
+    const blob = await found.canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+    return new Uint8Array(await blob.arrayBuffer());
   } finally {
     input.dispose?.();
   }
@@ -177,6 +197,9 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ cleaned: true });
     } else if (data.command === 'probe') {
       self.postMessage({ info: await probe(data.url) });
+    } else if (data.command === 'frame') {
+      const frame = await frameAt(data.url, data.seconds);
+      self.postMessage({ frame }, [frame.buffer]);
     } else if (data.command === 'convert') {
       self.postMessage(await convert(data.url, data.plan));
     }

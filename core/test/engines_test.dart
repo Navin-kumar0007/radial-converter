@@ -414,6 +414,52 @@ void main() {
       expect(seconds(out), closeTo(1, 0.3));
     });
 
+    group('looking inside before trimming', () {
+      test('how long it is', () async {
+        final info = await runner.probe(mp4);
+        expect(info.seconds, greaterThan(1));
+        expect(info.hasVideo, isTrue);
+      });
+
+      test('a frame comes back as a picture, no wider than asked', () async {
+        final frame = await runner.frameAt(mp4, 0.5, width: 64);
+        expect(detectKind(frame), FileKind.png);
+        final width = ByteData.sublistView(frame).getUint32(16);
+        expect(width, 64);
+      });
+
+      test('different moments show different frames', () async {
+        final first = await runner.frameAt(mp4, 0);
+        final later = await runner.frameAt(mp4, 1);
+        expect(first, isNot(later));
+      });
+
+      test('the very end still gives a frame', () async {
+        final info = await runner.probe(mp4);
+        final frame = await runner.frameAt(mp4, info.seconds);
+        expect(detectKind(frame), FileKind.png);
+      });
+
+      test('past the end still gives a frame', () async {
+        expect(detectKind(await runner.frameAt(mp4, 100000)), FileKind.png);
+      });
+
+      test('a file with no pictures is a plain error', () async {
+        await expectLater(
+          runner.frameAt(wav, 0),
+          throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('picture'))),
+        );
+      });
+
+      test('the original is only read', () async {
+        final before = File(mp4).readAsBytesSync();
+        final inFolder = folder.listSync().length;
+        await runner.frameAt(mp4, 0.5);
+        expect(File(mp4).readAsBytesSync(), before);
+        expect(folder.listSync(), hasLength(inFolder));
+      });
+    });
+
     test('a trim that leaves nothing is refused', () async {
       await expectLater(
         runAction('video-trim', [

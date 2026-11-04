@@ -15,13 +15,14 @@ Future<ActionOptions?> askForOptions(
   BuildContext context,
   RadialAction action, {
   required Future<Uint8List> Function() loadPicture,
+  TrimPreview? trimPreview,
 }) {
   return showDialog<ActionOptions>(
     context: context,
     builder: (context) => switch (action.id) {
       'image-crop' => CropDialog(loadPicture: loadPicture),
       'subtitle-shift' => const ShiftDialog(),
-      _ => const TrimDialog(),
+      _ => TrimDialog(preview: trimPreview),
     },
   );
 }
@@ -91,23 +92,131 @@ class _ShiftDialogState extends State<ShiftDialog> {
 
 /// Which part of a video or sound file to keep.
 class TrimDialog extends StatefulWidget {
-  const TrimDialog({super.key});
+  const TrimDialog({super.key, this.preview});
+
+  /// What can be shown of the file. Without it, or if it fails, times can still be typed.
+  final TrimPreview? preview;
 
   @override
   State<TrimDialog> createState() => _TrimDialogState();
 }
 
+/// What the trim screen can look at. Audio has no frames.
+class TrimPreview {
+  const TrimPreview({required this.seconds, this.frameAt});
+
+  final Future<double> Function() seconds;
+  final Future<Uint8List> Function(double seconds)? frameAt;
+}
+
+/// The frame shown for one end. Dragging asks far faster than frames arrive, so only the newest wish
+/// waits while one is being fetched.
+class _FrameSlot {
+  Uint8List? frame;
+  double? wanted;
+  bool busy = false;
+}
+
 class _TrimDialogState extends State<TrimDialog> {
   final _from = TextEditingController();
   final _to = TextEditingController();
+  final _startSlot = _FrameSlot();
+  final _endSlot = _FrameSlot();
+  double? _length;
+  RangeValues _range = const RangeValues(0, 1);
   String? _fromError;
   String? _toError;
+
+  @override
+  void initState() {
+    super.initState();
+    _readLength();
+  }
 
   @override
   void dispose() {
     _from.dispose();
     _to.dispose();
     super.dispose();
+  }
+
+  Future<void> _readLength() async {
+    final preview = widget.preview;
+    if (preview == null) return;
+    final double length;
+    try {
+      length = await preview.seconds();
+    } catch (error) {
+      debugPrint('Could not read how long this is: $error');
+      return;
+    }
+    if (!mounted || length <= 0) return;
+    setState(() {
+      _length = length;
+      _syncRange();
+    });
+    _want(_startSlot, _range.start);
+    _want(_endSlot, _range.end);
+  }
+
+  void _want(_FrameSlot slot, double seconds) {
+    if (widget.preview?.frameAt == null) return;
+    slot.wanted = seconds;
+    if (!slot.busy) _fetch(slot);
+  }
+
+  Future<void> _fetch(_FrameSlot slot) async {
+    slot.busy = true;
+    while (slot.wanted != null && mounted) {
+      final seconds = slot.wanted!;
+      slot.wanted = null;
+      try {
+        final frame = await widget.preview!.frameAt!(seconds);
+        if (mounted) setState(() => slot.frame = frame);
+      } catch (error) {
+        debugPrint('Could not read a frame: $error');
+      }
+    }
+    if (!mounted) return;
+    setState(() => slot.busy = false);
+  }
+
+  /// Moves the slider to what is typed. Whatever isn't a time leaves its end where it was.
+  void _syncRange() {
+    final length = _length;
+    if (length == null) return;
+    final fromText = _from.text.trim();
+    final toText = _to.text.trim();
+    final from = fromText.isEmpty ? 0.0 : parseClock(fromText) ?? _range.start;
+    final to = toText.isEmpty ? length : parseClock(toText) ?? _range.end;
+    final start = from.clamp(0.0, length);
+    _range = RangeValues(start, to.clamp(start, length));
+  }
+
+  void _typed() {
+    final length = _length;
+    if (length == null) return;
+    final before = _range;
+    setState(_syncRange);
+    if (_range.start != before.start) _want(_startSlot, _range.start);
+    if (_range.end != before.end) _want(_endSlot, _range.end);
+  }
+
+  void _dragged(RangeValues values) {
+    final length = _length!;
+    double tenth(double seconds) => (seconds * 10).round() / 10;
+    final start = values.start == 0 ? 0.0 : tenth(values.start);
+    final end = values.end == length ? length : tenth(values.end).clamp(start, length);
+    final before = _range;
+    setState(() {
+      _range = RangeValues(start, end);
+      _from.text = start == 0 ? '' : formatClock(start);
+      _to.text = end == length ? '' : formatClock(end);
+      _fromError = null;
+      _toError = null;
+    });
+    if (start != before.start) _want(_startSlot, start);
+    if (end != before.end) _want(_endSlot, end);
   }
 
   void _finish() {
@@ -118,12 +227,15 @@ class _TrimDialogState extends State<TrimDialog> {
     final to = parseClock(toText);
     final fromBad = fromText.isNotEmpty && from == null;
     final toBad = toText.isNotEmpty && to == null;
+    final length = _length;
     setState(() {
       _fromError = fromBad ? useTime : null;
       _toError = toBad ? useTime : null;
       if (fromBad || toBad) return;
       if (from == null && to == null) {
         _fromError = 'Choose where to start or end.';
+      } else if (from != null && length != null && from >= length) {
+        _fromError = 'This is only ${formatClock(length)} long.';
       } else if (from != null && to != null && to <= from) {
         _toError = 'This must be after the start.';
       }
@@ -132,36 +244,110 @@ class _TrimDialogState extends State<TrimDialog> {
     Navigator.of(context).pop(ActionOptions(startSeconds: from, endSeconds: to));
   }
 
+  Widget _buildFrame(String label, _FrameSlot slot) {
+    final styles = Theme.of(context);
+    final frame = slot.frame;
+    return Expanded(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 96,
+            width: double.infinity,
+            child: ColoredBox(
+              color: styles.colorScheme.surfaceContainerHighest,
+              child: frame != null
+                  ? Image.memory(
+                      frame,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      semanticLabel: 'The video at the ${label.toLowerCase()}',
+                    )
+                  : Center(
+                      child: slot.busy
+                          ? const SizedBox.square(
+                              dimension: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.movie_outlined),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: styles.textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPreview(double length) {
+    return [
+      if (widget.preview?.frameAt != null) ...[
+        Row(
+          children: [
+            _buildFrame('Start', _startSlot),
+            const SizedBox(width: 8),
+            _buildFrame('End', _endSlot),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+      RangeSlider(
+        values: _range,
+        max: length,
+        labels: RangeLabels(formatClock(_range.start), formatClock(_range.end)),
+        semanticFormatterCallback: formatClock,
+        onChanged: _dragged,
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Text(formatClock(_range.start)), Text(formatClock(_range.end))],
+        ),
+      ),
+      const SizedBox(height: 8),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final length = _length;
     return AlertDialog(
       title: const Text('Trim'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _from,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: 'Start',
-              hintText: '0:00',
-              helperText: 'Empty means from the beginning',
-              errorText: _fromError,
-            ),
-            onSubmitted: (_) => _finish(),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (length != null) ..._buildPreview(length),
+              TextField(
+                controller: _from,
+                autofocus: length == null,
+                decoration: InputDecoration(
+                  labelText: 'Start',
+                  hintText: '0:00',
+                  helperText: 'Empty means from the beginning',
+                  errorText: _fromError,
+                ),
+                onChanged: (_) => _typed(),
+                onSubmitted: (_) => _finish(),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _to,
+                decoration: InputDecoration(
+                  labelText: 'End',
+                  hintText: '1:30',
+                  helperText: 'Empty means to the end',
+                  errorText: _toError,
+                ),
+                onChanged: (_) => _typed(),
+                onSubmitted: (_) => _finish(),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _to,
-            decoration: InputDecoration(
-              labelText: 'End',
-              hintText: '1:30',
-              helperText: 'Empty means to the end',
-              errorText: _toError,
-            ),
-            onSubmitted: (_) => _finish(),
-          ),
-        ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),

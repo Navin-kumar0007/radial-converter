@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -169,6 +171,264 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    group('looking at the video', () {
+      final red = Uint8List.fromList(img.encodePng(img.Image(width: 8, height: 4)));
+
+      Future<void> open(
+        WidgetTester tester,
+        TrimPreview preview, [
+        void Function(ActionOptions?)? got,
+      ]) async {
+        await tester.pumpWidget(_host(got ?? (_) {}, TrimDialog(preview: preview)));
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+      }
+
+      Offset thumb(WidgetTester tester, double fraction) {
+        final box = tester.getRect(find.byType(RangeSlider));
+        // The slider's track stops short of its ends by the size of a thumb.
+        return Offset(box.left + 24 + (box.width - 48) * fraction, box.center.dy);
+      }
+
+      testWidgets('both ends show their frames, and the length', (tester) async {
+        final asked = <double>[];
+        await open(
+          tester,
+          TrimPreview(
+            seconds: () async => 95,
+            frameAt: (seconds) async {
+              asked.add(seconds);
+              return red;
+            },
+          ),
+        );
+        expect(asked, [0, 95]);
+        expect(find.byType(Image), findsNWidgets(2));
+        expect(find.text('1:35'), findsOneWidget);
+        // Beside the slider, and as the Start field's hint.
+        expect(find.text('0:00'), findsNWidgets(2));
+      });
+
+      testWidgets('audio has the slider and no frames', (tester) async {
+        await open(tester, TrimPreview(seconds: () async => 90));
+        expect(find.byType(RangeSlider), findsOneWidget);
+        expect(find.byType(Image), findsNothing);
+        expect(find.byIcon(Icons.movie_outlined), findsNothing);
+      });
+
+      testWidgets('dragging an end fills in its time and shows its frame', (tester) async {
+        ActionOptions? chosen;
+        final asked = <double>[];
+        await open(
+          tester,
+          TrimPreview(
+            seconds: () async => 100,
+            frameAt: (seconds) async {
+              asked.add(seconds);
+              return red;
+            },
+          ),
+          (value) => chosen = value,
+        );
+        asked.clear();
+        await tester.dragFrom(
+          thumb(tester, 1),
+          Offset(-(tester.getRect(find.byType(RangeSlider)).width - 48) / 2, 0),
+        );
+        await tester.pumpAndSettle();
+        final end = parseClock(
+          tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        )!;
+        expect(end, closeTo(50, 5));
+        expect(tester.widget<TextField>(find.byType(TextField).first).controller!.text, isEmpty);
+        expect(asked.last, end);
+        await tester.tap(find.text('Trim').last);
+        await tester.pumpAndSettle();
+        expect(chosen!.startSeconds, isNull);
+        expect(chosen!.endSeconds, end);
+      });
+
+      testWidgets('typing a time moves the slider and shows its frame', (tester) async {
+        final asked = <double>[];
+        await open(
+          tester,
+          TrimPreview(
+            seconds: () async => 100,
+            frameAt: (seconds) async {
+              asked.add(seconds);
+              return red;
+            },
+          ),
+        );
+        asked.clear();
+        await tester.enterText(find.byType(TextField).first, '0:30');
+        await tester.pumpAndSettle();
+        expect(tester.widget<RangeSlider>(find.byType(RangeSlider)).values.start, 30);
+        expect(asked, [30]);
+      });
+
+      testWidgets('half-typed times don\'t move anything or fetch anything', (tester) async {
+        final asked = <double>[];
+        await open(
+          tester,
+          TrimPreview(
+            seconds: () async => 100,
+            frameAt: (seconds) async {
+              asked.add(seconds);
+              return red;
+            },
+          ),
+        );
+        asked.clear();
+        await tester.enterText(find.byType(TextField).first, '1:');
+        await tester.pumpAndSettle();
+        expect(tester.widget<RangeSlider>(find.byType(RangeSlider)).values.start, 0);
+        expect(asked, isEmpty);
+      });
+
+      testWidgets('frames that arrive slowly don\'t pile up: only the newest wish waits', (
+        tester,
+      ) async {
+        final asked = <double>[];
+        final replies = <Completer<Uint8List>>[];
+        await tester.pumpWidget(
+          _host(
+            (_) {},
+            TrimDialog(
+              preview: TrimPreview(
+                seconds: () async => 100,
+                frameAt: (seconds) {
+                  asked.add(seconds);
+                  final reply = Completer<Uint8List>();
+                  replies.add(reply);
+                  return reply.future;
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(asked, [0, 100]);
+        final start = find.byType(TextField).first;
+        await tester.enterText(start, '0:10');
+        await tester.pump();
+        await tester.enterText(start, '0:20');
+        await tester.pump();
+        await tester.enterText(start, '0:30');
+        await tester.pump();
+        expect(asked, [0, 100], reason: 'Still waiting for the first');
+        replies[0].complete(red);
+        await tester.pump();
+        await tester.pump();
+        expect(asked, [0, 100, 30], reason: 'Straight to the newest');
+        replies[1].complete(red);
+        replies[2].complete(red);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+      });
+
+      testWidgets('a start past the end is refused, in words', (tester) async {
+        ActionOptions? chosen;
+        await open(tester, TrimPreview(seconds: () async => 90), (value) => chosen = value);
+        await tester.enterText(find.byType(TextField).first, '2:00');
+        await tester.tap(find.text('Trim').last);
+        await tester.pumpAndSettle();
+        expect(chosen, isNull);
+        expect(find.text('This is only 1:30 long.'), findsOneWidget);
+      });
+
+      testWidgets('a file it can\'t look inside still trims by typing', (tester) async {
+        ActionOptions? chosen;
+        await open(
+          tester,
+          TrimPreview(seconds: () async => throw const EngineFailed('no')),
+          (value) => chosen = value,
+        );
+        expect(find.byType(RangeSlider), findsNothing);
+        await tester.enterText(find.byType(TextField).last, '0:30');
+        await tester.tap(find.text('Trim').last);
+        await tester.pumpAndSettle();
+        expect(chosen!.endSeconds, 30);
+      });
+
+      testWidgets('a frame that won\'t come leaves the rest working', (tester) async {
+        ActionOptions? chosen;
+        await open(
+          tester,
+          TrimPreview(
+            seconds: () async => 90,
+            frameAt: (seconds) async => throw const EngineFailed('no'),
+          ),
+          (value) => chosen = value,
+        );
+        expect(find.byIcon(Icons.movie_outlined), findsNWidgets(2));
+        await tester.enterText(find.byType(TextField).last, '0:30');
+        await tester.tap(find.text('Trim').last);
+        await tester.pumpAndSettle();
+        expect(chosen!.endSeconds, 30);
+      });
+
+      testWidgets('leaving while a frame is on its way is safe', (tester) async {
+        final reply = Completer<Uint8List>();
+        await tester.pumpWidget(
+          _host(
+            (_) {},
+            TrimDialog(
+              preview: TrimPreview(seconds: () async => 90, frameAt: (seconds) => reply.future),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pump();
+        await tester.pump();
+        await tester.tap(find.text('Cancel'));
+        await tester.pump(const Duration(seconds: 1));
+        reply.complete(red);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('it fits a phone', (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await open(tester, TrimPreview(seconds: () async => 90, frameAt: (s) async => red));
+        expect(tester.takeException(), isNull);
+        expect(find.byType(RangeSlider), findsOneWidget);
+      });
+    });
+
+    testWidgets('the screen looks at the first file, for video only', (tester) async {
+      final probed = <String>[];
+      final framed = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ConverterScreen(
+            pickFiles: () async => [
+              PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
+            ],
+            saveFile: (file) async => true,
+            mediaAvailable: true,
+            mediaProbe: (file) async {
+              probed.add(file.name);
+              return const MediaInfo(seconds: 10, hasVideo: true);
+            },
+            frameReader: (file, seconds) async {
+              framed.add(file.name);
+              return Uint8List.fromList(img.encodePng(img.Image(width: 8, height: 4)));
+            },
+          ),
+        ),
+      );
+      await tapAction(tester, 'Trim');
+      await tester.pumpAndSettle();
+      expect(probed, ['clip.mp4']);
+      expect(framed, ['clip.mp4', 'clip.mp4']);
+      expect(find.byType(RangeSlider), findsOneWidget);
+    });
+
     testWidgets('what the user chose reaches the engine', (tester) async {
       ActionOptions? received;
       await tester.pumpWidget(
@@ -179,6 +439,7 @@ void main() {
             ],
             saveFile: (file) async => true,
             mediaAvailable: true,
+            mediaProbe: (file) async => throw const EngineFailed('Not in a test'),
             mediaConverter: (a, f, k, p, c, options) async {
               received = options;
               return [ConvertedFile(name: 'clip (trimmed).mp4', size: 1)];
@@ -203,6 +464,7 @@ void main() {
             ],
             saveFile: (file) async => true,
             mediaAvailable: true,
+            mediaProbe: (file) async => throw const EngineFailed('Not in a test'),
             mediaConverter: (a, f, k, p, c, o) async {
               ran = true;
               return const [];

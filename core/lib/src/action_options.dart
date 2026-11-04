@@ -61,3 +61,14 @@ double? parseClock(String text) {
   }
   return seconds;
 }
+
+/// A time as people write it, which [parseClock] reads back: `0:05`, `1:30.5`, `1:02:03`.
+String formatClock(double seconds) {
+  final tenths = (seconds.clamp(0, double.infinity) * 10).round();
+  final whole = tenths ~/ 10;
+  String two(int value) => value.toString().padLeft(2, '0');
+  final clock = whole >= 3600
+      ? '${whole ~/ 3600}:${two(whole ~/ 60 % 60)}:${two(whole % 60)}'
+      : '${whole ~/ 60}:${two(whole % 60)}';
+  return tenths % 10 == 0 ? clock : '$clock.${tenths % 10}';
+}

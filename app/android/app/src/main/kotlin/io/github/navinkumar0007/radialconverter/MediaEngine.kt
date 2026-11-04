@@ -36,6 +36,7 @@ import androidx.media3.transformer.VideoEncoderSettings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import kotlin.concurrent.thread
@@ -43,6 +44,7 @@ import kotlin.math.max
 
 private const val SAVE_REQUEST = 7301
 private const val PROGRESS_EVERY_MS = 500L
+private const val FRAME_SIDE = 480
 
 /**
  * Carries out the plans in `core/lib/src/media_plan.dart` with Media3 Transformer, which uses the
@@ -87,6 +89,11 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 result.success(null)
             }
             "decodePhoto" -> decodePhoto(call.argument<String>("path")!!, result)
+            "videoFrame" -> videoFrame(
+                call.argument<String>("path")!!,
+                call.argument<Double>("seconds")!!,
+                result,
+            )
             "save" -> save(call, result)
             else -> result.notImplemented()
         }
@@ -128,6 +135,47 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     result.success(mapOf("path" to png))
                 }
             }
+        }
+    }
+
+    /** One frame as a small JPEG, to show before trimming. Failing only means no picture there. */
+    private fun videoFrame(path: String, seconds: Double, result: MethodChannel.Result) {
+        thread {
+            val jpeg = try {
+                readFrame(path, (seconds * 1_000_000).toLong())
+            } catch (error: RuntimeException) {
+                Log.w(TAG, "Could not read a frame", error)
+                null
+            } catch (error: IOException) {
+                Log.w(TAG, "Could not read a frame", error)
+                null
+            }
+            main.post {
+                if (jpeg == null) {
+                    result.error("failed", "This video has no picture to show here.", null)
+                } else {
+                    result.success(jpeg)
+                }
+            }
+        }
+    }
+
+    private fun readFrame(path: String, micros: Long): ByteArray? {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(path)
+            val option = MediaMetadataRetriever.OPTION_CLOSEST
+            val frame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(micros, option, FRAME_SIDE, FRAME_SIDE)
+            } else {
+                retriever.getFrameAtTime(micros, option)
+            } ?: return null
+            val bytes = ByteArrayOutputStream()
+            frame.compress(Bitmap.CompressFormat.JPEG, 80, bytes)
+            frame.recycle()
+            return bytes.toByteArray()
+        } finally {
+            retriever.release()
         }
     }
 

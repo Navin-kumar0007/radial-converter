@@ -20,6 +20,8 @@ typedef ShiftDragListener = void Function() Function({
   required void Function(RadialAction action, List<String> paths) chosen,
 });
 typedef FileSaver = Future<bool> Function(PortableFile file);
+typedef MediaProbe = Future<MediaInfo> Function(PickedFile file);
+typedef FrameReader = Future<Uint8List> Function(PickedFile file, double seconds);
 typedef Converter = Future<List<PortableFile>> Function(
   RadialAction action,
   List<PortableFile> files,
@@ -87,6 +89,8 @@ class ConverterScreen extends StatefulWidget {
     this.mediaConverter = convertMedia,
     this.pdfConverter = _defaultPdf,
     this.photoDecoder = decodeHeic,
+    this.mediaProbe = probeMedia,
+    this.frameReader = videoFrame,
     this.dropReader = readDroppedFiles,
     this.sharedFiles = listenForSharedFiles,
     this.shiftDrag = listenForShiftDrag,
@@ -101,6 +105,8 @@ class ConverterScreen extends StatefulWidget {
   final MediaConverter mediaConverter;
   final PdfConverter pdfConverter;
   final PhotoDecoder photoDecoder;
+  final MediaProbe mediaProbe;
+  final FrameReader frameReader;
   final DropReader dropReader;
 
   /// What other apps share with this one. Called once.
@@ -474,6 +480,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
       context,
       action,
       loadPicture: () => _pictureToShow(file, kind),
+      trimPreview: TrimPreview(
+        seconds: () async => (await widget.mediaProbe(file)).seconds,
+        frameAt: kind.family == FileFamily.video
+            ? (seconds) => widget.frameReader(file, seconds)
+            : null,
+      ),
     );
     if (options != null && mounted) await _start(action, options);
   }

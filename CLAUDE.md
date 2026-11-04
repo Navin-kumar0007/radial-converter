@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 487 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 192 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 498 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 204 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
@@ -103,7 +103,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Desktop only, command line only so far: libvips, qpdf and bsdtar in `lib/engines.dart`. Not bundled with
   the app yet. `radial run` needs them, plus FFmpeg, installed.
 - Crop, trim and subtitle shift ask first (`option_screens.dart`), and what is chosen reaches every engine.
-  Crop has a frame to drag plus the same four numbers typed; trim takes typed times, as nothing plays video yet.
+  Crop has a frame to drag plus the same four numbers typed. Trim shows the real frames at both ends and a slider over
+  the real length, plus typed times, which always work even if looking inside the file fails. Nothing plays video:
+  frames come from each platform's engine (FFmpeg on a desktop, `MediaMetadataRetriever` on a phone, Mediabunny in a
+  browser), so there's no player to ship per platform. Audio gets the slider only.
 - Files can be dropped on the window on macOS, Windows and web (`drop_files_*.dart`, `desktop_drop`, Apache), kept at
   0.8.x because 0.9 needs a `cross_file` that `file_picker` doesn't allow. Folders open too, and Shift-drag takes them,
   up to `maxFolderFiles` (200), without hidden files or links. The menu only offers what all files share, so a folder
@@ -124,7 +127,7 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Shift-drag on Windows: `windows/runner/shift_drag.cpp`. Windows has no drag pasteboard, so while Shift and the left
   button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
   plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.
-- Not started: video preview for trim, tray icon.
+- Not started: playing video and sound while trimming, tray icon.
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
   video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
   service yet.
@@ -182,7 +185,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Video preview for trim.
+3. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Finder and from Explorer in the Windows VM.
 5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.

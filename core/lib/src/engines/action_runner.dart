@@ -36,6 +36,60 @@ class ActionRunner {
 
   final EngineTools tools;
 
+  /// What ffprobe finds in the file at [path].
+  Future<MediaInfo> probe(String path) async {
+    final result = await Process.run(tools.ffprobe, _probeArguments(path));
+    if (result.exitCode != 0) throw EngineFailed('${p.basename(path)} could not be read.');
+    return _readProbe(result.stdout as String);
+  }
+
+  /// One frame of the video at [path] as a PNG, at most [width] wide, to show before trimming. Near
+  /// the end there may be no frame left to find, so it steps back to the last one.
+  Future<Uint8List> frameAt(String path, double seconds, {int width = 480}) async {
+    Future<Uint8List> grab(double at) async {
+      final result = await Process.run(
+        tools.ffmpeg,
+        [
+          '-hide_banner',
+          '-loglevel',
+          'error',
+          '-nostdin',
+          '-protocol_whitelist',
+          'file,pipe',
+          '-ss',
+          '$at',
+          '-i',
+          path,
+          '-frames:v',
+          '1',
+          '-vf',
+          'scale=min($width\\,iw):-2',
+          '-c:v',
+          'png',
+          '-f',
+          'image2pipe',
+          '-',
+        ],
+        stdoutEncoding: null,
+        stderrEncoding: null,
+      );
+      return Uint8List.fromList(result.exitCode == 0 ? result.stdout as List<int> : const []);
+    }
+
+    var frame = await grab(seconds);
+    if (frame.isEmpty && seconds > 0) {
+      final length = (await probe(path)).seconds;
+      final last = length < seconds ? length : seconds;
+      for (final back in const [0.1, 1.0]) {
+        if (frame.isNotEmpty || last <= back) break;
+        frame = await grab(last - back);
+      }
+      if (frame.isEmpty) frame = await grab(0);
+    }
+    if (frame.isEmpty) throw EngineFailed('${p.basename(path)} has no picture to show here.');
+    return frame;
+  }
+
   /// Runs [action] and returns the output paths. [outputFolder] defaults to the folder of
   /// each input.
   Future<List<String>> run(
@@ -467,36 +521,11 @@ class _Job {
   Future<MediaInfo> _probe(String path) async {
     final output = await runTool(
       tools.ffprobe,
-      [
-        '-v',
-        'error',
-        '-show_entries',
-        'format=duration:stream=codec_type,codec_name,width,height',
-        '-of',
-        'json',
-        path,
-      ],
+      _probeArguments(path),
       context,
       failure: '${p.basename(path)} could not be read.',
     );
-    final json = jsonDecode(output) as Map<String, dynamic>;
-    final streams = (json['streams'] as List<dynamic>).cast<Map<String, dynamic>>();
-    Map<String, dynamic>? stream(String type) {
-      return streams.where((entry) => entry['codec_type'] == type).firstOrNull;
-    }
-
-    final video = stream('video');
-    final audio = stream('audio');
-    final format = json['format'] as Map<String, dynamic>? ?? const {};
-    return MediaInfo(
-      seconds: double.tryParse('${format['duration']}') ?? 0,
-      hasVideo: video != null,
-      hasAudio: audio != null,
-      width: video?['width'] as int?,
-      height: video?['height'] as int?,
-      videoCodec: planCodecName(video?['codec_name'] as String?),
-      audioCodec: planCodecName(audio?['codec_name'] as String?),
-    );
+    return _readProbe(output);
   }
 
   /// Carries out the shared plan, the same one every platform follows. A size target tries
@@ -795,4 +824,35 @@ class _Job {
     if (value == null) throw EngineFailed('"${action.label}" needs $what.');
     return value;
   }
+}
+
+List<String> _probeArguments(String path) => [
+  '-v',
+  'error',
+  '-show_entries',
+  'format=duration:stream=codec_type,codec_name,width,height',
+  '-of',
+  'json',
+  path,
+];
+
+MediaInfo _readProbe(String output) {
+  final json = jsonDecode(output) as Map<String, dynamic>;
+  final streams = (json['streams'] as List<dynamic>).cast<Map<String, dynamic>>();
+  Map<String, dynamic>? stream(String type) {
+    return streams.where((entry) => entry['codec_type'] == type).firstOrNull;
+  }
+
+  final video = stream('video');
+  final audio = stream('audio');
+  final format = json['format'] as Map<String, dynamic>? ?? const {};
+  return MediaInfo(
+    seconds: double.tryParse('${format['duration']}') ?? 0,
+    hasVideo: video != null,
+    hasAudio: audio != null,
+    width: video?['width'] as int?,
+    height: video?['height'] as int?,
+    videoCodec: planCodecName(video?['codec_name'] as String?),
+    audioCodec: planCodecName(audio?['codec_name'] as String?),
+  );
 }
