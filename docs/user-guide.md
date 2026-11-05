@@ -1,0 +1,65 @@
+# User guide
+
+## Getting started
+
+### Mac
+
+1. Download the app and unzip it, then move **Radial Converter** to Applications.
+2. Open it. macOS warns about apps from unidentified developers, as this one isn't signed yet. Go to **System Settings → Privacy & Security**, scroll down, and choose **Open Anyway**.
+3. Leave it running. Closing the window keeps it working in the background. To stop it, right-click its Dock icon and choose **Quit**.
+
+### Windows
+
+Download the installer and run it. Windows may warn that it doesn't recognise the app. Choose **More info**, then **Run anyway**. Keep the window open, as closing it quits the app for now.
+
+### Android
+
+Download the APK and open it. Android asks you to allow installing from your browser the first time.
+
+### iPhone and iPad
+
+Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works offline after the first visit.
+
+## Converting a file
+
+**Shift-drag (Mac and Windows).** Start dragging a file or folder from anywhere, hold **Shift** while dragging, and a round menu appears at your cursor. Drop on a slice. The result lands next to the original, and a chip appears at your cursor to drag it straight on. Drop in the middle to cancel.
+
+**In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
+
+**On Android.** Share a file from any app and choose Radial Converter, or open the app and choose files.
+
+## After converting
+
+| Do this | How | Where |
+| --- | --- | --- |
+| Save | The **Save** icon. With several results, **Save all** saves beside the originals on a desktop, or as one ZIP elsewhere | Everywhere |
+| Drag to another app | Hold and drag the result to Gmail, WhatsApp Web, a folder and so on | Mac, Windows |
+| Share | The **Share** icon | Android, iPhone, some browsers |
+| Undo | The **Undo** icon, here or in History. The result goes to the Trash, so you can get it back | Mac, Windows |
+
+The clock icon at the top opens **History**, which lists what you've saved for 30 days.
+
+## What it can convert
+
+| Kind | From | To |
+| --- | --- | --- |
+| Pictures | JPG, PNG, WebP, GIF, BMP, TIFF, ICO, HEIC | JPG, PNG, WebP, GIF, TIFF, ICO, PDF |
+| Video | MP4, MOV, MKV, WebM and others on a desktop | MP4, MOV, WebM, GIF, MP3 and M4A from a desktop; MP4 and M4A on Android |
+| Audio | MP3, M4A, WAV, Opus and others on a desktop | MP3, M4A, WAV, Opus on a desktop; M4A on Android |
+| PDF | PDF | JPG, PNG, Word (DOCX) |
+| Archives | ZIP, TAR, TAR.GZ, GZ, 7z, RAR | ZIP, TAR.GZ, or extract the files |
+| Subtitles | SRT, VTT | SRT, VTT |
+
+Exactly what's offered depends on the file and the device. The menu only shows what will work.
+
+## Good to know
+
+**PDF to Word.** Text comes through as paragraphs and headings you can edit. Pictures on text pages, tables and exact layout aren't kept yet, and the result says so. Scanned pages come in as pictures, so their text can't be edited.
+
+**Form photos.** Pick a preset or type your own sizes. Rules change and differ between forms, so **always check against your form's own notice**. A file of the right size can still be refused for other reasons, such as what the photo shows.
+
+**Locked files.** PDFs and ZIPs ask for their password. Locked 7z and RAR files can't be opened yet, and neither can a RAR in several parts. A password can be added to an archive, but not yet to a PDF.
+
+**Limits.** Pictures, PDFs and archives work in memory, up to 1 GB across a job, and folders open up to 200 files. Very large videos work, as they're read piece by piece.
+
+**Something wrong?** Please tell us in the project's [issues](https://github.com/Navin-kumar0007/radial-converter/issues).

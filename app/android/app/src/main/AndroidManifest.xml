@@ -1,4 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The promise that files stay on this device, enforced by Android: libraries bring these with
+         them, and without them nothing in this app can reach a network. Debug builds add the internet
+         back in their own manifest, for Flutter's tools. The release build checks this held. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
     <application
         android:label="Radial Converter"
         android:name="${applicationName}"

@@ -995,6 +995,33 @@ void main() {
     });
   });
 
+  group('working offline in a browser', () {
+    final worker = File('web/offline_worker.js').readAsStringSync();
+    final build = File('tool/build_web.sh').readAsStringSync();
+
+    test('it only ever serves this site\'s own files', () {
+      expect(worker, contains('new URL(request.url).origin !== self.location.origin'));
+      expect(worker, contains("request.method !== 'GET'"));
+    });
+
+    test('Flutter\'s own worker can\'t remove ours', () {
+      final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
+      expect(bootstrap, isNot(contains('serviceWorkerVersion')));
+      expect(bootstrap, contains('_flutter.loader.load()'));
+      expect(build, contains('rm -f build/web/flutter_service_worker.js'));
+    });
+
+    test('the release page starts it, and the files it keeps are listed at build time', () {
+      expect(build, contains('offline_register.js'));
+      expect(build, contains('offline_files.js'));
+      expect(build, contains('self.offlineVersion'));
+    });
+
+    test('an open page isn\'t switched to new files underneath it', () {
+      expect(worker, isNot(contains('skipWaiting()')));
+    });
+  });
+
   test('the release web page may only connect to itself', () {
     final script = File('tool/build_web.sh').readAsStringSync();
     expect(script, contains('--no-web-resources-cdn'));

@@ -13,7 +13,30 @@ page=build/web/index.html
 
 awk -v policy="$policy" '
   { print }
-  /<meta charset="UTF-8">/ { printf "  <meta http-equiv=\"Content-Security-Policy\" content=\"%s\">\n", policy; added = 1 }
+  /<meta charset="UTF-8">/ {
+    printf "  <meta http-equiv=\"Content-Security-Policy\" content=\"%s\">\n", policy
+    print "  <script src=\"offline_register.js\" defer></script>"
+    added = 1
+  }
   END { if (!added) { print "Could not add the security policy" > "/dev/stderr"; exit 1 } }
 ' "$page" > "$page.new"
 mv "$page.new" "$page"
+
+# Flutter's own only removes itself, and would take ours with it.
+rm -f build/web/flutter_service_worker.js
+
+# What to keep for offline use. Leaves out debug symbols and renderers this build doesn't load. A
+# version from their contents means a new build replaces the old, and an unchanged one doesn't.
+cd build/web
+files="$(find . -type f \
+  ! -name '.*' ! -name '*.symbols' ! -name '*.map' ! -name 'skwasm*' ! -name 'wimp*' ! -path './canvaskit/webparagraph/*' \
+  ! -name 'offline_worker.js' ! -name 'offline_files.js' ! -name 'flutter_service_worker.js' \
+  | sed 's|^\./||' | LC_ALL=C sort)"
+version="$(echo "$files" | tr '\n' '\0' | xargs -0 cat | shasum -a 256 | cut -c1-16)"
+{
+  echo "self.offlineVersion = '$version';"
+  echo "self.offlineFiles = ['./',"
+  echo "$files" | sed "s/.*/  '&',/"
+  echo "];"
+} > offline_files.js
+

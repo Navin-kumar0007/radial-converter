@@ -57,7 +57,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 601 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 293 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 297 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -211,6 +211,12 @@ Engine decisions that differ from the plan or are easy to get wrong:
   when a HEIC photo is chosen. It holds a software HEVC decoder, as FFmpeg does on desktop; Android uses the
   phone's. Android and Safari could use their own, but one path for all browsers is simpler. Release checks
   must keep the 2 MB file replaceable, which LGPL requires.
+- The web app works offline after its first visit, through our own `web/offline_worker.js`. `tool/build_web.sh` lists what
+  it keeps and adds it to the page, so `flutter run` doesn't get one. Flutter's own worker is deprecated and now only
+  removes itself, taking ours with it, so `web/flutter_bootstrap.js` leaves it out. A worker file added to `web/` is kept
+  automatically. Service workers need HTTPS or localhost, so it can't be tried on a phone over plain HTTP.
+- Android has no permission to use a network: `AndroidManifest.xml` removes the ones libraries bring, which makes the
+  promise something Android enforces. Debug builds add the internet back for Flutter's tools.
 - Web video uses Mediabunny 1.61.6 (MPL-2.0, vendored unmodified in `app/web/vendor/mediabunny/`), which
   drives the browser's own encoders, so no FFmpeg, x264 or GPL. It reads and writes piece by piece and
   stores results in the browser's private storage, so there's no 1 GB limit; a 3 GB file was tested. Never ask for a large file as a blob (`response.blob()`,
