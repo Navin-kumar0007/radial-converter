@@ -59,7 +59,7 @@ void main() {
       expect(file.name, 'पोर्ट्रेट.txt');
       expect(utf8.decode(file.readBytes()!), 'नमस्ते दुनिया\n');
       // Linux isn't shipped to, and libarchive needs a locale there that nothing here sets.
-    }, skip: Platform.isLinux ? 'Needs a UTF-8 locale on Linux' : false);
+    }, skip: Platform.isLinux ? 'Needs a UTF-8 locale on Linux' : null);
 
     test('a name that can\'t be read doesn\'t lose its file', () async {
       final file = opened(await unpackToZip(sample('sample-hindi.7z'))).files.single;
