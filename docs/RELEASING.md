@@ -31,12 +31,15 @@ gh secret set ANDROID_KEY_ALIAS -R Navin-kumar0007/radial-converter --body radia
 Never commit the keystore or its password. From 2027 Android also needs apps from websites to be
 registered, through the US$25 Android Developer Console.
 
-### The web app
+### The website and web app
 
-`radial-converter-web-*.zip` is the whole site. Any static host serving HTTPS works, and offline use needs
-HTTPS. The plan is Cloudflare Pages: upload the folder, or connect the repository with `app/tool/build_web.sh`
-as the build. Set these headers if the host allows, as Flutter's page works better with them cached:
-`Cache-Control: no-cache` for `index.html` and `offline_files.js`.
+`Radial-Converter-website.zip` is the whole site: the page from `docs/site`, with the web app under `/app/`. Any static host serving HTTPS works, and offline use needs
+HTTPS. The plan is Cloudflare Pages: upload the folder, or connect the repository with `app/tool/build_site.sh`
+as the build, serving `app/build/site`. `docs/site/_headers` sets the caching Cloudflare Pages needs. On another host, set `Cache-Control: no-cache` for
+`/app/index.html`, `/app/offline_files.js` and `/app/offline_worker.js`.
+
+The page's download links use `releases/latest/download/`, so they only work once a full release, not a draft or
+prerelease, is published. CI fails a release that lacks a file the page links to.
 
 ### Windows signing (optional, free)
 

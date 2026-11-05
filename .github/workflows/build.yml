@@ -53,11 +53,11 @@ jobs:
           cache: true
       - name: Build
         working-directory: app
-        run: tool/build_web.sh
+        run: tool/build_site.sh
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-web
-          path: app/build/web
+          path: app/build/site
 
   android:
     runs-on: ubuntu-latest
@@ -331,11 +331,12 @@ jobs:
       - name: Gather everything, with the source the LGPL asks for
         run: |
           mkdir dist
-          name="Radial-Converter-$VERSION"
+          # No version in the names, so the website can link to releases/latest/download/.
+          name="Radial-Converter"
           cp built/radial-converter-macos-dmg/*.dmg "dist/$name-mac.dmg"
           cp built/radial-converter-windows-installer/*.exe "dist/$name-windows-setup.exe"
           (cd built/radial-converter-windows && zip -qr "$GITHUB_WORKSPACE/dist/$name-windows-portable.zip" .)
-          (cd built/radial-converter-web && zip -qr "$GITHUB_WORKSPACE/dist/$name-web.zip" .)
+          (cd built/radial-converter-web && zip -qr "$GITHUB_WORKSPACE/dist/$name-website.zip" .)
           for apk in built/radial-converter-android/*.apk; do
             cp "$apk" "dist/$name-$(basename "$apk" .apk | sed 's/^radial-converter-//').apk"
           done
@@ -347,6 +348,13 @@ jobs:
           cp sources/* dist/
           cp engines/source_notes.txt "dist/SOURCES.txt"
           (cd dist && sha256sum * > SHA256SUMS.txt)
+          for file in $(grep -o 'latest/download/[^"]*' docs/site/index.html | sed 's|.*/||' | sort -u); do
+            case "$file" in *.apk) if ls dist/*TEST-KEY* >/dev/null 2>&1; then continue; fi ;; esac
+            if [ ! -f "dist/$file" ]; then
+              echo "The website links to $file, which this release doesn't have." >&2
+              exit 1
+            fi
+          done
           ls -la dist
       - name: Write the notes from the changelog
         run: |

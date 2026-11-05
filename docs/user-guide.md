@@ -4,7 +4,7 @@
 
 ### Mac
 
-1. Download the app and unzip it, then move **Radial Converter** to Applications.
+1. Download the disk image, open it, and move **Radial Converter** to Applications.
 2. Open it. macOS warns about apps from unidentified developers, as this one isn't signed yet. Go to **System Settings → Privacy & Security**, scroll down, and choose **Open Anyway**.
 3. Leave it running. Closing the window keeps it working in the background. To stop it, right-click its Dock icon and choose **Quit**.
 

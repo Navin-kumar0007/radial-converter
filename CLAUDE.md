@@ -182,6 +182,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   zip, APKs, the web app, the LGPL source and checksums. See `docs/RELEASING.md`. The installer and disk image are also made
   and tried on every push. APKs say `TEST-KEY` until the owner sets up a signing key. `--no-shrink` is deliberate: R8 can't see
   what native code calls.
+- Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. `app/tool/build_site.sh`
+  puts the web app under `/app/`. Not hosted yet, as that needs the owner's account. Download links need a published release.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
   Android, Windows and macOS downloads on every push.
 

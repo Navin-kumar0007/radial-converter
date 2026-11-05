@@ -6,7 +6,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 tool/build_worker.sh
-flutter build web --no-web-resources-cdn
+# Flutter leaves behind whatever an earlier build or a test put here, and it would get published.
+rm -rf build/web
+flutter build web --no-web-resources-cdn "$@"
 
 policy="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob: data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'"
 page=build/web/index.html
