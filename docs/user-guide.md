@@ -10,7 +10,7 @@
 
 ### Windows
 
-Download the installer and run it. Windows may warn that it doesn't recognise the app. Choose **More info**, then **Run anyway**. Keep the window open, as closing it quits the app for now.
+Download the installer and run it. Windows may warn that it doesn't recognise the app. Choose **More info**, then **Run anyway**. Closing the window keeps it working in the background, with an icon in the notification area by the clock. To stop it, right-click that icon and choose **Quit**.
 
 ### Android
 

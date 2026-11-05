@@ -3,6 +3,16 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "resource.h"
+
+namespace {
+
+const UINT kTrayMessage = WM_APP + 1;
+const UINT kTrayId = 1;
+const UINT kMenuOpen = 1;
+const UINT kMenuQuit = 2;
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -26,6 +36,8 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
+  taskbar_created_ = ::RegisterWindowMessageW(L"TaskbarCreated");
+  AddTrayIcon();
   shift_drag_ = std::make_unique<ShiftDrag>(flutter_controller_->engine()->messenger(), GetHandle());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -40,7 +52,66 @@ bool FlutterWindow::OnCreate() {
   return true;
 }
 
+void FlutterWindow::AddTrayIcon() {
+  tray_ = {};
+  tray_.cbSize = sizeof(tray_);
+  tray_.hWnd = GetHandle();
+  tray_.uID = kTrayId;
+  tray_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+  tray_.uCallbackMessage = kTrayMessage;
+  tray_.hIcon = ::LoadIconW(::GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APP_ICON));
+  wcscpy_s(tray_.szTip, L"Radial Converter");
+  tray_added_ = ::Shell_NotifyIconW(NIM_ADD, &tray_) != FALSE;
+}
+
+void FlutterWindow::RemoveTrayIcon() {
+  if (tray_added_) ::Shell_NotifyIconW(NIM_DELETE, &tray_);
+  tray_added_ = false;
+}
+
+void FlutterWindow::HideToTray() {
+  // With no icon there'd be no way back, nor any way to quit, so closing has to quit.
+  if (!tray_added_) {
+    ::DestroyWindow(GetHandle());
+    return;
+  }
+  ::ShowWindow(GetHandle(), SW_HIDE);
+  if (told_about_tray_) return;
+  told_about_tray_ = true;
+  tray_.uFlags = NIF_INFO;
+  tray_.dwInfoFlags = NIIF_NONE;
+  wcscpy_s(tray_.szInfoTitle, L"Radial Converter is still running");
+  wcscpy_s(tray_.szInfo, L"Shift-drag keeps working. To quit, right-click this icon.");
+  ::Shell_NotifyIconW(NIM_MODIFY, &tray_);
+  tray_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+}
+
+void FlutterWindow::ShowFromTray() {
+  ::ShowWindow(GetHandle(), SW_RESTORE);
+  ::SetForegroundWindow(GetHandle());
+}
+
+void FlutterWindow::ShowTrayMenu() {
+  HMENU menu = ::CreatePopupMenu();
+  if (menu == nullptr) return;
+  ::AppendMenuW(menu, MF_STRING, kMenuOpen, L"Open Radial Converter");
+  ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+  ::AppendMenuW(menu, MF_STRING, kMenuQuit, L"Quit");
+  ::SetMenuDefaultItem(menu, kMenuOpen, FALSE);
+  POINT cursor = {};
+  ::GetCursorPos(&cursor);
+  // Without these two the menu doesn't close when clicking elsewhere, as Windows documents.
+  ::SetForegroundWindow(GetHandle());
+  const UINT chosen = ::TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, cursor.x,
+                                       cursor.y, 0, GetHandle(), nullptr);
+  ::PostMessageW(GetHandle(), WM_NULL, 0, 0);
+  ::DestroyMenu(menu);
+  if (chosen == kMenuOpen) ShowFromTray();
+  if (chosen == kMenuQuit) ::DestroyWindow(GetHandle());
+}
+
 void FlutterWindow::OnDestroy() {
+  RemoveTrayIcon();
   shift_drag_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -53,6 +124,20 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (message == WM_CLOSE) {
+    HideToTray();
+    return 0;
+  }
+  if (message == kTrayMessage) {
+    if (lparam == WM_LBUTTONUP) ShowFromTray();
+    if (lparam == WM_RBUTTONUP) ShowTrayMenu();
+    return 0;
+  }
+  if (taskbar_created_ != 0 && message == taskbar_created_) {
+    AddTrayIcon();
+    return 0;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

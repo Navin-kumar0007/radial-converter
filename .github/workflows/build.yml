@@ -192,6 +192,15 @@ jobs:
           $app = Start-Process "$folder\radialconverter.exe" -PassThru
           Start-Sleep -Seconds 15
           if ($app.HasExited) { throw "The installed app stopped by itself: $($app.ExitCode)" }
+          # A second copy hands over to the first and leaves, rather than showing a second menu.
+          $second = Start-Process "$folder\radialconverter.exe" -PassThru
+          if (-not $second.WaitForExit(15000)) { throw "A second copy stayed open" }
+          if ($app.HasExited) { throw "Opening a second copy stopped the first" }
+          # Closing the window leaves it running in the notification area.
+          $app.Refresh()
+          if (-not $app.CloseMainWindow()) { throw "The app had no window to close" }
+          Start-Sleep -Seconds 5
+          if ($app.HasExited) { throw "Closing the window quit the app" }
           Stop-Process -Id $app.Id -Force
           Start-Sleep -Seconds 2
           Start-Process "$folder\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait

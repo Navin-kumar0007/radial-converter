@@ -7,6 +7,19 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Closing the window only hides it, so opening the app again usually means bringing it back. A
+  // second copy would also show a second Shift-drag menu.
+  HANDLE running = ::CreateMutexW(nullptr, TRUE, L"RadialConverter.SingleInstance");
+  if (running != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
+    HWND window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Radial Converter");
+    if (window != nullptr) {
+      ::ShowWindow(window, SW_RESTORE);
+      ::SetForegroundWindow(window);
+    }
+    ::CloseHandle(running);
+    return EXIT_SUCCESS;
+  }
+
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {

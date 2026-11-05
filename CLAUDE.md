@@ -143,8 +143,9 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   out of Flutter's canvas, and some desktop browsers can't share, so there it's Save.
 - Shift-drag on Windows: `windows/runner/shift_drag.cpp`. Windows has no drag pasteboard, so while Shift and the left
   button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
-  plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.
-- Not started: playing video and sound while trimming, tray icon.
+  plain GDI, so edges are jagged for now. Closing the window leaves an icon in the notification area (`flutter_window.cpp`),
+  whose menu quits, and opening the app again brings back the running copy. Nobody has run it.
+- Not started: playing video and sound while trimming.
 - Form photo (`image-form`, `FormDialog`, `_forForm`): what the form wants, then framing in a crop that keeps the shape,
   then a JPEG of exactly that size within the KB limits. Forms refuse files that are too small, so a plain signature
   gets empty JPEG comments up to the minimum. Limits are stored so they hold whether a site counts a KB as 1000 or 1024

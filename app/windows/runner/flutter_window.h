@@ -4,12 +4,18 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 
+// clang-format off
+#include <windows.h>
+#include <shellapi.h>
+// clang-format on
+
 #include <memory>
 
 #include "shift_drag.h"
 #include "win32_window.h"
 
-// A window that does nothing but host a Flutter view.
+// A window hosting a Flutter view. Closing it only hides it, leaving an icon in the notification
+// area, as the Shift-drag menu needs the app running. The icon's menu is how to quit.
 class FlutterWindow : public Win32Window {
  public:
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
@@ -32,6 +38,19 @@ class FlutterWindow : public Win32Window {
 
   // The system-wide Shift-drag menu.
   std::unique_ptr<ShiftDrag> shift_drag_;
+
+  void AddTrayIcon();
+  void RemoveTrayIcon();
+  void HideToTray();
+  void ShowFromTray();
+  void ShowTrayMenu();
+
+  NOTIFYICONDATAW tray_ = {};
+  bool tray_added_ = false;
+  // Said once, so nobody thinks closing the window stopped the app, or that it has crashed.
+  bool told_about_tray_ = false;
+  // Sent when Explorer restarts, which forgets every icon.
+  UINT taskbar_created_ = 0;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
