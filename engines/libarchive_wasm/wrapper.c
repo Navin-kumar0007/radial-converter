@@ -4,17 +4,21 @@
 #include <archive.h>
 #include <archive_entry.h>
 #include <emscripten.h>
+#include <locale.h>
 #include <stddef.h>
 
 // Only the formats wanted, so nothing else in the library ever sees a stranger's file.
 EMSCRIPTEN_KEEPALIVE
 struct archive *radial_open(const void *bytes, size_t size) {
+  // Without this any name that isn't plain English comes back empty.
+  setlocale(LC_ALL, "C.UTF-8");
   struct archive *archive = archive_read_new();
   if (archive == NULL) return NULL;
   archive_read_support_format_7zip(archive);
   archive_read_support_format_rar(archive);
   archive_read_support_format_rar5(archive);
-  if (archive_read_open_memory(archive, bytes, size) != ARCHIVE_OK) return archive;
+  // If this fails, reading the first entry says why.
+  archive_read_open_memory(archive, bytes, size);
   return archive;
 }
 
