@@ -40,4 +40,25 @@ if [ "$offered" != yes ]; then
   echo "The share sheet doesn't offer this app." >&2
   exit 1
 fi
-exit "$result"
+if [ "$result" -ne 0 ]; then
+  exit "$result"
+fi
+
+# Everything above is a debug build. People get a release one, so it must at least start, and have no
+# way to reach a network.
+flutter build apk --release --no-shrink || exit 1
+adb -s "$device" install -r build/app/outputs/flutter-apk/app-release.apk || exit 1
+adb -s "$device" logcat -c
+adb -s "$device" shell am start -n "$app/.MainActivity" || exit 1
+sleep 15
+if [ -z "$(adb -s "$device" shell pidof "$app")" ]; then
+  echo "The release app didn't stay open." >&2
+  adb -s "$device" logcat -d | tail -60
+  exit 1
+fi
+granted="$(adb -s "$device" shell dumpsys package "$app" | grep -E 'android.permission.(INTERNET|ACCESS_NETWORK_STATE|ACCESS_WIFI_STATE)' || true)"
+if [ -n "$granted" ]; then
+  echo "The release app can reach a network: $granted" >&2
+  exit 1
+fi
+echo "The release app starts, and has no way to reach a network."

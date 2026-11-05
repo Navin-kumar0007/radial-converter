@@ -51,7 +51,7 @@ Tests: `dart test` in `core/`, and `flutter test` in `app/`.
 | `docs/` | User guide and privacy policy |
 | `spike/` | The first macOS prototype, kept for reference |
 
-Notes for working on the code are in [`CLAUDE.md`](CLAUDE.md).
+Notes for working on the code are in [`CLAUDE.md`](CLAUDE.md), and [`docs/RELEASING.md`](docs/RELEASING.md) covers making a release.
 
 ## Licence
 

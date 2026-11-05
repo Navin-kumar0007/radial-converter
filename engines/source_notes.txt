@@ -1,0 +1,17 @@
+Where the source of the parts under the LGPL comes from, as the LGPL asks. Each can be replaced with
+your own build: on a desktop FFmpeg is separate programs in the app's `engines` folder, and on the web
+libheif is one file, `vendor/libheif/libheif-bundle.js`.
+
+FFmpeg 9.0.2 on macOS, built by engines/build_ffmpeg_macos.sh in this project.
+  Attached here: ffmpeg-9.0.2.tar.xz and lame-3.100.tar.gz, with the script naming the rest.
+
+FFmpeg on Windows, the LGPL build from https://github.com/BtbN/FFmpeg-Builds named in
+  engines/fetch_ffmpeg_windows.sh. Its version names the exact FFmpeg commit it was built from, at
+  https://github.com/FFmpeg/FFmpeg, and that project's scripts show how.
+
+libheif and libde265 on the web, through libheif-js 1.23.5.
+  https://github.com/catdad-experiments/libheif-js/tree/v1.23.5
+  https://github.com/strukturag/libheif
+  https://github.com/strukturag/libde265
+
+The app's own source is this project, under the Mozilla Public License 2.0.

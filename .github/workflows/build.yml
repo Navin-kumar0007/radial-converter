@@ -4,6 +4,9 @@ name: Build all platforms
 
 on:
   push:
+    branches: ['**']
+    # A version tag also makes a draft release. See docs/RELEASING.md.
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -69,13 +72,44 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Build
+      - name: Get the signing key, if this repository has one
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+            {
+              echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks"
+              echo "ANDROID_KEYSTORE_PASSWORD=$PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$ALIAS"
+              echo "APK_NAME=android"
+            } >> "$GITHUB_ENV"
+          else
+            echo "APK_NAME=android-TEST-KEY" >> "$GITHUB_ENV"
+          fi
+      # No shrinking: it can't see what native code calls, and a smaller app that crashes is no use.
+      - name: Build for all phones, and for most phones alone, which is far smaller
         working-directory: app
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --release --no-shrink
+          cp build/app/outputs/flutter-apk/app-release.apk "../radial-converter-$APK_NAME.apk"
+          flutter build apk --release --no-shrink --target-platform android-arm64
+          cp build/app/outputs/flutter-apk/app-release.apk "../radial-converter-$APK_NAME-arm64.apk"
+          ls -la ../radial-converter-*.apk
+      - name: Check Android itself will stop it reaching a network
+        run: |
+          aapt="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          "$aapt" dump permissions "radial-converter-$APK_NAME.apk" | tee permissions.txt
+          if grep -E 'INTERNET|NETWORK|WIFI' permissions.txt; then
+            echo "The release app can reach a network." >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-android
-          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          path: radial-converter-android*.apk
 
   # The real Android video engine, on an emulator, since it can't run in `flutter test`.
   android-device:
@@ -139,10 +173,38 @@ jobs:
           dart pub get
           export PATH="$(cygpath -u "$GITHUB_WORKSPACE")/app/build/windows/x64/runner/Release:$PATH"
           LIBARCHIVE_PATH=archive.dll dart test test/libarchive_test.dart
+      - name: Make the installer
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path app/pubspec.yaml -Pattern '^version: ([^+]+)').Matches[0].Groups[1].Value
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "/DOutput=$PWD\installer" app/windows/installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check the installer installs, runs and removes itself
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem installer/*.exe).FullName
+          Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $folder = "$env:LOCALAPPDATA\Programs\Radial Converter"
+          foreach ($file in 'radialconverter.exe','archive.dll','engines\ffmpeg.exe') {
+            if (-not (Test-Path "$folder\$file")) { throw "The installer left out $file" }
+          }
+          $app = Start-Process "$folder\radialconverter.exe" -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) { throw "The installed app stopped by itself: $($app.ExitCode)" }
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+          Start-Process "$folder\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path "$folder\radialconverter.exe") { throw "Uninstalling left the app behind" }
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-windows
           path: app/build/windows/x64/runner/Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radial-converter-windows-installer
+          path: installer/*.exe
 
   macos:
     runs-on: macos-latest
@@ -187,10 +249,24 @@ jobs:
           codesign -d --entitlements - "$app" 2>&1 | grep -q 'files.user-selected.read-write'
       - name: Zip the app, keeping its permissions
         run: ditto -c -k --keepParent "app/build/macos/Build/Products/Release/Radial Converter.app" radial-converter-macos.zip
+      - name: Make the disk image
+        run: |
+          mkdir dmg
+          ditto "app/build/macos/Build/Products/Release/Radial Converter.app" "dmg/Radial Converter.app"
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "Radial Converter" -srcfolder dmg -ov -format UDZO radial-converter-macos.dmg
+          hdiutil verify radial-converter-macos.dmg
+          hdiutil attach -nobrowse -mountpoint mounted radial-converter-macos.dmg
+          codesign -d --entitlements - "mounted/Radial Converter.app" 2>&1 | grep -q 'files.user-selected.read-write'
+          hdiutil detach mounted
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-macos
           path: radial-converter-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radial-converter-macos-dmg
+          path: radial-converter-macos.dmg
 
   # The build machines are Apple Silicon, and nothing else here can run the Intel half.
   macos-intel:
@@ -223,3 +299,69 @@ jobs:
           sleep 15
           kill -0 "$pid"
           kill "$pid"
+
+  # Only for a version tag. A draft, so nothing is public until someone tries it and presses Publish.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, web, android, android-device, windows, macos, macos-intel]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: built
+      - name: Check the tag is the version being built
+        run: |
+          version="$(sed -n 's/^version: \([^+]*\).*/\1/p' app/pubspec.yaml)"
+          case "$GITHUB_REF_NAME" in
+            "v$version"|"v$version"-*) echo "VERSION=$version" >> "$GITHUB_ENV" ;;
+            *) echo "Tag $GITHUB_REF_NAME doesn't match version $version." >&2; exit 1 ;;
+          esac
+      - name: Gather everything, with the source the LGPL asks for
+        run: |
+          mkdir dist
+          name="Radial-Converter-$VERSION"
+          cp built/radial-converter-macos-dmg/*.dmg "dist/$name-mac.dmg"
+          cp built/radial-converter-windows-installer/*.exe "dist/$name-windows-setup.exe"
+          (cd built/radial-converter-windows && zip -qr "$GITHUB_WORKSPACE/dist/$name-windows-portable.zip" .)
+          (cd built/radial-converter-web && zip -qr "$GITHUB_WORKSPACE/dist/$name-web.zip" .)
+          for apk in built/radial-converter-android/*.apk; do
+            cp "$apk" "dist/$name-$(basename "$apk" .apk | sed 's/^radial-converter-//').apk"
+          done
+          mkdir sources
+          curl -fsSL -o sources/ffmpeg-9.0.2.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+          curl -fsSL -o sources/lame-3.100.tar.gz https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+          echo "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e  sources/ffmpeg-9.0.2.tar.xz" | sha256sum -c -
+          echo "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e  sources/lame-3.100.tar.gz" | sha256sum -c -
+          cp sources/* dist/
+          cp engines/source_notes.txt "dist/SOURCES.txt"
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          ls -la dist
+      - name: Write the notes from the changelog
+        run: |
+          awk -v v="$VERSION" '
+            /^## / { on = index($0, "## " v) == 1; next }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has nothing for $VERSION." >&2
+            exit 1
+          fi
+          {
+            echo
+            echo "**Files never leave your device.** To check a download, compare it with SHA256SUMS.txt."
+            if ls dist/*TEST-KEY* >/dev/null 2>&1; then
+              echo
+              echo "> Not ready to publish: the APKs use a test key. See docs/RELEASING.md."
+            fi
+          } >> notes.md
+      - name: Create the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=()
+          case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* --draft "${prerelease[@]}" \
+            --title "Radial Converter $GITHUB_REF_NAME" --notes-file notes.md
