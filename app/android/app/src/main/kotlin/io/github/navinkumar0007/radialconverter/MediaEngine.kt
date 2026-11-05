@@ -204,6 +204,8 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             Archive.readSupportFormat7zip(archive)
             Archive.readSupportFormatRar(archive)
             Archive.readSupportFormatRar5(archive)
+            // Without this any name that isn't plain English stops the whole archive.
+            Archive.setCharset(archive, "UTF-8".toByteArray())
             Archive.readOpenFileName(archive, path.toByteArray(), UNPACK_BUFFER)
             val buffer = ByteBuffer.allocateDirect(UNPACK_BUFFER.toInt())
             val bytes = ByteArray(UNPACK_BUFFER.toInt())
@@ -230,6 +232,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     while (true) {
                         buffer.clear()
                         Archive.readData(archive, buffer)
+                        buffer.flip()
                         val count = buffer.remaining()
                         if (count == 0) break
                         total += count
