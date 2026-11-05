@@ -22,6 +22,7 @@ List<RadialAction> availableActions(
   bool canRun(RadialAction action, FileKind kind) {
     return canRunPortably(action, kind) ||
         canRunPdf(action, kind) ||
+        canRunUnpacked(action, kind) ||
         canRunMedia(action, kind) ||
         (mediaAvailable && canRunDecoded(action, kind));
   }

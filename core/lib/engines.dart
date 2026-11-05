@@ -4,6 +4,7 @@ library;
 
 export 'src/engines/action_runner.dart';
 export 'src/engines/ffmpeg_plan.dart';
+export 'src/engines/libarchive.dart';
 export 'src/engines/process.dart';
 export 'src/engines/tools.dart';
 export 'src/history/record_io.dart';

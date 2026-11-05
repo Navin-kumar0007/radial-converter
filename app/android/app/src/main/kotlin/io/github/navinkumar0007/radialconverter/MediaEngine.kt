@@ -39,12 +39,21 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.util.zip.Deflater
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.concurrent.thread
 import kotlin.math.max
+import me.zhanghai.android.libarchive.Archive
+import me.zhanghai.android.libarchive.ArchiveEntry
+import me.zhanghai.android.libarchive.ArchiveException
 
 private const val SAVE_REQUEST = 7301
 private const val PROGRESS_EVERY_MS = 500L
 private const val FRAME_SIDE = 480
+private const val UNPACK_BUFFER = 1L shl 20
+private const val UNPACK_MOST_FILES = 100000
 
 /**
  * Carries out the plans in `core/lib/src/media_plan.dart` with Media3 Transformer, which uses the
@@ -89,6 +98,11 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 result.success(null)
             }
             "decodePhoto" -> decodePhoto(call.argument<String>("path")!!, result)
+            "unpackArchive" -> unpackArchive(
+                call.argument<String>("path")!!,
+                (call.argument<Number>("limit")!!).toLong(),
+                result,
+            )
             "videoFrame" -> videoFrame(
                 call.argument<String>("path")!!,
                 call.argument<Double>("seconds")!!,
@@ -135,6 +149,100 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     result.success(mapOf("path" to png))
                 }
             }
+        }
+    }
+
+    private class UnpackFailed(message: String) : Exception(message)
+
+    /**
+     * Unpacks a 7z or RAR into a ZIP in the cache, for the archive engine to take from there. Only
+     * regular files come out, so links can't point anywhere, and [limit] counts what really comes
+     * out, so a zip bomb stops here.
+     */
+    private fun unpackArchive(path: String, limit: Long, result: MethodChannel.Result) {
+        thread {
+            val name = File(path).name
+            val zip = File(File(outputs, "archive-${System.nanoTime()}").apply { mkdirs() }, "unpacked.zip")
+            var failure: String? = null
+            try {
+                writeUnpacked(path, name, zip, limit)
+            } catch (error: UnpackFailed) {
+                failure = error.message
+            } catch (error: ArchiveException) {
+                Log.w(TAG, "Could not read an archive", error)
+                failure = describeFailure(name, error.message)
+            } catch (error: IOException) {
+                Log.w(TAG, "Could not unpack an archive", error)
+                failure = "$name could not be read."
+            }
+            if (failure != null) zip.parentFile?.deleteRecursively()
+            main.post {
+                if (failure != null) {
+                    result.error("failed", failure, null)
+                } else {
+                    result.success(mapOf("path" to zip.path))
+                }
+            }
+        }
+    }
+
+    private fun lockedMessage(name: String) =
+        "$name has a password. Locked 7z and RAR files can't be opened yet."
+
+    private fun describeFailure(name: String, reason: String?): String {
+        val lower = reason.orEmpty().lowercase()
+        if (lower.contains("encrypt") || lower.contains("passphrase") || lower.contains("password")) {
+            return lockedMessage(name)
+        }
+        return "$name could not be read. It may be damaged, or one part of several."
+    }
+
+    private fun writeUnpacked(path: String, name: String, zip: File, limit: Long) {
+        val archive = Archive.readNew()
+        try {
+            // Only the formats wanted, so nothing else in the library ever sees a stranger's file.
+            Archive.readSupportFormat7zip(archive)
+            Archive.readSupportFormatRar(archive)
+            Archive.readSupportFormatRar5(archive)
+            Archive.readOpenFileName(archive, path.toByteArray(), UNPACK_BUFFER)
+            val buffer = ByteBuffer.allocateDirect(UNPACK_BUFFER.toInt())
+            val bytes = ByteArray(UNPACK_BUFFER.toInt())
+            val used = HashSet<String>()
+            var total = 0L
+            var files = 0
+            ZipOutputStream(zip.outputStream().buffered()).use { out ->
+                // Pictures and videos barely shrink, and this runs while the user waits.
+                out.setLevel(Deflater.NO_COMPRESSION)
+                while (true) {
+                    val entry = Archive.readNextHeader(archive)
+                    if (entry == 0L) break
+                    if (ArchiveEntry.isEncrypted(entry)) throw UnpackFailed(lockedMessage(name))
+                    if (ArchiveEntry.filetype(entry) != ArchiveEntry.AE_IFREG) continue
+                    if (ArchiveEntry.hardlink(entry) != null) continue
+                    if (++files > UNPACK_MOST_FILES) throw UnpackFailed("$name holds too many files to open here.")
+                    // A name that can't be read mustn't lose the file.
+                    val entryName = ArchiveEntry.pathnameUtf8(entry).takeUnless { it.isNullOrEmpty() } ?: "file $files"
+                    // A ZIP writer refuses repeats, and a hostile archive may have them.
+                    var unique = entryName
+                    var copy = 1
+                    while (!used.add(unique)) unique = "$entryName (${++copy})"
+                    out.putNextEntry(ZipEntry(unique))
+                    while (true) {
+                        buffer.clear()
+                        Archive.readData(archive, buffer)
+                        val count = buffer.remaining()
+                        if (count == 0) break
+                        total += count
+                        if (total > limit) throw UnpackFailed("$name is too large to open here.")
+                        buffer.get(bytes, 0, count)
+                        out.write(bytes, 0, count)
+                    }
+                    out.closeEntry()
+                }
+            }
+            if (files == 0) throw UnpackFailed("$name has no files in it.")
+        } finally {
+            Archive.readFree(archive)
         }
     }
 

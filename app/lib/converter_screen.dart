@@ -21,6 +21,7 @@ typedef ShiftDragListener = void Function() Function({
   required void Function(RadialAction action, List<String> paths) chosen,
 });
 typedef FileSaver = Future<bool> Function(PortableFile file);
+typedef ArchiveUnpacker = Future<Uint8List> Function(PickedFile file);
 typedef MediaProbe = Future<MediaInfo> Function(PickedFile file);
 typedef FrameReader = Future<Uint8List> Function(PickedFile file, double seconds);
 typedef Converter = Future<List<PortableFile>> Function(
@@ -92,6 +93,7 @@ class ConverterScreen extends StatefulWidget {
     this.mediaConverter = convertMedia,
     this.pdfConverter = _defaultPdf,
     this.photoDecoder = decodeHeic,
+    this.archiveUnpacker = unpackArchive,
     this.mediaProbe = probeMedia,
     this.frameReader = videoFrame,
     this.presetLoader = loadBundledPresets,
@@ -109,6 +111,7 @@ class ConverterScreen extends StatefulWidget {
   final MediaConverter mediaConverter;
   final PdfConverter pdfConverter;
   final PhotoDecoder photoDecoder;
+  final ArchiveUnpacker archiveUnpacker;
   final MediaProbe mediaProbe;
   final FrameReader frameReader;
   final Future<List<Preset>> Function() presetLoader;
@@ -354,7 +357,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
   /// True if these are worked on whole in memory, rather than piece by piece as video is.
   bool _inMemory(RadialAction action, List<FileKind> kinds) {
     return kinds.every((kind) {
-      return canRunPdf(action, kind) || canRunPortably(action, kind) || canRunDecoded(action, kind);
+      return canRunPdf(action, kind) ||
+          canRunPortably(action, kind) ||
+          canRunUnpacked(action, kind) ||
+          canRunDecoded(action, kind);
     });
   }
 
@@ -463,10 +469,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       inputs = [
         for (var i = 0; i < files.length; i++)
-          PortableFile(
-            files[i].name,
-            kinds[i] == FileKind.heic ? await widget.photoDecoder(files[i]) : await files[i].read(),
-          ),
+          PortableFile(files[i].name, await switch (kinds[i]) {
+            FileKind.heic => widget.photoDecoder(files[i]),
+            FileKind.sevenZip || FileKind.rar => widget.archiveUnpacker(files[i]),
+            _ => files[i].read(),
+          }),
       ];
     } on EngineFailed {
       rethrow;

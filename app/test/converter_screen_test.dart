@@ -385,6 +385,82 @@ void main() {
     });
   });
 
+  group('7z and RAR', () {
+    final rar = Uint8List.fromList([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
+
+    Uint8List zipOf(Map<String, String> files) {
+      final archive = Archive();
+      files.forEach((name, text) => archive.addFile(ArchiveFile.string(name, text)));
+      return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+    }
+
+    Future<void> pumpWith(WidgetTester tester, ArchiveUnpacker unpacker) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: ConverterScreen(
+            pickFiles: () async => [picked('notes.rar', rar)],
+            saveFile: (file) async {
+              saved.add(file);
+              return true;
+            },
+            mediaAvailable: false,
+            archiveUnpacker: unpacker,
+            converter: (action, files, onProgress, options) {
+              return runPortable(action, files, options: options, onProgress: onProgress);
+            },
+          ),
+        ),
+      );
+    }
+
+    Future<void> tapSlice(WidgetTester tester, String label) async {
+      await chooseFiles(tester);
+      if (find.text(label).evaluate().isEmpty) {
+        await tester.tap(find.text('Tools'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text(label));
+      await tester.pump();
+      await settleWork(tester);
+    }
+
+    testWidgets('it unpacks through the platform, then extracts as any ZIP would', (tester) async {
+      var unpacked = 0;
+      await pumpWith(tester, (file) async {
+        unpacked++;
+        expect(file.name, 'notes.rar');
+        return zipOf({'a.txt': 'first', 'b.txt': 'second'});
+      });
+      await tapSlice(tester, 'Extract');
+      expect(unpacked, 1);
+      expect(find.text('a.txt'), findsOneWidget);
+      expect(find.text('b.txt'), findsOneWidget);
+    });
+
+    testWidgets('to ZIP is named after the original', (tester) async {
+      await pumpWith(tester, (file) async => zipOf({'a.txt': 'first'}));
+      await tapSlice(tester, 'ZIP');
+      expect(find.text('notes (converted).zip'), findsOneWidget);
+    });
+
+    testWidgets('what the platform says goes wrong is shown as it is', (tester) async {
+      await pumpWith(tester, (file) async {
+        throw const EngineFailed(
+          'notes.rar has a password. Locked 7z and RAR files can\'t be opened yet.',
+        );
+      });
+      await tapSlice(tester, 'Extract');
+      expect(find.textContaining('Locked 7z and RAR'), findsOneWidget);
+      expect(find.text('This file is locked'), findsNothing, reason: 'No password could help');
+    });
+
+    testWidgets('a hostile path inside is still refused by the ZIP engine', (tester) async {
+      await pumpWith(tester, (file) async => zipOf({'../../evil.txt': 'x'}));
+      await tapSlice(tester, 'Extract');
+      expect(find.byTooltip('Save'), findsNothing);
+    });
+  });
+
   group('locked files', () {
     Uint8List lockedZip(String password, [String name = 'a.txt']) {
       final archive = Archive()..addFile(ArchiveFile.string(name, 'hello'));
@@ -823,18 +899,25 @@ void main() {
       );
     });
 
-    test('archives need no engine, but 7z and RAR wait for one', () {
-      List<String> ids(FileKind kind) {
-        return [
-          for (final mode in ActionMode.values)
-            for (final action in availableActions([kind], mode, mediaAvailable: false)) action.id,
-        ];
-      }
-
-      expect(ids(FileKind.zip), containsAll(['archive-to-targz', 'archive-extract']));
+    test('archives need no engine, and 7z and RAR open but are never written', () {
+      Set<String> ids(FileKind kind) => {
+        for (final mode in ActionMode.values)
+          for (final action in availableActions([kind], mode, mediaAvailable: false)) action.id,
+      };
+      expect(ids(FileKind.zip), containsAll(['archive-extract', 'archive-to-targz']));
       expect(ids(FileKind.zip), isNot(contains('archive-to-7z')));
-      expect(ids(FileKind.sevenZip), isEmpty);
-      expect(ids(FileKind.rar), isEmpty);
+      for (final kind in [FileKind.sevenZip, FileKind.rar]) {
+        expect(
+          ids(kind),
+          containsAll([
+            'archive-extract',
+            'archive-to-zip',
+            'archive-to-targz',
+            'archive-add-password',
+          ]),
+        );
+        expect(ids(kind), isNot(contains('archive-to-7z')));
+      }
     });
 
     test('a HEIC photo can join other pictures, given the engine that reads it', () {

@@ -56,11 +56,11 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 76-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 531 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 241 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 76-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 551 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 245 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
-| `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf. |
+| `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
 | `docs/` | User guide, privacy policy, website (later). |
 
 The first `core/` (from `radial-core.zip` in the planning chat) never reached git. This one was
@@ -84,8 +84,17 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Archives on every platform through `core/lib/src/portable_archive.dart` (pure Dart, `archive` package, MIT):
   ZIP, TAR, TAR.GZ and GZ to ZIP or TAR.GZ, and Extract. Extract gives each file its own Save button, flat, up to
   50 files, since a browser or phone can't simply save a folder. Saving a whole folder needs screens per platform.
-  It refuses `../` paths and stops past 1 GB opened, counting what really comes out. 7z and RAR are not read,
-  and 7z not written, until libarchive is bundled.
+  It refuses `../` paths and stops past 1 GB opened, counting what really comes out.
+- 7z and RAR are read but never written: each platform unpacks them into a ZIP, as HEIC becomes a PNG, then the archive
+  engine takes over (`canRunUnpacked`). All use libarchive (BSD). macOS: its own, through `dart:ffi`
+  (`core/lib/src/engines/libarchive.dart`), so nothing is bundled. Windows: the same Dart with `archive.dll`, built with
+  vcpkg in CI and placed beside the program, as Windows looks there for its own libraries. Android: Kotlin in
+  `MediaEngine.kt`, with `me.zhanghai.android.libarchive` (Apache). Web: `archive_worker.js` and our own WebAssembly.
+  libarchive can't decrypt 7z or RAR, so locked ones say so rather than ask for a password that can't help.
+- Don't use the libarchive.js package: it ignores how many bytes a read returned, so a damaged RAR came out at the right
+  size holding whatever was in memory. The recipe is `engines/build_libarchive_wasm.sh`, run by
+  `.github/workflows/libarchive-wasm.yml` when it changes. Download its artifact into `app/web/vendor/libarchive/`,
+  test it, and commit it. Test damaged files, not only good ones, on anything that reads archives.
 - HEIC: each platform decodes it to a PNG, then the picture engine takes over (`canRunDecoded`). Desktop: the
   bundled FFmpeg. Android: `ImageDecoder`, Android 9 or newer. Web: `heic_worker.js` with libheif-js. Tested on
   a made-up photo, not yet a real iPhone one. FFmpeg and libheif ignore the colour profile, so a wide-colour
@@ -203,7 +212,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 2. Try a real iPhone HEIC photo, on every platform.
 3. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Finder and from Explorer in the Windows VM.
-5. Extract to a folder, 7z and RAR. Adding a password to a PDF, once qpdf is bundled.
+5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.

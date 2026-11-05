@@ -198,6 +198,53 @@ void _download(web.Blob file, String name) {
   Timer(const Duration(minutes: 1), () => web.URL.revokeObjectURL(url));
 }
 
+/// What the archive worker sends back.
+extension type _ArchiveReply._(JSObject _) implements JSObject {
+  external JSArray<_ArchiveFile>? get files;
+  external JSString? get failure;
+}
+
+extension type _ArchiveFile._(JSObject _) implements JSObject {
+  external JSString get name;
+  external JSUint8Array get bytes;
+}
+
+/// A 7z or RAR unpacked into a ZIP, so the archive engine can take it from there.
+Future<Uint8List> unpackArchive(PickedFile file) async {
+  const cannotStart = EngineFailed('7z and RAR files could not start in this browser.');
+  final url = file.webUrl;
+  if (url == null) throw const EngineFailed('This file could not be read.');
+  final done = Completer<Uint8List>();
+  final web.Worker worker;
+  try {
+    worker = web.Worker('archive_worker.js'.toJS, web.WorkerOptions(type: 'module'));
+  } catch (_) {
+    throw cannotStart;
+  }
+  worker.onmessage = ((web.MessageEvent event) {
+    final reply = event.data as _ArchiveReply;
+    final files = reply.files;
+    if (files != null) {
+      final zip = zipFiles([
+        for (final each in files.toDart) PortableFile(each.name.toDart, each.bytes.toDart),
+      ]);
+      done.complete(zip.bytes);
+    } else {
+      done.completeError(EngineFailed(reply.failure?.toDart ?? 'This file could not be read.'));
+    }
+  }).toJS;
+  worker.onerror = ((web.Event event) {
+    event.preventDefault();
+    if (!done.isCompleted) done.completeError(cannotStart);
+  }).toJS;
+  try {
+    worker.postMessage({'url': url, 'name': file.name}.jsify());
+    return await done.future;
+  } finally {
+    worker.terminate();
+  }
+}
+
 /// What is inside a video or audio file, read without changing it.
 Future<MediaInfo> probeMedia(PickedFile file) async {
   final url = file.webUrl;

@@ -88,6 +88,13 @@ Future<Uint8List> decodeHeic(PickedFile file) async {
   return Platform.isAndroid ? decodeHeicOnPhone(path) : decodeHeicWith(_appEngines(), path);
 }
 
+/// A 7z or RAR unpacked into a ZIP, so the archive engine can take it from there.
+Future<Uint8List> unpackArchive(PickedFile file) async {
+  final path = file.path;
+  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  return Platform.isAndroid ? unpackOnPhone(path) : unpackToZip(path);
+}
+
 /// What is inside a video or audio file, read without changing it.
 Future<MediaInfo> probeMedia(PickedFile file) async {
   final path = file.path;

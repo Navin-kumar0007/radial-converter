@@ -22,6 +22,15 @@ bool canRunArchive(RadialAction action, FileKind kind) {
   return _readable.contains(kind) && _runs.contains(action.id);
 }
 
+/// True if [action] can run on [kind] once the platform has unpacked it into a ZIP. Pure Dart can't
+/// read 7z or RAR, so each platform does that its own way, and this engine takes it from there.
+/// Nothing writes them: RAR's format is closed, and few people need to make a 7z.
+bool canRunUnpacked(RadialAction action, FileKind kind) {
+  return (kind == FileKind.sevenZip || kind == FileKind.rar) &&
+      action.accepts.contains(kind) &&
+      _runs.contains(action.id);
+}
+
 /// Runs an archive action on [file] in memory. Nothing is written to disk, and [limit] holds
 /// however much the archive claims to contain, so a zip bomb stops here.
 List<PortableFile> runArchive(

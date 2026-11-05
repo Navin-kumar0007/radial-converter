@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
@@ -67,6 +68,70 @@ void main() {
       convertPdf(remove, [unlocked], (_) {}),
       throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('no password'))),
     );
+  });
+
+  group('7z and RAR on the phone', () {
+    Future<PickedFile> fileOf(String name, String data) async {
+      final folder = await getApplicationSupportDirectory();
+      final bytes = base64.decode(data);
+      final path = p.join(folder.path, name);
+      File(path).writeAsBytesSync(bytes);
+      return PickedFile(
+        name: name,
+        size: bytes.length,
+        head: bytes,
+        read: () => File(path).readAsBytes(),
+        path: path,
+      );
+    }
+
+    Future<Archive> unpacked(String name, String data) async {
+      return ZipDecoder().decodeBytes(await unpackArchive(await fileOf(name, data)));
+    }
+
+    testWidgets('a RAR 5 comes out whole', (tester) async {
+      final file = (await unpacked('a.rar', rar5Base64)).files.single;
+      expect(file.name, 'test.bin');
+      expect(file.readBytes(), hasLength(1200));
+    });
+
+    testWidgets('a 7z using LZMA2 comes out whole', (tester) async {
+      final file = (await unpacked('a.7z', sevenZipBase64)).files.single;
+      expect(file.name, 'file1');
+      expect(file.readBytes(), hasLength(2844));
+    });
+
+    testWidgets('a RAR 4 gives its real files and no link', (tester) async {
+      final names = (await unpacked('b.rar', rar4Base64)).files.map((file) => file.name).toSet();
+      expect(names, {'test.txt', 'testdir/test.txt'});
+    });
+
+    testWidgets('a file named in Hindi keeps its name', (tester) async {
+      final file = (await unpacked('hindi.7z', hindi7zBase64)).files.single;
+      expect(file.name, 'पोर्ट्रेट.txt');
+    });
+
+    testWidgets('a locked one says so', (tester) async {
+      await expectLater(
+        unpackArchive(await fileOf('locked.7z', locked7zBase64)),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('password'))),
+      );
+    });
+
+    testWidgets('a broken one is a plain error, not a crash', (tester) async {
+      final folder = await getApplicationSupportDirectory();
+      final path = p.join(folder.path, 'cut.rar');
+      final bytes = base64.decode(rar5Base64);
+      File(path).writeAsBytesSync(bytes.sublist(0, bytes.length ~/ 2));
+      final file = PickedFile(
+        name: 'cut.rar',
+        size: bytes.length ~/ 2,
+        head: bytes,
+        read: () => File(path).readAsBytes(),
+        path: path,
+      );
+      await expectLater(unpackArchive(file), throwsA(isA<EngineFailed>()));
+    });
   });
 
   testWidgets('a frame comes back as a small picture', (tester) async {

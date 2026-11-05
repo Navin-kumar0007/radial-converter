@@ -45,6 +45,18 @@ Future<Uint8List> decodeHeicOnPhone(String path) async {
   }
 }
 
+/// The 7z or RAR at [path], unpacked into a ZIP. The phone writes it to a file, as a large one is a
+/// lot to pass across.
+Future<Uint8List> unpackOnPhone(String path) async {
+  final reply = await _call<Map>('unpackArchive', {'path': path, 'limit': maxOpenedBytes});
+  final zip = reply['path'] as String;
+  try {
+    return await File(zip).readAsBytes();
+  } finally {
+    await _removeResult(zip);
+  }
+}
+
 /// One frame of the video at [path], as a small JPEG.
 Future<Uint8List> videoFrameOnPhone(String path, double seconds) {
   return _call<Uint8List>('videoFrame', {'path': path, 'seconds': seconds});

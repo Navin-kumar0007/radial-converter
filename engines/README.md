@@ -7,6 +7,8 @@ file can't crash the app and the licence boundary stays clear.
 | --- | --- |
 | `build_ffmpeg_macos.sh` | FFmpeg and ffprobe for macOS, Apple Silicon and Intel in one program each, built from pinned sources into `build/macos/bin/`. Needs `nasm` and `pkg-config` |
 | `fetch_ffmpeg_windows.sh` | FFmpeg and ffprobe for Windows, a pinned LGPL build from BtbN/FFmpeg-Builds |
+| `fetch_libarchive_windows.sh` | libarchive for Windows, built with vcpkg, which reads 7z and RAR |
+| `build_libarchive_wasm.sh` | libarchive for browsers, from pinned sources. Runs in CI; the result is checked in at `app/web/vendor/libarchive/` |
 
 CI runs these and adds the results to the downloads. Nothing here is checked in.
 

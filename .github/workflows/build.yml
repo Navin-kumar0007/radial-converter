@@ -124,6 +124,21 @@ jobs:
       - name: Check the video engine reads HEIC photos
         shell: bash
         run: engines/check_heic.sh app/build/windows/x64/runner/Release/engines
+      - name: Reuse what reads 7z and RAR if its recipe has not changed
+        uses: actions/cache@v4
+        with:
+          path: engines/build/windows-libarchive
+          key: libarchive-windows-${{ hashFiles('engines/fetch_libarchive_windows.sh') }}
+      - name: Add what reads 7z and RAR
+        shell: bash
+        run: engines/fetch_libarchive_windows.sh app/build/windows/x64/runner/Release
+      - name: Check it reads real 7z and RAR files
+        shell: bash
+        working-directory: core
+        run: |
+          dart pub get
+          export PATH="$(cygpath -u "$GITHUB_WORKSPACE")/app/build/windows/x64/runner/Release:$PATH"
+          LIBARCHIVE_PATH=archive.dll dart test test/libarchive_test.dart
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-windows
