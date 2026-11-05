@@ -93,6 +93,7 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
       if (archive.fileType(entry) != _regularFile || archive.isHardLink(entry)) continue;
       if (++files > _mostFiles) throw EngineFailed('$name holds too many files to open here.');
 
+      final declared = archive.declaredSize(entry);
       final bytes = BytesBuilder(copy: true);
       while (true) {
         final count = archive.read(handle, buffer, bufferSize);
@@ -104,6 +105,8 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
         if (total > limit) throw EngineFailed('$name is too large to open here.');
         bytes.add(buffer.asTypedList(count));
       }
+      // Some builds treat a cut-off file as simply ending. A short file must not pass for a whole one.
+      if (declared != null && bytes.length != declared) throw _failure(name, '');
       // A name that can't be read mustn't lose the file.
       final entryName = archive.pathname(entry);
       zip.addFile(
@@ -156,7 +159,11 @@ class _Reader {
       ),
       _hardLink = library.lookupFunction<_TextC, _TextC>('archive_entry_hardlink'),
       _pathname = library.lookupFunction<_TextC, _TextC>('archive_entry_pathname_utf8'),
-      _encrypted = library.lookupFunction<_OneC, _OneD>('archive_entry_is_encrypted');
+      _encrypted = library.lookupFunction<_OneC, _OneD>('archive_entry_is_encrypted'),
+      _sizeIsSet = library.lookupFunction<_OneC, _OneD>('archive_entry_size_is_set'),
+      _size = library.lookupFunction<Int64 Function(Pointer<Void>), int Function(Pointer<Void>)>(
+        'archive_entry_size',
+      );
 
   final _NewC _new;
   final _OneD _free;
@@ -169,6 +176,11 @@ class _Reader {
   final _TextC _hardLink;
   final _TextC _pathname;
   final _OneD _encrypted;
+  final _OneD _sizeIsSet;
+  final int Function(Pointer<Void>) _size;
+
+  /// What the archive says this file's size is, or null if it doesn't.
+  int? declaredSize(Pointer<Void> entry) => _sizeIsSet(entry) != 0 ? _size(entry) : null;
 
   /// Only the formats wanted, so nothing else in the library ever sees a stranger's file.
   Pointer<Void> create() {

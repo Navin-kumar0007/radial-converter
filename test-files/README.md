@@ -12,3 +12,4 @@ Only add files you are allowed to share publicly (your own photos or public-doma
 
 `sample-*.rar` and `sample-*.7z` come from libarchive's own test suite (BSD licence), v3.8.11, because
 RAR files can't be made with free tools. `locked.pdf` has the password `open sesame`.
+`scan-with-stamp.pdf` is a made-up scan with a line of text on it, as scanner apps add their names.

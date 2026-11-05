@@ -924,6 +924,7 @@ void main() {
         'archive-add-password',
         'pdf-to-jpg',
         'pdf-to-png',
+        'pdf-to-docx',
         'document-to-pdf',
         'document-to-markdown',
         'document-to-html',

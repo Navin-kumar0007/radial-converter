@@ -94,6 +94,7 @@ void main() {
       for (final id in [
         'pdf-to-jpg',
         'pdf-to-png',
+        'pdf-to-docx',
         'pdf-merge',
         'pdf-split',
         'pdf-rotate',
@@ -312,6 +313,60 @@ void main() {
       final source = pdf('page.pdf', 1, width: 595, height: 842);
       final picture = img.decodePng((await run('pdf-to-png', [source])).single.file.bytes)!;
       expect(picture.height, closeTo(842 * 150 / 72, 2));
+    });
+  });
+
+  group('to Word', skip: skipReal, () {
+    Future<String> wordsIn(Uint8List docx) async {
+      final archive = ZipDecoder().decodeBytes(docx);
+      return utf8.decode(archive.findFile('word/document.xml')!.readBytes()!);
+    }
+
+    final testFiles = p.join(Directory.current.parent.path, 'test-files');
+    final locked = PortableFile(
+      'locked.pdf',
+      File(p.join(testFiles, 'locked.pdf')).readAsBytesSync(),
+    );
+
+    test('text comes through as text, one page to a page', () async {
+      final out = (await run('pdf-to-docx', [
+        locked,
+      ], options: const ActionOptions(password: 'open sesame'))).single;
+      expect(out.file.name, 'locked (converted).docx');
+      expect(detectKind(out.file.bytes), FileKind.docx);
+      final xml = await wordsIn(out.file.bytes);
+      expect(xml, contains('Page one'));
+      expect(xml, contains('Page two'));
+      expect('<w:pageBreakBefore/>'.allMatches(xml), hasLength(1));
+      expect(out.note, contains('can be edited'));
+    });
+
+    test('a scan comes in as pictures, and says so', () async {
+      final out = (await run('pdf-to-docx', [pdf('scan.pdf', 2, width: 300, height: 400)])).single;
+      final archive = ZipDecoder().decodeBytes(out.file.bytes);
+      expect(archive.files.where((file) => file.name.startsWith('word/media/')), hasLength(2));
+      expect(out.note, contains('scanned'));
+      expect(out.note, contains('can\'t be edited'));
+    });
+
+    test('a locked PDF still asks', () async {
+      await expectLater(run('pdf-to-docx', [locked]), throwsA(isA<PasswordNeeded>()));
+    });
+
+    test('a scan with a scanner\'s stamp keeps its page, not just the stamp', () async {
+      final stamped = PortableFile(
+        'scan.pdf',
+        File(p.join(testFiles, 'scan-with-stamp.pdf')).readAsBytesSync(),
+      );
+      final page = await PdfDocument.openData(stamped.bytes, sourceName: 'check-stamp');
+      final text = await page.pages.first.loadText();
+      expect(text!.fullText, contains('Page one'), reason: 'The sample must have the stamp');
+      await page.dispose();
+
+      final out = (await run('pdf-to-docx', [stamped])).single;
+      final archive = ZipDecoder().decodeBytes(out.file.bytes);
+      expect(archive.files.where((file) => file.name.startsWith('word/media/')), hasLength(1));
+      expect(out.note, contains('scanned'));
     });
   });
 

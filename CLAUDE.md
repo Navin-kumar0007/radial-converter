@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 76-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 552 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 245 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. For example, 'dart test --chain-stack-traces'. tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 245 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -146,6 +146,12 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   editable, shows its source, and tells people to check their notice. Only add numbers traced to an official document.
   SSC isn't included, as its notice couldn't be read: guides say 3.5 x 4.5 cm, 20-50 KB and 4 x 2 cm, 10-20 KB. UPSC isn't
   either, for the same reason, and it now also needs a live photo. The NTA numbers are from 2020.
+- PDF to DOCX on every platform (`_toDocx`, `core/lib/src/docx_writer.dart`, `pdf_text_layout.dart`): pure Dart from
+  PDFium's text and character positions. Text becomes editable paragraphs and headings, one PDF page to a Word page. A
+  page that's mostly a picture comes in as one (`pageIsAPicture`), by comparing what its text covers with how much is
+  inked: a scanner app's stamp must not replace the page. Scans can't be edited until OCR. Pictures on text pages, tables
+  and exact layout aren't kept, and the result says so. Trust PDFium's spaces and line breaks: character boxes hug each
+  glyph, so gaps and box heights mislead. Tested on 53 real PDFs. Check real ones when changing this.
 - Passwords: a locked PDF or ZIP throws `PasswordNeeded`, and the screen asks and runs it again, so every action handles
   locked files with no code of its own. The right password is tried on the next file of a batch before asking, and lasts
   only for that job. Remove password runs on PDFs through PDFium; Add password runs on archives and always makes an AES
@@ -213,7 +219,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the macOS, Windows and Android downloads from CI, and fix what they find.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
+3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Finder and from Explorer in the Windows VM.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.

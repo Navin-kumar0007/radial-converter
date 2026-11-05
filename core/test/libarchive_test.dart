@@ -16,7 +16,12 @@ String sample(String name) => p.join('..', 'test-files', name);
 Archive opened(List<int> zip) => ZipDecoder().decodeBytes(zip);
 
 void main() {
-  final skip = libarchiveAvailable() ? null : 'No libarchive on this computer';
+  // Windows has other programs' copies around, which aren't what ships.
+  final skip = Platform.isWindows && Platform.environment['LIBARCHIVE_PATH'] == null
+      ? 'Only the copy the app ships counts on Windows'
+      : libarchiveAvailable()
+      ? null
+      : 'No libarchive on this computer';
 
   group('reading what only libarchive can', skip: skip, () {
     test('a RAR 4, with only its real files', () async {

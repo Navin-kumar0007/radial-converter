@@ -223,12 +223,16 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     if (ArchiveEntry.hardlink(entry) != null) continue
                     if (++files > UNPACK_MOST_FILES) throw UnpackFailed("$name holds too many files to open here.")
                     // A name that can't be read mustn't lose the file.
-                    val entryName = ArchiveEntry.pathnameUtf8(entry).takeUnless { it.isNullOrEmpty() } ?: "file $files"
+                    val entryName = ArchiveEntry.pathnameUtf8(entry).takeUnless { it.isNullOrEmpty() }
+                        ?: ArchiveEntry.pathname(entry)?.toString(Charsets.UTF_8).takeUnless { it.isNullOrEmpty() }
+                        ?: "file $files"
                     // A ZIP writer refuses repeats, and a hostile archive may have them.
                     var unique = entryName
                     var copy = 1
                     while (!used.add(unique)) unique = "$entryName (${++copy})"
                     out.putNextEntry(ZipEntry(unique))
+                    val declared = if (ArchiveEntry.sizeIsSet(entry)) ArchiveEntry.size(entry) else null
+                    var written = 0L
                     while (true) {
                         buffer.clear()
                         Archive.readData(archive, buffer)
@@ -239,6 +243,12 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                         if (total > limit) throw UnpackFailed("$name is too large to open here.")
                         buffer.get(bytes, 0, count)
                         out.write(bytes, 0, count)
+                        written += count
+                    }
+                    // This build treats a cut-off file as simply ending. A short file must not pass
+                    // for a whole one.
+                    if (declared != null && written != declared) {
+                        throw UnpackFailed(describeFailure(name, null))
                     }
                     out.closeEntry()
                 }

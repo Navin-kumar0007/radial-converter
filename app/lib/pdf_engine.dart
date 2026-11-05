@@ -9,6 +9,7 @@ import 'package:radial_core/radial_core.dart';
 const _pdfActions = {
   'pdf-to-jpg',
   'pdf-to-png',
+  'pdf-to-docx',
   'pdf-merge',
   'pdf-split',
   'pdf-rotate',
@@ -138,6 +139,8 @@ Future<PdfResult> _one(
       return _toPictures(action, file, document, step, jpeg: true);
     case 'pdf-to-png':
       return _toPictures(action, file, document, step, jpeg: false);
+    case 'pdf-to-docx':
+      return _toDocx(action, file, document, step);
     case 'pdf-split':
       return _split(action, file, document, step);
     case 'pdf-rotate':
@@ -330,6 +333,92 @@ Future<PdfResult> _toPictures(
     return PdfResult(PortableFile(_name(action, file.name, extension), pictures.values.single));
   }
   return PdfResult(PortableFile(_name(action, file.name, 'zip'), _zip(pictures)));
+}
+
+/// Pages with more letters than this are text, however much else they hold, so no need to draw them.
+const _plainlyText = 400;
+
+/// How far from white counts as ink.
+const _inkBelow = 200;
+
+/// Checks what a page's text covers against what's really on it, drawn small as this is only a guide.
+Future<bool> _isAPicture(PdfPage page, PdfPageRawText? text) async {
+  final letters = text == null ? 0 : text.fullText.replaceAll(RegExp(r'\s'), '').length;
+  if (letters > _plainlyText) return false;
+  if (letters == 0) return true;
+  var covered = 0.0;
+  for (final box in text!.charRects) {
+    covered += (box.right - box.left).abs() * (box.top - box.bottom).abs();
+  }
+  final drawn = await _draw(page, 36);
+  if (drawn == null) return false;
+  var inked = 0;
+  for (final pixel in drawn) {
+    if (pixel.r < _inkBelow || pixel.g < _inkBelow || pixel.b < _inkBelow) inked++;
+  }
+  return pageIsAPicture(
+    letters: letters,
+    textCoverage: covered / (page.width * page.height),
+    inkCoverage: inked / (drawn.width * drawn.height),
+  );
+}
+
+/// A Word file. Pages with text become paragraphs that can be edited. Scanned ones have only a
+/// picture of their words, so they stay pictures, as reading them would take OCR.
+Future<PdfResult> _toDocx(
+  RadialAction action,
+  PortableFile file,
+  PdfDocument document,
+  void Function(double) step,
+) async {
+  final total = document.pages.length;
+  if (total == 0) throw EngineFailed('${file.name} has no pages.');
+  final blocks = <DocxBlock>[];
+  var scanned = 0;
+  for (var i = 0; i < total; i++) {
+    final page = document.pages[i];
+    final text = await page.loadText();
+    final words = text?.fullText ?? '';
+    final startsPage = i > 0;
+    if (text != null && !await _isAPicture(page, text)) {
+      blocks.addAll(
+        layoutPageText(
+          words,
+          [
+            for (final box in text.charRects)
+              (left: box.left, top: box.top, right: box.right, bottom: box.bottom),
+          ],
+          pageWidth: page.width,
+          newPage: startsPage,
+        ),
+      );
+    } else {
+      final picture = await _draw(page, _pictureDpi);
+      if (picture == null) throw EngineFailed('Page ${i + 1} of ${file.name} could not be drawn.');
+      scanned++;
+      blocks.add(
+        DocxPicture(
+          img.encodeJpg(picture, quality: 75),
+          width: picture.width,
+          height: picture.height,
+          newPage: startsPage,
+        ),
+      );
+    }
+    await _breathe();
+    step((i + 1) / total);
+  }
+  final String note;
+  if (scanned == total) {
+    note = 'This PDF is scanned, so its pages came in as pictures and can\'t be edited as text.';
+  } else if (scanned > 0) {
+    note =
+        '$scanned of $total pages are mostly pictures, so they came in that way. On the others, '
+        'pictures, tables and exact layout aren\'t kept.';
+  } else {
+    note = 'The text can be edited. Pictures, tables and exact layout aren\'t kept.';
+  }
+  return PdfResult(PortableFile(_name(action, file.name, 'docx'), buildDocx(blocks)), note: note);
 }
 
 Future<PdfResult> _split(

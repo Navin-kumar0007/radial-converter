@@ -241,6 +241,7 @@ final List<RadialAction> actionCatalogue = List.unmodifiable([
   // PDF: convert
   _convert('pdf-to-jpg', 'JPG', Engine.pdfium, _pdf, FileKind.jpg),
   _convert('pdf-to-png', 'PNG', Engine.pdfium, _pdf, FileKind.png),
+  _convert('pdf-to-docx', 'DOCX', Engine.pdfium, _pdf, FileKind.docx),
 
   // PDF: tools
   _tool('pdf-merge', 'Merge', Engine.qpdf, _pdf, 'merged', minFiles: 2),
