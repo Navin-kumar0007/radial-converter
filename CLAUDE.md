@@ -57,7 +57,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 601 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 286 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 293 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -107,8 +107,9 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   Size limits try a few sample pages first, because redrawing all of a long PDF per step takes minutes,
   and they stop at 72 dpi rather than produce something unreadable. It works on the page in a browser, so
   long PDFs stutter; moving JPEG encoding into the worker would fix that.
-- The owner has tried the apps on a MacBook, an Android phone and an iPhone (5 Nov 2026) and reports they work. Windows
-  is still to come.
+- The owner has tried the apps on a MacBook, an Android phone and an iPhone (5 Nov 2026) and reports they work, including
+  on the Mac Shift-drag from Finder, dragging results out, history and undo. Windows is still to come. Not yet tried:
+  a form photo on a real form, a real iPhone HEIC photo.
 - Tested for real: web in Chrome; the desktop path through its tests against the shipping macOS FFmpeg; the
   Android engine on an emulator in CI, though its Save dialog has no test.
 - Desktop only, command line only so far: libvips, qpdf and bsdtar in `lib/engines.dart`. Not bundled with
@@ -139,7 +140,7 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   `ShiftDrag::DragOut`, with results in memory written to a temporary file, cleared at the next launch). After a Shift-drag a
   native chip appears at the cursor (`ResultChip`), to drag on from. Phones and browsers that can get a Share button instead
   (`shareOnPhone`, `navigator.share`), and only results can be shared (`res/xml/shared_results.xml`). Browsers can't drag
-  out of Flutter's canvas, and desktop browsers often can't share, so there it's Save. Real drags out are untested.
+  out of Flutter's canvas, and some desktop browsers can't share, so there it's Save.
 - Shift-drag on Windows: `windows/runner/shift_drag.cpp`. Windows has no drag pasteboard, so while Shift and the left
   button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
   plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.

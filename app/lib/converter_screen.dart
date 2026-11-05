@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:radial_core/radial_core.dart';
 
+import 'about.dart';
 import 'conversion.dart';
 import 'drop_files.dart';
 import 'file_chip.dart';
@@ -865,6 +866,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
         toolbarHeight: 44,
         backgroundColor: Colors.transparent,
         actions: [
+          IconButton(
+            tooltip: 'About',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => showAbout(context),
+          ),
           IconButton(tooltip: 'History', icon: const Icon(Icons.history), onPressed: _openHistory),
         ],
       ),

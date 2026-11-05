@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 0.9.0+1
 
 environment:
   sdk: ^3.13.7
@@ -77,6 +77,8 @@ flutter:
 
   # One by one: Flutter silently ignores a folder inside a package. A test checks none is missed.
   assets:
+    - assets/app_icon.png
+    - assets/licenses/
     - packages/radial_core/presets/india-passport-upload.json
     - packages/radial_core/presets/job-form-photo.json
     - packages/radial_core/presets/job-form-signature.json

@@ -162,7 +162,7 @@ jobs:
       - name: Test PDFs against the real PDFium
         working-directory: app
         run: |
-          PDFIUM_PATH="$PWD/build/macos/Build/Products/Release/radialconverter.app/Contents/Frameworks/PDFium.framework/pdfium" \
+          PDFIUM_PATH="$PWD/build/macos/Build/Products/Release/Radial Converter.app/Contents/Frameworks/PDFium.framework/pdfium" \
             flutter test test/pdf_engine_test.dart
       - name: Reuse the video engine if its recipe has not changed
         id: engine
@@ -179,14 +179,14 @@ jobs:
         run: engines/check_heic.sh engines/build/macos/bin
       - name: Add the video engine to the app
         run: |
-          app=app/build/macos/Build/Products/Release/radialconverter.app
+          app="app/build/macos/Build/Products/Release/Radial Converter.app"
           mkdir -p "$app/Contents/Resources/engines"
           cp engines/build/macos/bin/* "$app/Contents/Resources/engines/"
           # Signing again drops the entitlements unless given, and without them the file dialogs refuse to open.
           codesign --force --deep --sign - --entitlements app/macos/Runner/Release.entitlements "$app"
           codesign -d --entitlements - "$app" 2>&1 | grep -q 'files.user-selected.read-write'
       - name: Zip the app, keeping its permissions
-        run: ditto -c -k --keepParent app/build/macos/Build/Products/Release/radialconverter.app radial-converter-macos.zip
+        run: ditto -c -k --keepParent "app/build/macos/Build/Products/Release/Radial Converter.app" radial-converter-macos.zip
       - uses: actions/upload-artifact@v4
         with:
           name: radial-converter-macos
@@ -205,7 +205,7 @@ jobs:
         run: |
           [ "$(uname -m)" = x86_64 ]
           ditto -x -k radial-converter-macos.zip unpacked
-          app=unpacked/radialconverter.app
+          app="unpacked/Radial Converter.app"
           engines/check_heic.sh "$app/Contents/Resources/engines"
           # Not the hardware encoder, which a virtual machine may not have.
           "$app/Contents/Resources/engines/ffmpeg" -hide_banner -loglevel error \
@@ -217,8 +217,8 @@ jobs:
           grep -q opus streams.txt
       - name: Start the app on an Intel Mac
         run: |
-          app=unpacked/radialconverter.app
-          "$app/Contents/MacOS/radialconverter" &
+          app="unpacked/Radial Converter.app"
+          "$app/Contents/MacOS/Radial Converter" &
           pid=$!
           sleep 15
           kill -0 "$pid"

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'about.dart';
 import 'converter_screen.dart';
 import 'platform_files.dart';
 
 void main() {
+  registerBundledLicenses();
   runApp(const RadialApp());
 }
 
