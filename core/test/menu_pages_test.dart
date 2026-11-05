@@ -66,8 +66,15 @@ void main() {
   test('formats alternate with fits, and leftovers follow', () {
     final actions = actionsFor(const [FileKind.pdf], ActionMode.convert);
     final ids = menuPages(actions).first.map((action) => action.id).toList();
-    expect(ids.take(4), ['pdf-to-jpg', 'fit-email-pdf', 'pdf-to-png', 'fit-pdf-100kb']);
-    expect(ids.skip(4), ['fit-pdf-500kb', 'fit-pdf-1mb']);
+    expect(ids.take(6), [
+      'pdf-to-jpg',
+      'fit-email-pdf',
+      'pdf-to-png',
+      'fit-pdf-100kb',
+      'pdf-to-docx',
+      'fit-pdf-500kb',
+    ]);
+    expect(ids.skip(6), ['fit-pdf-1mb']);
   });
 
   test('too few slots is refused', () {
