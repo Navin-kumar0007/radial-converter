@@ -910,9 +910,18 @@ void main() {
       );
     });
 
+    test('a "protected" archive is never made without a password', () async {
+      await expectLater(
+        runAction('archive-add-password', [zip]),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('not available'))),
+      );
+    });
+
     test('the list of what is waiting is short and known', () {
       final waiting = actionCatalogue.where((action) => !isActionWired(action)).map((a) => a.id);
       expect(waiting.toSet(), {
+        'image-form',
+        'archive-add-password',
         'pdf-to-jpg',
         'pdf-to-png',
         'document-to-pdf',

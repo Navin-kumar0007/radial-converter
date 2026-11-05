@@ -20,6 +20,11 @@ extension type WorkerRequest._(JSObject _) implements JSObject {
     JSNumber? shiftMilliseconds,
     JSString? password,
     JSString? newPassword,
+    JSNumber? formWidth,
+    JSNumber? formHeight,
+    JSNumber? formMinBytes,
+    JSNumber? formMaxBytes,
+    JSBoolean? forForm,
   });
 
   external JSString get actionId;
@@ -31,6 +36,11 @@ extension type WorkerRequest._(JSObject _) implements JSObject {
   external JSNumber? get shiftMilliseconds;
   external JSString? get password;
   external JSString? get newPassword;
+  external JSNumber? get formWidth;
+  external JSNumber? get formHeight;
+  external JSNumber? get formMinBytes;
+  external JSNumber? get formMaxBytes;
+  external JSBoolean? get forForm;
 }
 
 /// What the worker sends back: progress, then the results or why it failed.

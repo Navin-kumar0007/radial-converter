@@ -102,13 +102,49 @@ void main() {
     rejects('source not text', (json) => json['source'] = 1);
   });
 
-  test('every preset in presets/ loads and is named after its id', () {
-    final folder = Directory('../presets');
-    final files = folder.listSync().whereType<File>().where((f) => f.path.endsWith('.json'));
-    expect(files, isNotEmpty);
-    for (final file in files) {
-      final name = file.uri.pathSegments.last;
-      expect(() => Preset.parse(file.readAsStringSync(), fileName: name), returnsNormally);
+  group('the presets that ship', () {
+    final files = Directory(
+      'lib/presets',
+    ).listSync().whereType<File>().where((f) => f.path.endsWith('.json')).toList();
+    Preset read(File file) {
+      return Preset.parse(file.readAsStringSync(), fileName: file.uri.pathSegments.last);
     }
+
+    test('there are some', () => expect(files, isNotEmpty));
+
+    test('each loads and is named after its id', () {
+      for (final file in files) {
+        expect(() => read(file), returnsNormally, reason: file.path);
+      }
+    });
+
+    test('each says where its numbers came from, and has both languages', () {
+      for (final file in files) {
+        final preset = read(file);
+        expect(preset.source, startsWith('https://'), reason: preset.id);
+        expect(preset.source, isNot(contains('link-to')), reason: preset.id);
+        expect(preset.note, isNotEmpty, reason: preset.id);
+        expect(preset.labels.keys, containsAll(['en', 'hi']), reason: preset.id);
+      }
+    });
+
+    test('each can run', () {
+      for (final file in files) {
+        final output = read(file).output;
+        expect(output.format, FileKind.jpg, reason: file.path);
+        expect(output.width == null, output.height == null, reason: file.path);
+        expect(output.maxBytes, isNotNull, reason: file.path);
+      }
+    });
+  });
+
+  test('a smallest size above the largest is refused', () {
+    final json = jsonEncode({
+      'id': 'x',
+      'label': {'en': 'x'},
+      'accepts': ['image/*'],
+      'output': {'format': 'jpg', 'minBytes': 20, 'maxBytes': 10},
+    });
+    expect(() => Preset.parse(json), throwsFormatException);
   });
 }

@@ -9,6 +9,7 @@ import 'conversion.dart';
 import 'drop_files.dart';
 import 'file_chip.dart';
 import 'option_screens.dart';
+import 'presets.dart';
 import 'radial_menu.dart';
 import 'shared_files.dart';
 import 'shift_drag.dart';
@@ -93,6 +94,7 @@ class ConverterScreen extends StatefulWidget {
     this.photoDecoder = decodeHeic,
     this.mediaProbe = probeMedia,
     this.frameReader = videoFrame,
+    this.presetLoader = loadBundledPresets,
     this.dropReader = readDroppedFiles,
     this.sharedFiles = listenForSharedFiles,
     this.shiftDrag = listenForShiftDrag,
@@ -109,6 +111,7 @@ class ConverterScreen extends StatefulWidget {
   final PhotoDecoder photoDecoder;
   final MediaProbe mediaProbe;
   final FrameReader frameReader;
+  final Future<List<Preset>> Function() presetLoader;
   final DropReader dropReader;
 
   /// What other apps share with this one. Called once.
@@ -495,7 +498,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       await _start(action, const ActionOptions());
       return;
     }
-    if (action.id == 'image-crop') {
+    if (action.id == 'image-crop' || action.id == 'image-form') {
       final tooLarge = _tooLarge();
       if (tooLarge != null) {
         _say(tooLarge);
@@ -508,6 +511,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       context,
       action,
       loadPicture: () => _pictureToShow(file, kind),
+      loadPresets: widget.presetLoader,
+      fileCount: _files.length,
       trimPreview: TrimPreview(
         seconds: () async => (await widget.mediaProbe(file)).seconds,
         frameAt: kind.family == FileFamily.video

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ const _askFirst = {
   'video-trim',
   'audio-trim',
   'archive-add-password',
+  'image-form',
 };
 
 /// True if the user must choose something before [action] can run.
@@ -22,7 +24,12 @@ Future<ActionOptions?> askForOptions(
   RadialAction action, {
   required Future<Uint8List> Function() loadPicture,
   TrimPreview? trimPreview,
-}) {
+  Future<List<Preset>> Function()? loadPresets,
+  int fileCount = 1,
+}) async {
+  if (action.id == 'image-form') {
+    return _askForForm(context, loadPicture, loadPresets, fileCount);
+  }
   return showDialog<ActionOptions>(
     context: context,
     builder: (context) => switch (action.id) {
@@ -32,6 +39,208 @@ Future<ActionOptions?> askForOptions(
       _ => TrimDialog(preview: trimPreview),
     },
   );
+}
+
+/// What the form wants, then what part of the photo to use. Many files can't each stop to be
+/// framed, so those use their middles.
+Future<ActionOptions?> _askForForm(
+  BuildContext context,
+  Future<Uint8List> Function() loadPicture,
+  Future<List<Preset>> Function()? loadPresets,
+  int fileCount,
+) async {
+  final form = await showDialog<FormTarget>(
+    context: context,
+    builder: (context) => FormDialog(loadPresets: loadPresets),
+  );
+  if (form == null) return null;
+  if (fileCount > 1 || !context.mounted) return ActionOptions(form: form);
+  final width = form.width;
+  final height = form.height;
+  final framed = await showDialog<ActionOptions>(
+    context: context,
+    builder: (context) => CropDialog(
+      loadPicture: loadPicture,
+      shape: width != null && height != null ? width / height : null,
+    ),
+  );
+  if (framed == null) return null;
+  return ActionOptions(form: form, crop: framed.crop);
+}
+
+/// What a form wants a picture to be. A preset only fills in the boxes, since forms change their
+/// rules and every one of these numbers may need correcting.
+class FormDialog extends StatefulWidget {
+  const FormDialog({super.key, this.loadPresets});
+
+  final Future<List<Preset>> Function()? loadPresets;
+
+  @override
+  State<FormDialog> createState() => _FormDialogState();
+}
+
+class _FormDialogState extends State<FormDialog> {
+  final _width = TextEditingController();
+  final _height = TextEditingController();
+  final _atLeast = TextEditingController();
+  final _atMost = TextEditingController();
+  List<Preset> _presets = const [];
+  Preset? _chosen;
+  String? _pixelsError;
+  String? _sizeError;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _width.dispose();
+    _height.dispose();
+    _atLeast.dispose();
+    _atMost.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final load = widget.loadPresets;
+    if (load == null) return;
+    try {
+      final presets = await load();
+      if (mounted) setState(() => _presets = presets);
+    } catch (error) {
+      debugPrint('Could not load presets: $error');
+    }
+  }
+
+  void _choose(Preset? preset) {
+    setState(() {
+      _chosen = preset;
+      _pixelsError = null;
+      _sizeError = null;
+      final output = preset?.output;
+      _width.text = '${output?.width ?? ''}';
+      _height.text = '${output?.height ?? ''}';
+      final atLeast = output?.minBytes;
+      final atMost = output?.maxBytes;
+      _atLeast.text = atLeast == null ? '' : '${formMinKb(atLeast)}';
+      _atMost.text = atMost == null ? '' : '${formMaxKb(atMost)}';
+    });
+  }
+
+  void _finish() {
+    int? read(TextEditingController field) => int.tryParse(field.text.trim());
+    final width = read(_width);
+    final height = read(_height);
+    final atLeast = read(_atLeast);
+    final atMost = read(_atMost);
+    setState(() {
+      _pixelsError = (width == null) != (height == null) ? 'Give both, or neither.' : null;
+      if ((width ?? 1) < 1 || (height ?? 1) < 1) _pixelsError = 'These must be above 0.';
+      if ((width ?? 0) > 10000 || (height ?? 0) > 10000) _pixelsError = 'These are too large.';
+      _sizeError = atLeast != null && atMost != null && atLeast > atMost
+          ? 'The smallest can\'t be more than the largest.'
+          : atMost == 0
+          ? 'This must be above 0.'
+          : null;
+    });
+    if (_pixelsError != null || _sizeError != null) return;
+    Navigator.of(context).pop(
+      FormTarget(
+        width: width,
+        height: height,
+        minBytes: atLeast == null || atLeast == 0 ? null : formMinBytes(atLeast),
+        maxBytes: atMost == null ? null : formMaxBytes(atMost),
+      ),
+    );
+  }
+
+  Widget _number(TextEditingController field, String label, {String? errorText}) {
+    return Expanded(
+      child: TextField(
+        controller: field,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(labelText: label, errorText: errorText, errorMaxLines: 2),
+        onChanged: (_) {
+          // Changed by hand, it's no longer what the preset says, so its source no longer applies.
+          if (_chosen != null) setState(() => _chosen = null);
+        },
+        onSubmitted: (_) => _finish(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final styles = Theme.of(context).textTheme;
+    final chosen = _chosen;
+    return AlertDialog(
+      title: const Text('Form photo'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_presets.isNotEmpty) ...[
+                DropdownButtonFormField<Preset?>(
+                  initialValue: chosen,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Fill in from'),
+                  items: [
+                    const DropdownMenuItem(child: Text('My own sizes')),
+                    for (final preset in _presets)
+                      DropdownMenuItem(
+                        value: preset,
+                        child: Text(preset.label('en'), overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: _choose,
+                ),
+                const SizedBox(height: 16),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _number(_width, 'Width (pixels)', errorText: _pixelsError),
+                  const SizedBox(width: 12),
+                  _number(_height, 'Height (pixels)'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _number(_atLeast, 'At least (KB)', errorText: _sizeError),
+                  const SizedBox(width: 12),
+                  _number(_atMost, 'At most (KB)'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (chosen != null) ...[
+                if (chosen.note != null) Text(chosen.note!, style: styles.bodySmall),
+                const SizedBox(height: 4),
+                if (chosen.source != null) SelectableText(chosen.source!, style: styles.bodySmall),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                'Rules change, so check these against your form\'s own notice.',
+                style: styles.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(onPressed: _finish, child: const Text('Next')),
+      ],
+    );
+  }
 }
 
 /// Asks what opens [fileName], or returns null if the user would rather not.
@@ -549,6 +758,48 @@ class _TrimDialogState extends State<TrimDialog> {
   }
 }
 
+/// The crop frame after dragging [handle] by [by], keeping its [shape], a width over a height, as
+/// a form that sets a pixel size needs. The corner opposite stays put.
+Rect moveCropKeepingShape(
+  Rect area,
+  CropHandle handle,
+  Offset by,
+  Size picture,
+  double shape, {
+  double minSide = 8,
+}) {
+  if (handle == CropHandle.move) return moveCrop(area, handle, by, picture);
+  final onLeft = handle == CropHandle.topLeft || handle == CropHandle.bottomLeft;
+  final onTop = handle == CropHandle.topLeft || handle == CropHandle.topRight;
+  final fixedX = onLeft ? area.right : area.left;
+  final fixedY = onTop ? area.bottom : area.top;
+  final grownX = onLeft ? -by.dx : by.dx;
+  final grownY = onTop ? -by.dy : by.dy;
+  // Whichever way the drag went further decides, so a drag in either direction does something.
+  final wanted = grownX.abs() >= (grownY * shape).abs()
+      ? area.width + grownX
+      : (area.height + grownY) * shape;
+  final roomX = onLeft ? fixedX : picture.width - fixedX;
+  final roomY = onTop ? fixedY : picture.height - fixedY;
+  final most = math.min(roomX, roomY * shape);
+  final least = math.min(most, math.max(minSide, minSide * shape));
+  final width = wanted.clamp(least, most);
+  final height = width / shape;
+  return Rect.fromLTWH(
+    onLeft ? fixedX - width : fixedX,
+    onTop ? fixedY - height : fixedY,
+    width,
+    height,
+  );
+}
+
+/// The largest frame of this [shape] that fits [picture], in its middle.
+Rect largestCrop(Size picture, double shape) {
+  final width = math.min(picture.width, picture.height * shape);
+  final height = width / shape;
+  return Rect.fromLTWH((picture.width - width) / 2, (picture.height - height) / 2, width, height);
+}
+
 /// What dragging can take hold of.
 enum CropHandle { move, topLeft, topRight, bottomLeft, bottomRight }
 
@@ -589,9 +840,12 @@ CropHandle? cropHandleAt(Rect area, Offset point, double reach) {
 
 /// Shows the picture with a frame to drag, and the same four numbers to type.
 class CropDialog extends StatefulWidget {
-  const CropDialog({super.key, required this.loadPicture});
+  const CropDialog({super.key, required this.loadPicture, this.shape});
 
   final Future<Uint8List> Function() loadPicture;
+
+  /// A width over a height the frame must keep, or null to let it take any shape.
+  final double? shape;
 
   @override
   State<CropDialog> createState() => _CropDialogState();
@@ -621,7 +875,9 @@ class _CropDialogState extends State<CropDialog> {
       }
       setState(() {
         _picture = picture;
-        _setArea(Rect.fromLTWH(0, 0, picture.width.toDouble(), picture.height.toDouble()));
+        final size = Size(picture.width.toDouble(), picture.height.toDouble());
+        final shape = widget.shape;
+        _setArea(shape == null ? Offset.zero & size : largestCrop(size, shape));
       });
     } catch (_) {
       if (mounted) setState(() => _failed = true);
@@ -714,27 +970,29 @@ class _CropDialogState extends State<CropDialog> {
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (final entry in _fields.entries)
-                          SizedBox(
-                            width: 96,
-                            child: TextField(
-                              controller: entry.value,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              decoration: InputDecoration(labelText: entry.key),
-                              onChanged: (_) => _typed(),
+                  // Typed numbers could break the shape, and dragging is all that's needed.
+                  if (widget.shape == null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final entry in _fields.entries)
+                            SizedBox(
+                              width: 96,
+                              child: TextField(
+                                controller: entry.value,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                decoration: InputDecoration(labelText: entry.key),
+                                onChanged: (_) => _typed(),
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
       ),
@@ -759,7 +1017,15 @@ class _CropDialogState extends State<CropDialog> {
         onPanUpdate: (details) {
           final handle = _dragging;
           if (handle == null) return;
-          setState(() => _setArea(moveCrop(_area, handle, details.delta / scale, size)));
+          final by = details.delta / scale;
+          final shape = widget.shape;
+          setState(() {
+            _setArea(
+              shape == null
+                  ? moveCrop(_area, handle, by, size)
+                  : moveCropKeepingShape(_area, handle, by, size, shape),
+            );
+          });
         },
         onPanEnd: (_) => _dragging = null,
         child: Padding(

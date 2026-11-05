@@ -10,6 +10,7 @@ class PresetOutput {
     required this.format,
     this.width,
     this.height,
+    this.minBytes,
     this.maxBytes,
     this.background,
     this.crop = PresetCrop.none,
@@ -18,6 +19,9 @@ class PresetOutput {
   final FileKind format;
   final int? width;
   final int? height;
+
+  /// Forms refuse files that are too small as well as too large.
+  final int? minBytes;
   final int? maxBytes;
   final String? background;
   final PresetCrop crop;
@@ -137,11 +141,18 @@ class Preset {
     final crop = PresetCrop.values.where((value) => value.name == cropName).firstOrNull;
     if (crop == null) throw FormatException('Preset $id: "crop" must be none, user or auto');
 
+    final minBytes = positive('minBytes');
+    final maxBytes = positive('maxBytes');
+    if (minBytes != null && maxBytes != null && minBytes > maxBytes) {
+      throw FormatException('Preset $id: "minBytes" is more than "maxBytes"');
+    }
+
     return PresetOutput(
       format: format,
       width: positive('width'),
       height: positive('height'),
-      maxBytes: positive('maxBytes'),
+      minBytes: minBytes,
+      maxBytes: maxBytes,
       background: background as String?,
       crop: crop,
     );

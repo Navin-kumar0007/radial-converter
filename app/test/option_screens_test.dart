@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,8 +9,322 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/option_screens.dart';
+import 'package:radialconverter/presets.dart';
 
 void main() {
+  group('keeping the frame\'s shape', () {
+    const picture = Size(1000, 800);
+    const shape = 200 / 230;
+    final area = largestCrop(picture, shape);
+
+    void hasShape(Rect frame) {
+      expect(frame.width / frame.height, closeTo(shape, 0.001));
+    }
+
+    test('it starts as large as fits, in the middle', () {
+      hasShape(area);
+      expect(area.height, 800);
+      expect(area.center, const Offset(500, 400));
+    });
+
+    test('a wide picture and a tall one both work', () {
+      final tall = largestCrop(const Size(300, 2000), shape);
+      hasShape(tall);
+      expect(tall.width, 300);
+    });
+
+    test('dragging a corner keeps the shape and pins the opposite corner', () {
+      final out = moveCropKeepingShape(
+        area,
+        CropHandle.bottomRight,
+        const Offset(-50, -3),
+        picture,
+        shape,
+      );
+      hasShape(out);
+      expect(out.topLeft, area.topLeft);
+      expect(out.width, closeTo(area.width - 50, 0.001));
+    });
+
+    test('every corner pins its opposite', () {
+      const start = Rect.fromLTWH(100, 100, 200, 230);
+      final topLeft = moveCropKeepingShape(
+        start,
+        CropHandle.topLeft,
+        const Offset(20, 0),
+        picture,
+        shape,
+      );
+      hasShape(topLeft);
+      expect(topLeft.bottomRight, start.bottomRight);
+      final topRight = moveCropKeepingShape(
+        start,
+        CropHandle.topRight,
+        const Offset(20, 0),
+        picture,
+        shape,
+      );
+      hasShape(topRight);
+      expect(topRight.bottomLeft, start.bottomLeft);
+      expect(topRight.width, 220);
+      final bottomLeft = moveCropKeepingShape(
+        start,
+        CropHandle.bottomLeft,
+        const Offset(-20, 0),
+        picture,
+        shape,
+      );
+      hasShape(bottomLeft);
+      expect(bottomLeft.topRight, start.topRight);
+      expect(bottomLeft.width, 220);
+    });
+
+    test('a mostly up-and-down drag still works', () {
+      const start = Rect.fromLTWH(100, 100, 200, 230);
+      final out = moveCropKeepingShape(
+        start,
+        CropHandle.bottomRight,
+        const Offset(0, 46),
+        picture,
+        shape,
+      );
+      hasShape(out);
+      expect(out.height, closeTo(276, 0.001));
+    });
+
+    test('it stops at the picture\'s edges, still keeping its shape', () {
+      const start = Rect.fromLTWH(100, 100, 200, 230);
+      final out = moveCropKeepingShape(
+        start,
+        CropHandle.bottomRight,
+        const Offset(5000, 5000),
+        picture,
+        shape,
+      );
+      hasShape(out);
+      expect(out.right, lessThanOrEqualTo(1000.001));
+      expect(out.bottom, lessThanOrEqualTo(800.001));
+    });
+
+    test('it can\'t turn inside out or vanish', () {
+      const start = Rect.fromLTWH(100, 100, 200, 230);
+      final out = moveCropKeepingShape(
+        start,
+        CropHandle.bottomRight,
+        const Offset(-5000, 0),
+        picture,
+        shape,
+      );
+      hasShape(out);
+      expect(out.width, greaterThan(0));
+      expect(out.topLeft, start.topLeft);
+    });
+
+    test('moving it keeps its size', () {
+      const start = Rect.fromLTWH(100, 100, 200, 230);
+      final out = moveCropKeepingShape(
+        start,
+        CropHandle.move,
+        const Offset(10, 20),
+        picture,
+        shape,
+      );
+      expect(out, const Rect.fromLTWH(110, 120, 200, 230));
+    });
+  });
+
+  group('asking what a form wants', () {
+    final preset = Preset.parse(
+      '{"id":"job","label":{"en":"Job photo"},"accepts":["image/*"],'
+      '"output":{"format":"jpg","width":200,"height":230,"minBytes":20480,"maxBytes":50000},'
+      '"source":"https://example.org/rules","note":"From the rules."}',
+    );
+
+    Future<FormTarget?> ask(WidgetTester tester, Future<void> Function() fill) async {
+      FormTarget? chosen;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                chosen = await showDialog<FormTarget>(
+                  context: context,
+                  builder: (_) => FormDialog(loadPresets: () async => [preset]),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await fill();
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      return chosen;
+    }
+
+    Future<void> choosePreset(WidgetTester tester) async {
+      await tester.tap(find.byType(DropdownButtonFormField<Preset?>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Job photo').last);
+      await tester.pumpAndSettle();
+    }
+
+    Finder box(String label) => find.widgetWithText(TextField, label);
+
+    testWidgets('a preset fills the boxes, in KB people recognise', (tester) async {
+      final form = await ask(tester, () async {
+        await choosePreset(tester);
+        expect(tester.widget<TextField>(box('Width (pixels)')).controller!.text, '200');
+        expect(tester.widget<TextField>(box('At least (KB)')).controller!.text, '20');
+        expect(tester.widget<TextField>(box('At most (KB)')).controller!.text, '50');
+      });
+      expect(form!.width, 200);
+      expect(form.height, 230);
+      expect(form.minBytes, 20480);
+      expect(form.maxBytes, 50000);
+    });
+
+    testWidgets('it says where the numbers came from, and to check them', (tester) async {
+      await ask(tester, () async {
+        expect(find.textContaining('check these against your form'), findsOneWidget);
+        expect(find.text('From the rules.'), findsNothing);
+        await choosePreset(tester);
+        expect(find.text('From the rules.'), findsOneWidget);
+        expect(find.text('https://example.org/rules'), findsOneWidget);
+      });
+    });
+
+    testWidgets('a preset\'s numbers can be changed, and then it stops claiming them', (
+      tester,
+    ) async {
+      final form = await ask(tester, () async {
+        await choosePreset(tester);
+        await tester.enterText(box('At most (KB)'), '100');
+        await tester.pump();
+        expect(find.text('From the rules.'), findsNothing);
+      });
+      expect(form!.maxBytes, 100000);
+      expect(form.width, 200);
+    });
+
+    testWidgets('sizes can be typed with no preset at all', (tester) async {
+      final form = await ask(tester, () async {
+        await tester.enterText(box('Width (pixels)'), '300');
+        await tester.enterText(box('Height (pixels)'), '400');
+        await tester.enterText(box('At most (KB)'), '60');
+      });
+      expect(form!.width, 300);
+      expect(form.height, 400);
+      expect(form.minBytes, isNull);
+      expect(form.maxBytes, 60000);
+    });
+
+    testWidgets('half a pixel size is caught', (tester) async {
+      final form = await ask(tester, () async {
+        await tester.enterText(box('Width (pixels)'), '300');
+      });
+      expect(form, isNull);
+      expect(find.text('Give both, or neither.'), findsOneWidget);
+    });
+
+    testWidgets('limits the wrong way round are caught', (tester) async {
+      final form = await ask(tester, () async {
+        await tester.enterText(box('At least (KB)'), '50');
+        await tester.enterText(box('At most (KB)'), '20');
+      });
+      expect(form, isNull);
+      expect(find.textContaining('smallest can\'t be more'), findsOneWidget);
+    });
+
+    testWidgets('presets that can\'t load leave the boxes working', (tester) async {
+      FormTarget? chosen;
+      await tester.pumpWidget(
+        _formHost(() async => throw StateError('no'), (value) => chosen = value),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DropdownButtonFormField<Preset?>), findsNothing);
+      await tester.enterText(box('At most (KB)'), '60');
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      expect(chosen!.maxBytes, 60000);
+    });
+
+    testWidgets('it fits a phone', (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await ask(tester, () async {
+        await choosePreset(tester);
+        expect(tester.takeException(), isNull);
+      });
+    });
+  });
+
+  testWidgets('the real presets load from the app\'s files', (tester) async {
+    final presets = await tester.runAsync(loadBundledPresets);
+    expect(presets, isNotEmpty);
+    final files = Directory('../core/lib/presets')
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.json'));
+    expect(presets!.length, files.length, reason: 'A preset is missing from pubspec.yaml');
+    expect(presets.map((preset) => preset.id), contains('job-form-photo'));
+  });
+
+  testWidgets('a whole form photo through the screen: choose, frame, get the right file', (
+    tester,
+  ) async {
+    final image = img.Image(width: 400, height: 300);
+    img.fill(image, color: img.ColorRgb8(200, 100, 50));
+    final bytes = Uint8List.fromList(img.encodeJpg(image));
+    List<ActionOptions> received = [];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConverterScreen(
+          pickFiles: () async => [
+            PickedFile(name: 'me.jpg', size: bytes.length, head: bytes, read: () async => bytes),
+          ],
+          saveFile: (file) async => true,
+          mediaAvailable: false,
+          presetLoader: () async => const [],
+          converter: (action, files, onProgress, options) async {
+            received.add(options);
+            return runPortable(action, files, options: options);
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Choose files'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Form photo'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Width (pixels)'), '100');
+    await tester.enterText(find.widgetWithText(TextField, 'Height (pixels)'), '100');
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    for (var i = 0; i < 20 && find.byType(RawImage).evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('Left'), findsNothing, reason: 'Numbers could break the shape');
+    await tester.tap(find.text('Crop').last);
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 20 && received.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(received.single.form!.width, 100);
+    final crop = received.single.crop!;
+    expect(crop.width, crop.height);
+    expect(crop.height, 300);
+    expect(crop.left, 50, reason: 'The middle of the picture');
+  });
+
   group('moving the crop frame', () {
     const picture = Size(100, 80);
     const area = Rect.fromLTWH(10, 10, 50, 40);
@@ -606,6 +921,24 @@ void main() {
       expect(find.textContaining('could not be shown'), findsOneWidget);
     });
   });
+}
+
+Widget _formHost(Future<List<Preset>> Function() load, void Function(FormTarget?) onChosen) {
+  return MaterialApp(
+    home: Builder(
+      builder: (context) => TextButton(
+        onPressed: () async {
+          onChosen(
+            await showDialog<FormTarget>(
+              context: context,
+              builder: (_) => FormDialog(loadPresets: load),
+            ),
+          );
+        },
+        child: const Text('open'),
+      ),
+    ),
+  );
 }
 
 Widget _host(void Function(ActionOptions?) onChosen, Widget dialog) {

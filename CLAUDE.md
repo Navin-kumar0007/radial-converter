@@ -14,7 +14,7 @@ Headline features that make people switch:
 1. **Convert and keep dragging**: after converting, a draggable file chip appears under the cursor
    so the result can be dragged straight into Gmail, WhatsApp Web or an upload box.
 2. **Make it fit**: slices named by purpose (WhatsApp, Email, Instagram, Under 100 KB).
-3. **Form-ready presets**: exam/job/government form photo and signature presets (JSON in `presets/`).
+3. **Form-ready presets**: exam/job/government form photo and signature presets (JSON in `core/lib/presets/`).
 4. **History and undo**: originals are never touched; outputs can be reverted.
 
 ## Decisions already made
@@ -56,10 +56,10 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 511 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 223 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 76-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 531 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 241 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
-| `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
+| `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf. |
 | `docs/` | User guide, privacy policy, website (later). |
 
@@ -129,6 +129,14 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
   plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.
 - Not started: playing video and sound while trimming, tray icon.
+- Form photo (`image-form`, `FormDialog`, `_forForm`): what the form wants, then framing in a crop that keeps the shape,
+  then a JPEG of exactly that size within the KB limits. Forms refuse files that are too small, so a plain signature
+  gets empty JPEG comments up to the minimum. Limits are stored so they hold whether a site counts a KB as 1000 or 1024
+  bytes (`formMinBytes`, `formMaxBytes`). It only crops and scales: NTA warns "computer made" photos are rejected.
+- Presets must not pretend to be the rules: forms change them, and sources disagree. Each one fills in boxes that stay
+  editable, shows its source, and tells people to check their notice. Only add numbers traced to an official document.
+  SSC isn't included, as its notice couldn't be read: guides say 3.5 x 4.5 cm, 20-50 KB and 4 x 2 cm, 10-20 KB. UPSC isn't
+  either, for the same reason, and it now also needs a live photo. The NTA numbers are from 2020.
 - Passwords: a locked PDF or ZIP throws `PasswordNeeded`, and the screen asks and runs it again, so every action handles
   locked files with no code of its own. The right password is tried on the next file of a batch before asking, and lasts
   only for that job. Remove password runs on PDFs through PDFium; Add password runs on archives and always makes an AES

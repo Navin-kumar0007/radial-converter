@@ -33,6 +33,14 @@ ActionOptions _options(WorkerRequest request) {
     shift: shift == null ? null : Duration(milliseconds: shift.toDartInt),
     password: request.password?.toDart,
     newPassword: request.newPassword?.toDart,
+    form: request.forForm == null
+        ? null
+        : FormTarget(
+            width: request.formWidth?.toDartInt,
+            height: request.formHeight?.toDartInt,
+            minBytes: request.formMinBytes?.toDartInt,
+            maxBytes: request.formMaxBytes?.toDartInt,
+          ),
   );
 }
 

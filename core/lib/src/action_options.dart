@@ -1,3 +1,23 @@
+/// What a form wants a picture to be. Pixel sizes come as a pair or not at all.
+class FormTarget {
+  const FormTarget({this.width, this.height, this.minBytes, this.maxBytes});
+
+  final int? width;
+  final int? height;
+  final int? minBytes;
+  final int? maxBytes;
+}
+
+/// Bytes that count as at least [kb] KB however a form's website counts a KB, 1000 or 1024 bytes.
+int formMinBytes(int kb) => kb * 1024;
+
+/// Bytes that count as at most [kb] KB however a form's website counts a KB, 1000 or 1024 bytes.
+int formMaxBytes(int kb) => kb * 1000;
+
+/// The KB that [formMinBytes] and [formMaxBytes] made these from, to show.
+int formMinKb(int bytes) => bytes ~/ 1024;
+int formMaxKb(int bytes) => bytes ~/ 1000;
+
 /// The choices an action may need from the user.
 class ActionOptions {
   const ActionOptions({
@@ -13,6 +33,7 @@ class ActionOptions {
     this.audioKbps,
     this.targetMb,
     this.shift,
+    this.form,
   });
 
   final int? longSide;
@@ -37,6 +58,7 @@ class ActionOptions {
   final int? audioKbps;
   final double? targetMb;
   final Duration? shift;
+  final FormTarget? form;
 
   /// These same choices, with what opens a locked file.
   ActionOptions withPassword(String value) {
@@ -53,6 +75,7 @@ class ActionOptions {
       audioKbps: audioKbps,
       targetMb: targetMb,
       shift: shift,
+      form: form,
     );
   }
 }

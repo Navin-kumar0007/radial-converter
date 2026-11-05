@@ -68,6 +68,11 @@ Future<List<PortableFile>> convert(
     shiftMilliseconds: options.shift?.inMilliseconds.toJS,
     password: options.password?.toJS,
     newPassword: options.newPassword?.toJS,
+    forForm: options.form == null ? null : true.toJS,
+    formWidth: options.form?.width?.toJS,
+    formHeight: options.form?.height?.toJS,
+    formMinBytes: options.form?.minBytes?.toJS,
+    formMaxBytes: options.form?.maxBytes?.toJS,
   );
   worker.postMessage(request);
   return done.future;

@@ -309,20 +309,119 @@ Future<Uint8List> _image(
     case 'image-crop':
       final crop = options.crop;
       if (crop == null) throw const EngineFailed('"Crop" needs a crop area.');
-      final fits =
-          crop.left >= 0 &&
-          crop.top >= 0 &&
-          crop.width > 0 &&
-          crop.height > 0 &&
-          crop.left + crop.width <= image.width &&
-          crop.top + crop.height <= image.height;
-      if (!fits) throw const EngineFailed('That edit does not fit this picture.');
-      return _encode(
-        img.copyCrop(image, x: crop.left, y: crop.top, width: crop.width, height: crop.height),
-        output,
-      );
+      return _encode(_cropped(image, crop), output);
+    case 'image-form':
+      return _forForm(image, options, step);
   }
   return _encode(image, output);
+}
+
+img.Image _cropped(img.Image image, ({int left, int top, int width, int height}) crop) {
+  final fits =
+      crop.left >= 0 &&
+      crop.top >= 0 &&
+      crop.width > 0 &&
+      crop.height > 0 &&
+      crop.left + crop.width <= image.width &&
+      crop.top + crop.height <= image.height;
+  if (!fits) throw const EngineFailed('That edit does not fit this picture.');
+  return img.copyCrop(image, x: crop.left, y: crop.top, width: crop.width, height: crop.height);
+}
+
+/// Without a pixel size a form takes any, and a phone photo has far more than one needs.
+const _formLongestSide = 1200;
+
+/// A JPEG the size a form asks for. It only crops and scales: forms may reject retouched photos.
+Future<Uint8List> _forForm(
+  img.Image source,
+  ActionOptions options,
+  void Function(double) step,
+) async {
+  final form = options.form;
+  if (form == null) throw const EngineFailed('"Form photo" needs to know what the form wants.');
+  final width = form.width;
+  final height = form.height;
+  if ((width == null) != (height == null)) {
+    throw const EngineFailed('Give both a width and a height, or neither.');
+  }
+  final minBytes = form.minBytes ?? 0;
+  final maxBytes = form.maxBytes;
+  if (maxBytes != null && minBytes > maxBytes) {
+    throw const EngineFailed('The smallest size allowed is more than the largest.');
+  }
+
+  final crop = options.crop;
+  final framed = crop == null ? source : _cropped(source, crop);
+  final exact = width != null && height != null;
+  final image = exact ? _coverExactly(framed, width, height) : _longSide(framed, _formLongestSide);
+  await _yield();
+
+  final Uint8List best;
+  if (maxBytes == null) {
+    best = _encode(image, FileKind.jpg, quality: 90);
+  } else if (exact) {
+    best = await _highestQualityUnder(image, maxBytes, step);
+  } else {
+    best = await _underBytes(image, FileKind.jpg, maxBytes, 'that size', step);
+  }
+  return _paddedTo(best, minBytes);
+}
+
+/// The sharpest JPEG under [maxBytes], keeping the picture's size, since the form set it.
+Future<Uint8List> _highestQualityUnder(
+  img.Image image,
+  int maxBytes,
+  void Function(double) step,
+) async {
+  var low = 10;
+  var high = 100;
+  Uint8List? fitting;
+  var tries = 0;
+  while (low <= high) {
+    await _yield();
+    tries++;
+    step(0.4 + 0.55 * (1 - 1 / (tries + 1)));
+    final quality = (low + high) ~/ 2;
+    final bytes = _encode(image, FileKind.jpg, quality: quality);
+    if (bytes.length <= maxBytes) {
+      fitting = bytes;
+      low = quality + 1;
+    } else {
+      high = quality - 1;
+    }
+  }
+  if (fitting == null) {
+    throw EngineFailed(
+      'This picture has too much detail to fit ${maxBytes ~/ 1000} KB at '
+      '${image.width} x ${image.height}.',
+    );
+  }
+  return fitting;
+}
+
+/// Forms refuse files that are too small, and a plain signature can be small at any quality. A
+/// JPEG may carry comments that nothing draws, so empty ones bring it up to [minBytes].
+Uint8List _paddedTo(Uint8List jpeg, int minBytes) {
+  var missing = minBytes - jpeg.length;
+  if (missing <= 0) return jpeg;
+  // Comments go after the JFIF header, which some readers insist comes first.
+  var at = 2;
+  if (jpeg.length > 5 && jpeg[2] == 0xFF && jpeg[3] == 0xE0) {
+    at = 4 + (jpeg[4] << 8 | jpeg[5]);
+  }
+  final out = BytesBuilder(copy: false)..add(Uint8List.sublistView(jpeg, 0, at));
+  while (missing > 0) {
+    // A segment's length counts itself, and it costs two more bytes for its marker.
+    const most = 65535;
+    final total = (missing + 2).clamp(4, most + 2);
+    final length = total - 2;
+    out
+      ..add([0xFF, 0xFE, length >> 8, length & 0xFF])
+      ..add(Uint8List(length - 2));
+    missing -= total;
+  }
+  out.add(Uint8List.sublistView(jpeg, at));
+  return out.takeBytes();
 }
 
 Future<Uint8List> _underSize(
@@ -330,8 +429,17 @@ Future<Uint8List> _underSize(
   img.Image image,
   FileKind output,
   void Function(double) step,
+) {
+  return _underBytes(image, output, action.maxBytes!, '"${action.label}"', step);
+}
+
+Future<Uint8List> _underBytes(
+  img.Image image,
+  FileKind output,
+  int maxBytes,
+  String target,
+  void Function(double) step,
 ) async {
-  final maxBytes = action.maxBytes!;
   final hasQuality = output == FileKind.jpg || output == FileKind.webp;
   final longest = image.width > image.height ? image.width : image.height;
   Uint8List? fitting;
@@ -355,7 +463,7 @@ Future<Uint8List> _underSize(
   );
   final result = fitting;
   if (best == null || result == null) {
-    throw EngineFailed('This picture could not be made small enough for "${action.label}".');
+    throw EngineFailed('This picture could not be made small enough for $target.');
   }
   return result;
 }

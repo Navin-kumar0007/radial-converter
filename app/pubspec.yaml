@@ -75,6 +75,14 @@ flutter:
       fonts:
         - asset: assets/fonts/NotoSansDevanagari.ttf
 
+  # One by one: Flutter silently ignores a folder inside a package. A test checks none is missed.
+  assets:
+    - packages/radial_core/presets/india-passport-upload.json
+    - packages/radial_core/presets/job-form-photo.json
+    - packages/radial_core/presets/job-form-signature.json
+    - packages/radial_core/presets/nta-photo.json
+    - packages/radial_core/presets/nta-signature.json
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

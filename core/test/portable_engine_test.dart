@@ -109,6 +109,7 @@ void main() {
         crop: (left: 0, top: 0, width: 10, height: 10),
         shift: Duration(seconds: 1),
         newPassword: 'x',
+        form: FormTarget(width: 10, height: 10),
       );
       for (final action in portable) {
         final PortableFile file;
@@ -549,6 +550,165 @@ void main() {
       final png = PortableFile('photo.png', img.encodePng(picture()));
       final out = (await runPortable(actionById('image-compress')!, [png])).single;
       expect(detectKind(out.bytes), FileKind.png);
+    });
+  });
+
+  group('form photos', () {
+    final action = actionById('image-form')!;
+
+    /// Like a photo: smooth colour with some grain.
+    Uint8List photo({int width = 1600, int height = 1200}) {
+      final image = img.Image(width: width, height: height);
+      var state = 7;
+      for (final pixel in image) {
+        state = (state * 1103515245 + 12345) & 0x7FFFFFFF;
+        pixel
+          ..r = (pixel.x * 255 ~/ width + state % 24).clamp(0, 255)
+          ..g = (pixel.y * 255 ~/ height + (state >> 8) % 24).clamp(0, 255)
+          ..b = 120 + (state >> 16) % 24;
+      }
+      return img.encodeJpg(image, quality: 95);
+    }
+
+    /// Like a signature: a thin dark line on white, which compresses to almost nothing.
+    Uint8List signature() {
+      final image = img.Image(width: 900, height: 400);
+      img.fill(image, color: img.ColorRgb8(255, 255, 255));
+      img.drawLine(image, x1: 40, y1: 300, x2: 860, y2: 100, color: img.ColorRgb8(0, 0, 0));
+      return img.encodePng(image);
+    }
+
+    Future<Uint8List> run(Uint8List input, FormTarget form, {ActionOptions? extra}) async {
+      final out = await runPortable(action, [
+        PortableFile('me.jpg', input),
+      ], options: ActionOptions(form: form, crop: extra?.crop));
+      expect(out.single.name, 'me (form).jpg');
+      return out.single.bytes;
+    }
+
+    test('the job form photo, exact and within limits', () async {
+      final bytes = await run(
+        photo(),
+        FormTarget(width: 200, height: 230, minBytes: formMinBytes(20), maxBytes: formMaxBytes(50)),
+      );
+      final out = img.decodeJpg(bytes)!;
+      expect((out.width, out.height), (200, 230));
+      expect(bytes.length, inInclusiveRange(20 * 1024, 50 * 1000));
+    });
+
+    test(
+      'a signature too plain to reach the minimum is brought up to it, still a picture',
+      () async {
+        final bytes = await run(
+          signature(),
+          FormTarget(
+            width: 140,
+            height: 60,
+            minBytes: formMinBytes(10),
+            maxBytes: formMaxBytes(20),
+          ),
+        );
+        expect(bytes.length, inInclusiveRange(10 * 1024, 20 * 1000));
+        expect(detectKind(bytes), FileKind.jpg);
+        final out = img.decodeJpg(bytes)!;
+        expect((out.width, out.height), (140, 60));
+        expect(out.getPixel(0, 0).r, greaterThan(240), reason: 'The picture itself is unchanged');
+      },
+    );
+
+    test('a very large minimum needs many comments, and still reads', () async {
+      final bytes = await run(signature(), const FormTarget(minBytes: 200000));
+      expect(bytes.length, greaterThanOrEqualTo(200000));
+      expect(img.decodeJpg(bytes), isNotNull);
+    });
+
+    test('a picture already over the minimum gets nothing added', () async {
+      final plain = await run(photo(width: 400, height: 400), const FormTarget());
+      final same = await run(photo(width: 400, height: 400), const FormTarget(minBytes: 100));
+      expect(same, plain);
+    });
+
+    test('no pixel size: the shape stays, and it fits', () async {
+      final bytes = await run(photo(), FormTarget(maxBytes: formMaxBytes(50)));
+      final out = img.decodeJpg(bytes)!;
+      expect(out.width / out.height, closeTo(1600 / 1200, 0.01));
+      expect(bytes.length, lessThanOrEqualTo(50000));
+    });
+
+    test('no pixel size: a huge photo is brought down', () async {
+      final bytes = await run(photo(width: 3000, height: 2000), const FormTarget());
+      expect(img.decodeJpg(bytes)!.width, 1200);
+    });
+
+    test('the crop chosen is what gets used', () async {
+      final image = img.Image(width: 100, height: 100);
+      img.fill(image, color: img.ColorRgb8(255, 0, 0));
+      img.fillRect(image, x1: 50, y1: 0, x2: 99, y2: 99, color: img.ColorRgb8(0, 0, 255));
+      final bytes = await run(
+        img.encodePng(image),
+        const FormTarget(width: 20, height: 20),
+        extra: const ActionOptions(crop: (left: 60, top: 10, width: 30, height: 30)),
+      );
+      final pixel = img.decodeJpg(bytes)!.getPixel(10, 10);
+      expect(pixel.b, greaterThan(200));
+      expect(pixel.r, lessThan(60));
+    });
+
+    test('without a crop it takes the middle, not stretching the face', () async {
+      final image = img.Image(width: 300, height: 100);
+      img.fill(image, color: img.ColorRgb8(255, 0, 0));
+      img.fillRect(image, x1: 100, y1: 0, x2: 199, y2: 99, color: img.ColorRgb8(0, 0, 255));
+      final bytes = await run(img.encodePng(image), const FormTarget(width: 50, height: 50));
+      final out = img.decodeJpg(bytes)!;
+      expect(out.getPixel(2, 25).b, greaterThan(200));
+      expect(out.getPixel(47, 25).b, greaterThan(200));
+    });
+
+    test('transparency becomes white', () async {
+      final image = img.Image(width: 20, height: 20, numChannels: 4);
+      final bytes = await run(img.encodePng(image), const FormTarget(width: 20, height: 20));
+      expect(img.decodeJpg(bytes)!.getPixel(5, 5).r, greaterThan(240));
+    });
+
+    test('what a photo says about where it was taken does not come along', () async {
+      final image = img.Image(width: 500, height: 500);
+      image.exif.gpsIfd['GPSLatitude'] = [28, 36, 50];
+      final bytes = await run(img.encodeJpg(image), const FormTarget(width: 100, height: 100));
+      expect(img.decodeJpg(bytes)!.exif.gpsIfd.isEmpty, isTrue);
+    });
+
+    test('impossible limits say so, in words', () async {
+      await expectLater(
+        run(photo(), const FormTarget(width: 1600, height: 1200, maxBytes: 100)),
+        throwsA(
+          isA<EngineFailed>().having((e) => e.message, 'message', contains('too much detail')),
+        ),
+      );
+    });
+
+    test('limits the wrong way round say so', () async {
+      await expectLater(
+        run(photo(), const FormTarget(minBytes: 200, maxBytes: 100)),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('more than'))),
+      );
+    });
+
+    test('half a pixel size says so', () async {
+      await expectLater(run(photo(), const FormTarget(width: 100)), throwsA(isA<EngineFailed>()));
+    });
+
+    test('needing to be told what the form wants', () async {
+      await expectLater(
+        runPortable(action, [PortableFile('me.jpg', photo())]),
+        throwsA(isA<EngineFailed>()),
+      );
+    });
+
+    test('the original is only read', () async {
+      final input = photo(width: 300, height: 300);
+      final before = Uint8List.fromList(input);
+      await run(input, const FormTarget(width: 50, height: 50));
+      expect(input, before);
     });
   });
 }

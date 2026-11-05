@@ -1,0 +1,8 @@
+{
+  "id": "nta-photo",
+  "label": { "en": "NTA exam photo (10-200 KB)", "hi": "NTA परीक्षा फ़ोटो (10-200 KB)" },
+  "accepts": ["image/*"],
+  "output": { "format": "jpg", "minBytes": 10240, "maxBytes": 200000, "background": "white", "crop": "user" },
+  "source": "https://nta.ac.in/Download/Notice/Notice_20200716085610.pdf",
+  "note": "From an NTA notice for NEET 2020, which sets no pixel size. Check this year's bulletin."
+}

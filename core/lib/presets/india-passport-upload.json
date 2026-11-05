@@ -1,0 +1,8 @@
+{
+  "id": "india-passport-upload",
+  "label": { "en": "Indian passport upload (630 x 810)", "hi": "भारतीय पासपोर्ट अपलोड (630 x 810)" },
+  "accepts": ["image/*"],
+  "output": { "format": "jpg", "width": 630, "height": 810, "maxBytes": 250000, "background": "white", "crop": "user" },
+  "source": "https://www.cgiauckland.gov.in/page/specifications-for-the-passport-photos/",
+  "note": "The pixel size and white background are from an Indian consulate. It gives no file size: 250 KB comes from other guides. This only sizes a photo, and doesn't check it meets passport rules."
+}

@@ -167,6 +167,7 @@ final List<RadialAction> actionCatalogue = List.unmodifiable([
   _fit('fit-email-image', 'Email', Engine.vips, _images, 'email', maxBytes: 20 * _mb),
   _fit('fit-email-pdf', 'Email', Engine.qpdf, _pdf, 'email', maxBytes: 20 * _mb),
   _fit('fit-email-video', 'Email', Engine.ffmpeg, _videos, 'email', maxBytes: 20 * _mb),
+  _fit('image-form', 'Form photo', Engine.builtIn, _images, 'form', output: FileKind.jpg),
   _fit('fit-instagram', 'Instagram', Engine.vips, _images, 'instagram', output: FileKind.jpg),
   _fit('fit-web', 'Web-ready', Engine.vips, _images, 'web', output: FileKind.webp),
   _fit(

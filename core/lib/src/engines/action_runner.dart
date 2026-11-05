@@ -21,7 +21,12 @@ import 'tools.dart';
 /// Actions waiting on an engine we have not wired up yet: PDFium for PDF pages to images,
 /// and the built-in and add-on document converters.
 bool isActionWired(RadialAction action) =>
-    action.engine != Engine.pdfium && action.engine != Engine.document;
+    action.engine != Engine.pdfium &&
+    action.engine != Engine.document &&
+    // These run in the portable engine alone. bsdtar here would make a "protected" file with no
+    // password on it, which is far worse than saying it isn't available.
+    action.id != 'image-form' &&
+    action.id != 'archive-add-password';
 
 /// Actions that turn several inputs into one output.
 const _combines = {'images-to-pdf', 'pdf-merge', 'video-merge', 'audio-merge'};
