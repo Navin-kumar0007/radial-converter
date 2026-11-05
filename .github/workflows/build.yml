@@ -182,7 +182,9 @@ jobs:
           app=app/build/macos/Build/Products/Release/radialconverter.app
           mkdir -p "$app/Contents/Resources/engines"
           cp engines/build/macos/bin/* "$app/Contents/Resources/engines/"
-          codesign --force --deep --sign - "$app"
+          # Signing again drops the entitlements unless given, and without them the file dialogs refuse to open.
+          codesign --force --deep --sign - --entitlements app/macos/Runner/Release.entitlements "$app"
+          codesign -d --entitlements - "$app" 2>&1 | grep -q 'files.user-selected.read-write'
       - name: Zip the app, keeping its permissions
         run: ditto -c -k --keepParent app/build/macos/Build/Products/Release/radialconverter.app radial-converter-macos.zip
       - uses: actions/upload-artifact@v4

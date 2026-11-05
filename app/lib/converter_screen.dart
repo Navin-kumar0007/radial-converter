@@ -257,7 +257,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final List<PickedFile> files;
     try {
       files = await widget.pickFiles();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Choosing files failed: $error');
       if (mounted) _say('These files could not be opened. Try again.');
       return;
     }
@@ -624,7 +625,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       } else {
         saved = await output.download?.call() ?? false;
       }
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Saving failed: $error');
       if (mounted) _say('This file could not be saved. Try again.');
       return;
     }

@@ -167,6 +167,9 @@ Engine decisions that differ from the plan or are easy to get wrong:
 - Dev engines from Homebrew are GPL builds (FFmpeg with x264, libvips with Poppler). Local testing
   only. Wrappers never ask for x264 or Poppler. To test against what ships, run
   `engines/build_ffmpeg_macos.sh`, then put `engines/build/macos/bin` first on `PATH` for `dart test`.
+- CI signs the macOS app again after adding FFmpeg, which drops its entitlements unless they're given again. Without
+  them `file_picker` refuses to open any dialog, though the app isn't sandboxed. CI now checks they survive. No test can
+  see this: only the real signed app does it, so run downloads, not just tests.
 - Desktop video saves beside the original instead of asking, so the macOS app is no longer sandboxed: a
   sandbox forbids both that and running engines. That matches shipping outside the App Store.
 - libvips has no PDF or ICO writer without ImageMagick: images to PDF uses our `buildImagePdf`, ICO
