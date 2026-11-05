@@ -134,6 +134,34 @@ void main() {
     });
   });
 
+  group('sharing a result', () {
+    test('a result gets an address other apps can read', () async {
+      final folder = (await mediaChannel.invokeMethod<String>('handOverFolder'))!;
+      final path = p.join(folder, 'photo (converted).jpg');
+      File(path).writeAsBytesSync([1, 2, 3]);
+      final address = await shareOnPhone(path, 'image/jpeg', dryRun: true);
+      expect(address, startsWith('content://'));
+      expect(address, contains('.results/'));
+    });
+
+    test('anything else in the app\'s storage can\'t be shared', () async {
+      final folder = await getApplicationSupportDirectory();
+      final path = p.join(folder.path, 'private.txt');
+      File(path).writeAsStringSync('secret');
+      await expectLater(
+        shareOnPhone(path, 'text/plain', dryRun: true),
+        throwsA(isA<EngineFailed>()),
+      );
+    });
+
+    test('a file that has gone says so', () async {
+      await expectLater(
+        shareOnPhone('/data/no/such/file', 'text/plain', dryRun: true),
+        throwsA(isA<EngineFailed>()),
+      );
+    });
+  });
+
   testWidgets('a frame comes back as a small picture', (tester) async {
     final frame = await videoFrame(picked(), 0.5);
     expect(detectKind(frame), FileKind.jpg);

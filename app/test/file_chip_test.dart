@@ -142,4 +142,82 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  group('handing a result on', () {
+    Future<void> pump(WidgetTester tester, FileChip chip) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: Center(child: chip)),
+        ),
+      );
+    }
+
+    testWidgets('dragging a finished chip starts a drag', (tester) async {
+      var dragged = 0;
+      await pump(
+        tester,
+        FileChip(name: 'a.png', state: FileChipState.done, onDragOut: () => dragged++),
+      );
+      await tester.drag(find.text('a.png'), const Offset(60, 0));
+      expect(dragged, 1);
+    });
+
+    testWidgets('a tap doesn\'t count as a drag', (tester) async {
+      var dragged = 0;
+      await pump(
+        tester,
+        FileChip(name: 'a.png', state: FileChipState.done, onDragOut: () => dragged++),
+      );
+      await tester.tap(find.text('a.png'));
+      expect(dragged, 0);
+    });
+
+    testWidgets('its Save button still works on a chip that can be dragged', (tester) async {
+      var saved = 0;
+      var dragged = 0;
+      await pump(
+        tester,
+        FileChip(
+          name: 'a.png',
+          state: FileChipState.done,
+          onDragOut: () => dragged++,
+          onSave: () => saved++,
+        ),
+      );
+      await tester.tap(find.byTooltip('Save'));
+      expect((saved, dragged), (1, 0));
+    });
+
+    testWidgets('nothing can be dragged until it\'s finished', (tester) async {
+      var dragged = 0;
+      await pump(
+        tester,
+        FileChip(name: 'a.png', state: FileChipState.working, onDragOut: () => dragged++),
+      );
+      await tester.drag(find.text('a.png'), const Offset(60, 0));
+      expect(dragged, 0);
+    });
+
+    testWidgets('a failed one can\'t be dragged', (tester) async {
+      var dragged = 0;
+      await pump(
+        tester,
+        FileChip(name: 'a.png', state: FileChipState.failed, onDragOut: () => dragged++),
+      );
+      await tester.drag(find.text('a.png'), const Offset(60, 0));
+      expect(dragged, 0);
+    });
+
+    testWidgets('sharing has its own button, only when offered', (tester) async {
+      var shared = 0;
+      await pump(
+        tester,
+        FileChip(name: 'a.png', state: FileChipState.done, onShare: () => shared++),
+      );
+      await tester.tap(find.byTooltip('Share'));
+      expect(shared, 1);
+      await pump(tester, const FileChip(name: 'a.png', state: FileChipState.done));
+      expect(find.byTooltip('Share'), findsNothing);
+    });
+  });
 }

@@ -52,5 +52,6 @@ dependencies {
     implementation("androidx.media3:media3-common:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")
     implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.core:core:1.13.1")
     implementation("me.zhanghai.android.libarchive:library:1.1.4")
 }

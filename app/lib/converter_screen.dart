@@ -8,6 +8,7 @@ import 'package:radial_core/radial_core.dart';
 import 'conversion.dart';
 import 'drop_files.dart';
 import 'file_chip.dart';
+import 'keep_going.dart';
 import 'option_screens.dart';
 import 'presets.dart';
 import 'radial_menu.dart';
@@ -22,6 +23,7 @@ typedef ShiftDragListener = void Function() Function({
 });
 typedef FileSaver = Future<bool> Function(PortableFile file);
 typedef ArchiveUnpacker = Future<Uint8List> Function(PickedFile file);
+typedef ResultHandOver = Future<void> Function(ConvertedFile output);
 typedef MediaProbe = Future<MediaInfo> Function(PickedFile file);
 typedef FrameReader = Future<Uint8List> Function(PickedFile file, double seconds);
 typedef Converter = Future<List<PortableFile>> Function(
@@ -94,6 +96,10 @@ class ConverterScreen extends StatefulWidget {
     this.pdfConverter = _defaultPdf,
     this.photoDecoder = decodeHeic,
     this.archiveUnpacker = unpackArchive,
+    this.dragResultOut = dragOut,
+    this.shareResult = shareOut,
+    this.resultsDrag,
+    this.resultsShare,
     this.mediaProbe = probeMedia,
     this.frameReader = videoFrame,
     this.presetLoader = loadBundledPresets,
@@ -112,6 +118,12 @@ class ConverterScreen extends StatefulWidget {
   final PdfConverter pdfConverter;
   final PhotoDecoder photoDecoder;
   final ArchiveUnpacker archiveUnpacker;
+  final ResultHandOver dragResultOut;
+  final ResultHandOver shareResult;
+
+  /// Whether results can be dragged to other apps, or shared with them. Null asks the platform.
+  final bool? resultsDrag;
+  final bool? resultsShare;
   final MediaProbe mediaProbe;
   final FrameReader frameReader;
   final Future<List<Preset>> Function() presetLoader;
@@ -156,6 +168,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.macOS ||
               defaultTargetPlatform == TargetPlatform.windows));
+  late final bool _resultsDrag = widget.resultsDrag ?? canDragOut;
+  late final bool _resultsShare = widget.resultsShare ?? canShareOut;
   bool _savingAll = false;
   bool _dragging = false;
   bool _receiving = false;
@@ -167,6 +181,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     super.initState();
     _shares = widget.sharedFiles().listen(_shared);
     _stopShiftDrag = widget.shiftDrag(menuFor: _menuFor, chosen: _chosenFromShiftDrag);
+    cleanUpHandedOver();
   }
 
   @override
@@ -575,6 +590,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (saveBeside) {
         results = await _saveBeside(results);
         if (failed.isNotEmpty) showAppWindow();
+        // Ready at the cursor to drag straight on, as the window may be behind other apps.
+        showChipAtCursor([
+          for (final result in results)
+            if (result.output.savedPath != null) result.output.savedPath!,
+        ]);
       }
       if (!mounted || !identical(_jobs, jobs)) return;
       setState(() {
@@ -831,8 +851,23 @@ class _ConverterScreenState extends State<ConverterScreen> {
     );
   }
 
+  /// Hands a result to another app. Nothing is lost if it fails, so a plain note is enough.
+  Future<void> _handOver(ResultHandOver handOver, ConvertedFile output) async {
+    try {
+      await handOver(output);
+    } on EngineFailed catch (error) {
+      if (mounted) _say(error.message);
+    } catch (error) {
+      debugPrint('Handing over failed: $error');
+      if (mounted) _say('This file could not be handed over. Try saving it instead.');
+    }
+  }
+
   Widget _buildChip(_Job job) {
     final output = job.output;
+    final canHandOver =
+        output != null &&
+        (output.inMemory != null || output.savedPath != null || output.cachedPath != null);
     final note = output?.note;
     final before = job.bytesBefore;
     final sizes = output == null
@@ -852,6 +887,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       message: job.message,
       fadeAfter: null,
       onSave: output == null || output.savedPath != null ? null : () => _save(job),
+      onShare: _resultsShare && canHandOver ? () => _handOver(widget.shareResult, output) : null,
+      onDragOut: _resultsDrag && canHandOver ? () => _handOver(widget.dragResultOut, output) : null,
       onCancel: job.state == FileChipState.working ? _cancel : null,
     );
   }

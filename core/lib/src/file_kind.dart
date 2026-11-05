@@ -77,6 +77,13 @@ enum FileKind {
       FileKind.values.where((kind) => kind.family == family).toSet();
 
   /// The kind with this extension, ignoring case and a leading dot. Null if none.
+  /// What other apps should be told [fileName] is, from its extension alone.
+  static String mimeOf(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot < 0) return unknown.mime;
+    return (fromExtension(fileName.substring(dot + 1)) ?? unknown).mime;
+  }
+
   static FileKind? fromExtension(String extension) {
     var ext = extension.toLowerCase();
     if (ext.startsWith('.')) ext = ext.substring(1);

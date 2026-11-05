@@ -57,6 +57,11 @@ Future<Uint8List> unpackOnPhone(String path) async {
   }
 }
 
+/// Opens the phone's share sheet for the file at [path]. Answers with the address others are given.
+Future<String> shareOnPhone(String path, String mime, {bool dryRun = false}) {
+  return _call<String>('shareFile', {'path': path, 'mime': mime, 'dryRun': dryRun});
+}
+
 /// One frame of the video at [path], as a small JPEG.
 Future<Uint8List> videoFrameOnPhone(String path, double seconds) {
   return _call<Uint8List>('videoFrame', {'path': path, 'seconds': seconds});
@@ -150,6 +155,7 @@ Future<List<ConvertedFile>> convertMediaOnPhone(
         done = ConvertedFile(
           name: name,
           size: size,
+          cachedPath: saved,
           download: () =>
               _call<bool>('save', {'path': saved, 'name': name, 'mime': plan.output.mime}),
         );

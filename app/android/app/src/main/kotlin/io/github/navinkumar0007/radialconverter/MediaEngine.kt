@@ -2,6 +2,7 @@ package io.github.navinkumar0007.radialconverter
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ColorSpace
@@ -16,6 +17,7 @@ import android.os.Looper
 import android.provider.DocumentsContract
 import android.util.Log
 import android.view.WindowManager
+import androidx.core.content.FileProvider
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -98,6 +100,10 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 result.success(null)
             }
             "decodePhoto" -> decodePhoto(call.argument<String>("path")!!, result)
+            "handOverFolder" -> result.success(
+                File(outputs, "share-${System.nanoTime()}").apply { mkdirs() }.path,
+            )
+            "shareFile" -> shareFile(call, result)
             "unpackArchive" -> unpackArchive(
                 call.argument<String>("path")!!,
                 (call.argument<Number>("limit")!!).toLong(),
@@ -149,6 +155,39 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     result.success(mapOf("path" to png))
                 }
             }
+        }
+    }
+
+    /** Opens the share sheet. With `dryRun` it only says what other apps would be given. */
+    private fun shareFile(call: MethodCall, result: MethodChannel.Result) {
+        val file = File(call.argument<String>("path")!!)
+        if (!file.exists()) {
+            result.error("failed", "${file.name} is no longer here to share.", null)
+            return
+        }
+        val uri = try {
+            FileProvider.getUriForFile(activity, "${activity.packageName}.results", file)
+        } catch (error: IllegalArgumentException) {
+            Log.w(TAG, "Could not share a file", error)
+            result.error("failed", "${file.name} could not be shared.", null)
+            return
+        }
+        if (call.argument<Boolean>("dryRun") == true) {
+            result.success(uri.toString())
+            return
+        }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = call.argument<String>("mime")
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            activity.startActivity(Intent.createChooser(send, null))
+            result.success(uri.toString())
+        } catch (error: ActivityNotFoundException) {
+            Log.w(TAG, "Nothing can take a shared file", error)
+            result.error("failed", "No app here can take this file.", null)
         }
     }
 

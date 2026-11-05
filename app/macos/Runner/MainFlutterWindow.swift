@@ -3,6 +3,8 @@ import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   private let shiftDrag = ShiftDragWatcher()
+  private let dragger = FileDragger()
+  private lazy var resultChip = ResultChip(dragger: dragger)
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -13,13 +15,13 @@ class MainFlutterWindow: NSWindow {
     self.isReleasedWhenClosed = false
 
     RegisterGeneratedPlugins(registry: flutterViewController)
-    connectShiftDrag(to: flutterViewController.engine.binaryMessenger)
+    connectShiftDrag(to: flutterViewController.engine.binaryMessenger, view: flutterViewController.view)
 
     super.awakeFromNib()
   }
 
   /// `shift_drag_native.dart` on the other side, which decides what each file can become.
-  private func connectShiftDrag(to messenger: FlutterBinaryMessenger) {
+  private func connectShiftDrag(to messenger: FlutterBinaryMessenger, view: NSView) {
     let channel = FlutterMethodChannel(name: "radial/shift_drag", binaryMessenger: messenger)
     shiftDrag.askForSlices = { paths, reply in
       channel.invokeMethod("menuFor", arguments: ["paths": paths]) { answer in
@@ -35,12 +37,26 @@ class MainFlutterWindow: NSWindow {
       channel.invokeMethod("chosen", arguments: ["id": slice.id, "paths": paths])
     }
     channel.setMethodCallHandler { [weak self] call, result in
-      if call.method == "showWindow" {
-        NSApp.activate(ignoringOtherApps: true)
-        self?.makeKeyAndOrderFront(nil)
+      guard let self = self else {
+        result(nil)
+        return
       }
-      result(nil)
+      let paths = (call.arguments as? [String: Any])?["paths"] as? [String] ?? []
+      switch call.method {
+      case "showWindow":
+        NSApp.activate(ignoringOtherApps: true)
+        self.makeKeyAndOrderFront(nil)
+        result(nil)
+      case "dragOut":
+        result(self.dragger.begin(paths: paths, from: view))
+      case "showChip":
+        self.resultChip.show(paths: paths)
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
+    shiftDrag.isPaused = { [weak self] in self?.dragger.isDragging ?? false }
     shiftDrag.start()
   }
 }

@@ -128,6 +128,8 @@ final class ShiftDragWatcher: NSObject {
   /// Asks what the menu should offer for these files. An empty answer shows no menu.
   var askForSlices: (([String], @escaping ([RadialSlice]) -> Void) -> Void)?
   var onChosen: ((RadialSlice, [String]) -> Void)?
+  /// While our own files are being dragged out, holding Shift mustn't bring the menu up over them.
+  var isPaused: () -> Bool = { false }
 
   private let panel: NSPanel
   private let radial: RadialDropView
@@ -168,6 +170,10 @@ final class ShiftDragWatcher: NSObject {
 
   @objc private func tick() {
     let pasteboard = NSPasteboard(name: .drag)
+    if isPaused() {
+      seenChange = pasteboard.changeCount
+      return
+    }
     if NSEvent.pressedMouseButtons & 1 != 1 {
       seenChange = pasteboard.changeCount
       // Released somewhere. A drop on the menu arrives just after, so give it time.
@@ -202,12 +208,8 @@ final class ShiftDragWatcher: NSObject {
 
   private func show(_ slices: [RadialSlice], at point: NSPoint) {
     let size = panel.frame.size
-    var origin = NSPoint(x: point.x - size.width / 2, y: point.y - size.height / 2)
-    if let screen = NSScreen.screens.first(where: { NSMouseInRect(point, $0.frame, false) }) {
-      let visible = screen.visibleFrame
-      origin.x = min(max(origin.x, visible.minX), visible.maxX - size.width)
-      origin.y = min(max(origin.y, visible.minY), visible.maxY - size.height)
-    }
+    let origin = originOnScreen(
+      NSPoint(x: point.x - size.width / 2, y: point.y - size.height / 2), size: size, near: point)
     radial.slices = slices
     radial.highlighted = nil
     panel.setFrameOrigin(origin)
@@ -220,5 +222,179 @@ final class ShiftDragWatcher: NSObject {
     panel.orderOut(nil)
     isShowing = false
     hideAt = nil
+  }
+}
+
+/// [origin] moved as little as needed for [size] to stay on the screen holding [point].
+func originOnScreen(_ origin: NSPoint, size: NSSize, near point: NSPoint) -> NSPoint {
+  guard let screen = NSScreen.screens.first(where: { NSMouseInRect(point, $0.frame, false) }) else {
+    return origin
+  }
+  return clamped(origin, size: size, within: screen.visibleFrame)
+}
+
+func clamped(_ origin: NSPoint, size: NSSize, within area: NSRect) -> NSPoint {
+  return NSPoint(
+    x: min(max(origin.x, area.minX), area.maxX - size.width),
+    y: min(max(origin.y, area.minY), area.maxY - size.height))
+}
+
+/// Drags files out to other apps. A drag must start from a real mouse event, and the request arrives
+/// a moment later from Flutter, so this remembers the latest one.
+final class FileDragger: NSObject, NSDraggingSource {
+  private(set) var isDragging = false
+  private var latestPress: NSEvent?
+  private var monitor: Any?
+  private var onEnded: (() -> Void)?
+
+  override init() {
+    super.init()
+    monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged]) {
+      [weak self] event in
+      self?.latestPress = event
+      return event
+    }
+  }
+
+  /// False if the button was released before the drag could start.
+  @discardableResult
+  func begin(paths: [String], from view: NSView, onEnded: (() -> Void)? = nil) -> Bool {
+    guard !paths.isEmpty, !isDragging, NSEvent.pressedMouseButtons & 1 == 1,
+      let event = latestPress, event.window === view.window
+    else { return false }
+    let spot = view.convert(event.locationInWindow, from: nil)
+    let side: CGFloat = 48
+    let items = paths.enumerated().map { index, path -> NSDraggingItem in
+      let item = NSDraggingItem(pasteboardWriter: NSURL(fileURLWithPath: path))
+      let shift = CGFloat(index) * 6
+      item.setDraggingFrame(
+        NSRect(x: spot.x - side / 2 + shift, y: spot.y - side / 2 - shift, width: side, height: side),
+        contents: NSWorkspace.shared.icon(forFile: path))
+      return item
+    }
+    isDragging = true
+    self.onEnded = onEnded
+    view.beginDraggingSession(with: items, event: event, source: self)
+    return true
+  }
+
+  func draggingSession(
+    _ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext
+  ) -> NSDragOperation {
+    return .copy
+  }
+
+  func draggingSession(
+    _ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation
+  ) {
+    isDragging = false
+    let ended = onEnded
+    onEnded = nil
+    ended?()
+    // The system kept the mouse-up, so whatever started this never saw the button released.
+    guard let window = latestPress?.window,
+      let up = NSEvent.mouseEvent(
+        with: .leftMouseUp, location: window.mouseLocationOutsideOfEventStream, modifierFlags: [],
+        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+        context: nil, eventNumber: 0, clickCount: 1, pressure: 0)
+    else { return }
+    window.sendEvent(up)
+  }
+}
+
+/// What a result chip says. Several files go together, so it names how many.
+func chipTitle(for paths: [String]) -> String {
+  if paths.count == 1 { return (paths[0] as NSString).lastPathComponent }
+  return "\(paths.count) files"
+}
+
+private final class ResultChipView: NSView {
+  var paths: [String] = [] { didSet { needsDisplay = true } }
+  var dragger: FileDragger?
+  var onDragged: (() -> Void)?
+
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { return true }
+
+  override func draw(_ dirtyRect: NSRect) {
+    let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 12, yRadius: 12)
+    NSColor.windowBackgroundColor.withAlphaComponent(0.97).setFill()
+    shape.fill()
+    NSColor.separatorColor.setStroke()
+    shape.stroke()
+
+    let side: CGFloat = 36
+    if let first = paths.first {
+      NSWorkspace.shared.icon(forFile: first).draw(
+        in: NSRect(x: 10, y: (bounds.height - side) / 2, width: side, height: side))
+    }
+    let textX: CGFloat = 54
+    let width = bounds.width - textX - 10
+    let style = NSMutableParagraphStyle()
+    style.lineBreakMode = .byTruncatingMiddle
+    (chipTitle(for: paths) as NSString).draw(
+      in: NSRect(x: textX, y: bounds.midY, width: width, height: 18),
+      withAttributes: [
+        .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+        .foregroundColor: NSColor.labelColor,
+        .paragraphStyle: style,
+      ])
+    ("Drag to another app" as NSString).draw(
+      in: NSRect(x: textX, y: bounds.midY - 18, width: width, height: 16),
+      withAttributes: [
+        .font: NSFont.systemFont(ofSize: 11),
+        .foregroundColor: NSColor.secondaryLabelColor,
+      ])
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    guard dragger?.isDragging == false else { return }
+    dragger?.begin(paths: paths, from: self) { [weak self] in self?.onDragged?() }
+  }
+}
+
+/// A small chip at the cursor after a Shift-drag, to drag the results straight on. It floats over
+/// other apps, as this app's window may be behind them, and goes away by itself.
+final class ResultChip {
+  private let panel: NSPanel
+  private let view: ResultChipView
+  private var hideTimer: Timer?
+  private static let lifetime: TimeInterval = 15
+
+  init(dragger: FileDragger) {
+    let frame = NSRect(x: 0, y: 0, width: 280, height: 56)
+    panel = NSPanel(
+      contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
+      defer: false)
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.hasShadow = true
+    panel.level = .floating
+    panel.hidesOnDeactivate = false
+    panel.becomesKeyOnlyIfNeeded = true
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+    view = ResultChipView(frame: frame)
+    view.dragger = dragger
+    panel.contentView = view
+    view.onDragged = { [weak self] in self?.hide() }
+  }
+
+  func show(paths: [String]) {
+    guard !paths.isEmpty else { return }
+    view.paths = paths
+    let point = NSEvent.mouseLocation
+    let size = panel.frame.size
+    panel.setFrameOrigin(
+      originOnScreen(NSPoint(x: point.x + 12, y: point.y - size.height - 12), size: size, near: point))
+    panel.orderFrontRegardless()
+    hideTimer?.invalidate()
+    hideTimer = Timer.scheduledTimer(withTimeInterval: Self.lifetime, repeats: false) { [weak self] _ in
+      self?.hide()
+    }
+  }
+
+  func hide() {
+    hideTimer?.invalidate()
+    hideTimer = nil
+    panel.orderOut(nil)
   }
 }

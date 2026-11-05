@@ -3,6 +3,9 @@
 #include <flutter/method_result_functions.h>
 #include <flutter/standard_method_codec.h>
 #include <shellapi.h>
+#include <shlobj.h>
+#include <shobjidl.h>
+#include <windowsx.h>
 
 #include <algorithm>
 #include <cmath>
@@ -19,6 +22,12 @@ using flutter::EncodableMap;
 using flutter::EncodableValue;
 
 const wchar_t kPanelClass[] = L"RADIAL_SHIFT_DRAG_PANEL";
+const wchar_t kChipClass[] = L"RADIAL_RESULT_CHIP";
+const UINT_PTR kChipTimer = 2;
+// A chip left alone goes away by itself.
+const UINT kChipLifetimeMs = 15000;
+const int kChipWidth = 280;
+const int kChipHeight = 56;
 const UINT_PTR kTimer = 1;
 const UINT kCheckEveryMs = 33;
 // Past this many pixels a press has become a drag.
@@ -72,6 +81,73 @@ std::vector<std::string> PathsIn(IDataObject* data) {
   return paths;
 }
 
+// Says the drag goes on until the button is released, and Escape cancels it.
+class DropSource : public IDropSource {
+ public:
+  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void** out) override {
+    if (id == IID_IUnknown || id == IID_IDropSource) {
+      *out = static_cast<IDropSource*>(this);
+      return S_OK;
+    }
+    *out = nullptr;
+    return E_NOINTERFACE;
+  }
+  // Lives on the stack for the length of the drag, so counting references frees nothing.
+  ULONG STDMETHODCALLTYPE AddRef() override { return 1; }
+  ULONG STDMETHODCALLTYPE Release() override { return 1; }
+  HRESULT STDMETHODCALLTYPE QueryContinueDrag(BOOL escape, DWORD keys) override {
+    if (escape) return DRAGDROP_S_CANCEL;
+    return (keys & MK_LBUTTON) ? S_OK : DRAGDROP_S_DROP;
+  }
+  HRESULT STDMETHODCALLTYPE GiveFeedback(DWORD) override { return DRAGDROP_S_USEDEFAULTCURSORS; }
+};
+
+// What other apps get from a drop: the same thing Explorer would give them for these files.
+IDataObject* DataObjectFor(const std::vector<std::wstring>& paths) {
+  std::vector<PIDLIST_ABSOLUTE> items;
+  for (const auto& path : paths) {
+    PIDLIST_ABSOLUTE item = nullptr;
+    if (SUCCEEDED(::SHParseDisplayName(path.c_str(), nullptr, &item, 0, nullptr))) {
+      items.push_back(item);
+    }
+  }
+  IDataObject* data = nullptr;
+  if (!items.empty()) {
+    IShellItemArray* array = nullptr;
+    const auto ids = reinterpret_cast<PCIDLIST_ABSOLUTE_ARRAY>(items.data());
+    if (SUCCEEDED(::SHCreateShellItemArrayFromIDLists(static_cast<UINT>(items.size()), ids, &array))) {
+      array->BindToHandler(nullptr, BHID_DataObject, IID_PPV_ARGS(&data));
+      array->Release();
+    }
+  }
+  for (auto item : items) ::CoTaskMemFree(item);
+  return data;
+}
+
+std::wstring WideFromUtf8(const std::string& text) {
+  if (text.empty()) return std::wstring();
+  const int length = ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+  std::wstring wide(length, L'\0');
+  ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, wide.data(), length);
+  wide.resize(length - 1);
+  return wide;
+}
+
+// The "paths" list in a call from Flutter.
+std::vector<std::wstring> PathsFrom(const EncodableValue* arguments) {
+  std::vector<std::wstring> paths;
+  const auto* map = std::get_if<EncodableMap>(arguments);
+  if (map == nullptr) return paths;
+  const auto found = map->find(EncodableValue("paths"));
+  if (found == map->end()) return paths;
+  const auto* list = std::get_if<EncodableList>(&found->second);
+  if (list == nullptr) return paths;
+  for (const auto& each : *list) {
+    if (const auto* path = std::get_if<std::string>(&each)) paths.push_back(WideFromUtf8(*path));
+  }
+  return paths;
+}
+
 EncodableValue PathsArgument(const std::vector<std::string>& paths) {
   EncodableList list;
   for (const auto& path : paths) list.push_back(EncodableValue(path));
@@ -88,6 +164,13 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
     if (call.method_name() == "showWindow") {
       ::ShowWindow(app_window_, SW_RESTORE);
       ::SetForegroundWindow(app_window_);
+    } else if (call.method_name() == "dragOut") {
+      // A drag holds this thread until the drop, so Flutter gets its answer first.
+      result->Success(EncodableValue(true));
+      DragOut(PathsFrom(call.arguments()));
+      return;
+    } else if (call.method_name() == "showChip") {
+      ShowChip(PathsFrom(call.arguments()));
     }
     result->Success();
   });
@@ -105,6 +188,106 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
   if (panel_ == nullptr) return;
   ::RegisterDragDrop(panel_, this);
   ::SetTimer(panel_, kTimer, kCheckEveryMs, nullptr);
+
+  WNDCLASSW chip_class = {};
+  chip_class.lpfnWndProc = ChipProc;
+  chip_class.hInstance = panel_class.hInstance;
+  chip_class.lpszClassName = kChipClass;
+  chip_class.hCursor = ::LoadCursor(nullptr, IDC_HAND);
+  chip_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+  ::RegisterClassW(&chip_class);
+  chip_ = ::CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, kChipClass, L"",
+                            WS_POPUP | WS_BORDER, 0, 0, kChipWidth, kChipHeight, nullptr, nullptr,
+                            chip_class.hInstance, this);
+}
+
+void ShiftDrag::DragOut(const std::vector<std::wstring>& paths) {
+  if (paths.empty() || dragging_out_ || !LeftButtonDown()) return;
+  IDataObject* data = DataObjectFor(paths);
+  if (data == nullptr) return;
+  dragging_out_ = true;
+  // Whatever the mouse was captured by would otherwise keep getting its moves.
+  ::ReleaseCapture();
+  DropSource source;
+  DWORD effect = DROPEFFECT_NONE;
+  ::DoDragDrop(data, &source, DROPEFFECT_COPY, &effect);
+  data->Release();
+  dragging_out_ = false;
+}
+
+void ShiftDrag::ShowChip(std::vector<std::wstring> paths) {
+  if (chip_ == nullptr || paths.empty()) return;
+  chip_paths_ = std::move(paths);
+  POINT cursor = {};
+  ::GetCursorPos(&cursor);
+  const HMONITOR monitor = ::MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+  MONITORINFO info = {};
+  info.cbSize = sizeof(info);
+  ::GetMonitorInfoW(monitor, &info);
+  const int x = std::min(cursor.x + 12, info.rcWork.right - kChipWidth);
+  const int y = std::min(cursor.y + 12, info.rcWork.bottom - kChipHeight);
+  ::SetWindowPos(chip_, HWND_TOPMOST, std::max<int>(x, info.rcWork.left),
+                 std::max<int>(y, info.rcWork.top), kChipWidth, kChipHeight,
+                 SWP_NOACTIVATE | SWP_SHOWWINDOW);
+  ::InvalidateRect(chip_, nullptr, TRUE);
+  ::SetTimer(chip_, kChipTimer, kChipLifetimeMs, nullptr);
+}
+
+void ShiftDrag::HideChip() {
+  if (chip_ == nullptr) return;
+  ::KillTimer(chip_, kChipTimer);
+  ::ShowWindow(chip_, SW_HIDE);
+}
+
+void ShiftDrag::PaintChip() {
+  PAINTSTRUCT paint;
+  HDC dc = ::BeginPaint(chip_, &paint);
+  ::SetBkMode(dc, TRANSPARENT);
+  std::wstring title;
+  if (chip_paths_.size() == 1) {
+    const size_t slash = chip_paths_[0].find_last_of(L"\\/");
+    title = slash == std::wstring::npos ? chip_paths_[0] : chip_paths_[0].substr(slash + 1);
+  } else {
+    title = std::to_wstring(chip_paths_.size()) + L" files";
+  }
+  RECT top = {12, 8, kChipWidth - 12, 30};
+  ::DrawTextW(dc, title.c_str(), -1, &top, DT_SINGLELINE | DT_PATH_ELLIPSIS | DT_NOPREFIX);
+  RECT bottom = {12, 30, kChipWidth - 12, 50};
+  ::SetTextColor(dc, ::GetSysColor(COLOR_GRAYTEXT));
+  ::DrawTextW(dc, L"Drag to another app", -1, &bottom, DT_SINGLELINE | DT_NOPREFIX);
+  ::EndPaint(chip_, &paint);
+}
+
+LRESULT CALLBACK ShiftDrag::ChipProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_NCCREATE) {
+    const auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+    ::SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+  }
+  auto* self = reinterpret_cast<ShiftDrag*>(::GetWindowLongPtrW(window, GWLP_USERDATA));
+  if (self != nullptr) {
+    switch (message) {
+      case WM_PAINT:
+        self->PaintChip();
+        return 0;
+      case WM_TIMER:
+        if (wparam == kChipTimer) self->HideChip();
+        return 0;
+      case WM_MOUSEACTIVATE:
+        return MA_NOACTIVATE;
+      case WM_LBUTTONDOWN: {
+        POINT point = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        ::ClientToScreen(window, &point);
+        if (::DragDetect(window, point)) {
+          self->DragOut(self->chip_paths_);
+          self->HideChip();
+        }
+        return 0;
+      }
+      default:
+        break;
+    }
+  }
+  return ::DefWindowProcW(window, message, wparam, lparam);
 }
 
 ShiftDrag::~ShiftDrag() {
@@ -114,6 +297,7 @@ ShiftDrag::~ShiftDrag() {
     ::RevokeDragDrop(panel_);
     ::DestroyWindow(panel_);
   }
+  if (chip_ != nullptr) ::DestroyWindow(chip_);
   ::OleUninitialize();
 }
 
@@ -151,6 +335,7 @@ LRESULT CALLBACK ShiftDrag::PanelProc(HWND window, UINT message, WPARAM wparam, 
 }
 
 void ShiftDrag::Tick() {
+  if (dragging_out_) return;
   if (!LeftButtonDown()) {
     button_was_down_ = false;
     if (placed_ && paths_.empty()) {

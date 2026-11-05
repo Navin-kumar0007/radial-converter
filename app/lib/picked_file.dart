@@ -56,6 +56,7 @@ class ConvertedFile {
     this.inMemory,
     this.download,
     this.savedPath,
+    this.cachedPath,
     this.note,
   });
 
@@ -68,6 +69,9 @@ class ConvertedFile {
 
   /// Where the result already is, on a desktop.
   final String? savedPath;
+
+  /// Where it waits on a phone until saved, which other apps can be given.
+  final String? cachedPath;
 
   /// Anything the user should know about the result.
   final String? note;

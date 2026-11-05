@@ -1,0 +1,69 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:radial_core/radial_core.dart';
+
+import 'android_media.dart';
+import 'picked_file.dart';
+import 'shift_drag_native.dart';
+
+/// Whether a result can be dragged out to another app. Phones have no dragging between apps.
+bool get canDragOut => Platform.isMacOS || Platform.isWindows;
+
+/// Whether a result can be shared with another app.
+bool get canShareOut => Platform.isAndroid;
+
+int _next = 0;
+
+/// Results handed to other apps sit here, as they need a real file. They go when the app next opens.
+Directory get _desktopFolder => Directory(p.join(Directory.systemTemp.path, 'radial_handed_over'));
+
+/// Removes what earlier runs left. Nothing can still need it: a drop copies the file.
+Future<void> cleanUpHandedOver() async {
+  if (!canDragOut) return;
+  try {
+    if (_desktopFolder.existsSync()) await _desktopFolder.delete(recursive: true);
+  } on FileSystemException {
+    // Still in use, perhaps by another copy of the app. It can wait for next time.
+  }
+}
+
+/// A real file for [output], which may only be in memory until now.
+Future<String> _fileFor(ConvertedFile output, Future<String> Function() newFolder) async {
+  final existing = output.savedPath ?? output.cachedPath;
+  if (existing != null) return existing;
+  final inMemory = output.inMemory;
+  if (inMemory == null) throw EngineFailed('${output.name} can\'t be handed over.');
+  // Its own folder, so it keeps its name even beside another of the same name.
+  final path = p.join(await newFolder(), p.basename(output.name));
+  await File(path).writeAsBytes(inMemory.bytes, flush: true);
+  return path;
+}
+
+/// Starts dragging [output] to wherever the user drops it. The mouse button must still be down.
+Future<void> dragOut(ConvertedFile output) async {
+  final path = await _fileFor(output, () async {
+    final folder = Directory(p.join(_desktopFolder.path, '${pid}_${_next++}'));
+    await folder.create(recursive: true);
+    return folder.path;
+  });
+  await shiftDragChannel.invokeMethod<bool>('dragOut', {
+    'paths': [path],
+  });
+}
+
+/// Opens the system's share sheet for [output].
+Future<void> shareOut(ConvertedFile output) async {
+  final path = await _fileFor(output, () async {
+    return (await mediaChannel.invokeMethod<String>('handOverFolder'))!;
+  });
+  await shareOnPhone(path, FileKind.mimeOf(output.name));
+}
+
+/// Shows a chip at the cursor, to drag results straight on after a Shift-drag.
+void showChipAtCursor(List<String> paths) {
+  if (!canDragOut || paths.isEmpty) return;
+  shiftDragChannel.invokeMethod<void>('showChip', {'paths': paths}).catchError((Object _) {
+    // Nothing to do without it: the results are saved already.
+  });
+}

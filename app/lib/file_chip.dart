@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 enum FileChipState { working, done, failed }
@@ -8,8 +9,7 @@ enum FileChipState { working, done, failed }
 /// actions. It fades after [fadeAfter], unless that is null because the result only exists
 /// in memory until saved.
 ///
-/// Dragging the chip out to another app needs native drag support on each platform. Until
-/// then the handle only shows where the drag will start.
+/// With [onDragOut], the finished chip can be dragged out to another app. Phones share instead.
 class FileChip extends StatefulWidget {
   const FileChip({
     super.key,
@@ -20,6 +20,8 @@ class FileChip extends StatefulWidget {
     this.detail,
     this.message,
     this.onSave,
+    this.onShare,
+    this.onDragOut,
     this.onCancel,
     this.onCopy,
     this.onShowInFolder,
@@ -43,6 +45,10 @@ class FileChip extends StatefulWidget {
   /// Why it failed, in plain words.
   final String? message;
   final VoidCallback? onSave;
+  final VoidCallback? onShare;
+
+  /// Called as a drag starts from the chip, with the mouse button still down.
+  final VoidCallback? onDragOut;
   final VoidCallback? onCancel;
   final VoidCallback? onCopy;
   final VoidCallback? onShowInFolder;
@@ -58,6 +64,7 @@ class _FileChipState extends State<FileChip> {
   static const _fadeDuration = Duration(milliseconds: 250);
   Timer? _timer;
   bool _fading = false;
+  Offset? _pressedAt;
 
   @override
   void initState() {
@@ -101,29 +108,54 @@ class _FileChipState extends State<FileChip> {
         color: colours.surfaceContainerHigh,
         elevation: 6,
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildLeading(colours),
-              const SizedBox(width: 10),
-              Flexible(child: _buildText(context)),
-              if (widget.state == FileChipState.working && widget.onCancel != null) ...[
-                const SizedBox(width: 6),
-                _action(Icons.close, 'Cancel', widget.onCancel),
+        child: _draggable(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLeading(colours),
+                const SizedBox(width: 10),
+                Flexible(child: _buildText(context)),
+                if (widget.state == FileChipState.working && widget.onCancel != null) ...[
+                  const SizedBox(width: 6),
+                  _action(Icons.close, 'Cancel', widget.onCancel),
+                ],
+                if (widget.state == FileChipState.done) ...[
+                  const SizedBox(width: 6),
+                  if (widget.onSave != null) _action(Icons.save_alt, 'Save', widget.onSave),
+                  if (widget.onShare != null) _action(Icons.ios_share, 'Share', widget.onShare),
+                  if (widget.onCopy != null) _action(Icons.copy_outlined, 'Copy', widget.onCopy),
+                  if (widget.onShowInFolder != null)
+                    _action(Icons.folder_open_outlined, 'Show in folder', widget.onShowInFolder),
+                  if (widget.onUndo != null) _action(Icons.undo, 'Undo', widget.onUndo),
+                ],
               ],
-              if (widget.state == FileChipState.done) ...[
-                const SizedBox(width: 6),
-                if (widget.onSave != null) _action(Icons.save_alt, 'Save', widget.onSave),
-                if (widget.onCopy != null) _action(Icons.copy_outlined, 'Copy', widget.onCopy),
-                if (widget.onShowInFolder != null)
-                  _action(Icons.folder_open_outlined, 'Show in folder', widget.onShowInFolder),
-                if (widget.onUndo != null) _action(Icons.undo, 'Undo', widget.onUndo),
-              ],
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// All of a finished chip can be dragged, which is easier to hit than its handle alone.
+  Widget _draggable(Widget chip) {
+    final onDragOut = widget.onDragOut;
+    if (widget.state != FileChipState.done || onDragOut == null) return chip;
+    // Watched directly, as a gesture detector takes a click for a drag that didn't move.
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      child: Listener(
+        onPointerDown: (event) => _pressedAt = event.position,
+        onPointerUp: (_) => _pressedAt = null,
+        onPointerCancel: (_) => _pressedAt = null,
+        onPointerMove: (event) {
+          final start = _pressedAt;
+          if (start == null || (event.position - start).distance < kPanSlop) return;
+          _pressedAt = null;
+          onDragOut();
+        },
+        child: chip,
       ),
     );
   }
@@ -141,7 +173,12 @@ class _FileChipState extends State<FileChip> {
       ),
       FileChipState.done => Semantics(
         label: 'Done',
-        child: Icon(Icons.drag_indicator, color: colours.primary),
+        child: widget.onDragOut == null
+            ? Icon(Icons.check_circle_outline, color: colours.primary)
+            : Tooltip(
+                message: 'Drag to another app',
+                child: Icon(Icons.drag_indicator, color: colours.primary),
+              ),
       ),
       FileChipState.failed => Semantics(
         label: 'Failed',

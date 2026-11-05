@@ -385,6 +385,69 @@ void main() {
     });
   });
 
+  group('handing results on', () {
+    Future<void> pumpWith(
+      WidgetTester tester, {
+      bool drag = false,
+      bool share = false,
+      ResultHandOver? onDrag,
+      ResultHandOver? onShare,
+    }) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: ConverterScreen(
+            pickFiles: () async => toPick,
+            saveFile: (file) async => true,
+            mediaAvailable: false,
+            resultsDrag: drag,
+            resultsShare: share,
+            dragResultOut: onDrag ?? (_) async {},
+            shareResult: onShare ?? (_) async {},
+            converter: (action, files, onProgress, options) {
+              return runPortable(action, files, options: options, onProgress: onProgress);
+            },
+          ),
+        ),
+      );
+    }
+
+    testWidgets('on a desktop the result itself can be dragged', (tester) async {
+      final handed = <ConvertedFile>[];
+      await pumpWith(tester, drag: true, onDrag: (output) async => handed.add(output));
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.drag(find.textContaining('(converted)'), const Offset(80, 0));
+      await tester.pump();
+      expect(handed.single.name, contains('(converted)'));
+      expect(handed.single.inMemory!.bytes, isNotEmpty);
+      expect(find.byTooltip('Share'), findsNothing);
+    });
+
+    testWidgets('on a phone it can be shared', (tester) async {
+      final handed = <ConvertedFile>[];
+      await pumpWith(tester, share: true, onShare: (output) async => handed.add(output));
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.tap(find.byTooltip('Share'));
+      await tester.pump();
+      expect(handed.single.name, contains('(converted)'));
+    });
+
+    testWidgets('it failing says so, and the result is still there', (tester) async {
+      await pumpWith(tester, share: true, onShare: (_) async => throw StateError('no'));
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.tap(find.byTooltip('Share'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.textContaining('could not be handed over'), findsOneWidget);
+      expect(find.byTooltip('Save'), findsOneWidget);
+    });
+  });
+
   group('7z and RAR', () {
     final rar = Uint8List.fromList([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 

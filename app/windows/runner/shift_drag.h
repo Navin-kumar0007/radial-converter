@@ -43,6 +43,13 @@ class ShiftDrag : public IDropTarget {
   };
 
   static LRESULT CALLBACK PanelProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+  static LRESULT CALLBACK ChipProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+
+  // Drags files out to other apps, returning once they're dropped. Called with the button down.
+  void DragOut(const std::vector<std::wstring>& paths);
+  void ShowChip(std::vector<std::wstring> paths);
+  void HideChip();
+  void PaintChip();
 
   void Tick();
   void Place(POINT cursor);
@@ -57,6 +64,10 @@ class ShiftDrag : public IDropTarget {
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   HWND app_window_;
   HWND panel_ = nullptr;
+  HWND chip_ = nullptr;
+  std::vector<std::wstring> chip_paths_;
+  // While our own files are being dragged out, Shift mustn't bring the menu up over them.
+  bool dragging_out_ = false;
 
   std::vector<Slice> slices_;
   std::vector<std::string> paths_;

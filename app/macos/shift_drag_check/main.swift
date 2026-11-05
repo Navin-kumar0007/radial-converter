@@ -66,5 +66,23 @@ pasteboard.setString("just text", forType: .string)
 check("text is not a file", shiftDragPaths(on: pasteboard).count, 0)
 pasteboard.releaseGlobally()
 
+// Where things go near a screen's edge.
+let area = NSRect(x: 0, y: 0, width: 1000, height: 800)
+let chip = NSSize(width: 280, height: 56)
+check("stays put inside x", Int(clamped(NSPoint(x: 100, y: 100), size: chip, within: area).x), 100)
+check("right edge", Int(clamped(NSPoint(x: 990, y: 100), size: chip, within: area).x), 720)
+check("left edge", Int(clamped(NSPoint(x: -50, y: 100), size: chip, within: area).x), 0)
+check("top edge", Int(clamped(NSPoint(x: 100, y: 790), size: chip, within: area).y), 744)
+check("bottom edge", Int(clamped(NSPoint(x: 100, y: -9), size: chip, within: area).y), 0)
+
+if chipTitle(for: ["/a/b/photo.png"]) != "photo.png" {
+  print("FAILED a chip names its one file")
+  failures += 1
+}
+if chipTitle(for: ["/a/1.png", "/a/2.png", "/a/3.png"]) != "3 files" {
+  print("FAILED a chip counts many files")
+  failures += 1
+}
+
 if failures == 0 { print("Shift-drag checks passed.") }
 exit(failures == 0 ? 0 : 1)
