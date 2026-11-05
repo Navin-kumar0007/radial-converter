@@ -385,6 +385,168 @@ void main() {
     });
   });
 
+  group('locked files', () {
+    Uint8List lockedZip(String password, [String name = 'a.txt']) {
+      final archive = Archive()..addFile(ArchiveFile.string(name, 'hello'));
+      return Uint8List.fromList(ZipEncoder(password: password).encodeBytes(archive));
+    }
+
+    final passwordBox = find.byType(TextField);
+
+    /// Real work, then long enough for a dialog to finish closing or opening.
+    Future<void> settle(WidgetTester tester) async {
+      await settleWork(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settleWork(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    Future<void> answer(WidgetTester tester, String password) async {
+      await tester.enterText(passwordBox, password);
+      await tester.tap(find.text('Open'));
+      await settle(tester);
+    }
+
+    testWidgets('the screen asks, and the right password gives the result', (tester) async {
+      toPick = [picked('locked.zip', lockedZip('sesame'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.text('This file is locked'), findsOneWidget);
+      expect(find.textContaining('locked.zip needs a password'), findsOneWidget);
+      await answer(tester, 'sesame');
+      expect(find.text('This file is locked'), findsNothing);
+      expect(find.byTooltip('Save'), findsOneWidget);
+    });
+
+    testWidgets('a wrong password says so and asks again', (tester) async {
+      toPick = [picked('locked.zip', lockedZip('sesame'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.textContaining('didn\'t work'), findsNothing);
+      await answer(tester, 'nope');
+      expect(find.textContaining('didn\'t work'), findsOneWidget);
+      await answer(tester, 'sesame');
+      expect(find.byTooltip('Save'), findsOneWidget);
+    });
+
+    testWidgets('cancelling says why nothing came out', (tester) async {
+      toPick = [picked('locked.zip', lockedZip('sesame'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+      expect(find.textContaining('has a password'), findsOneWidget);
+      expect(find.byTooltip('Save'), findsNothing);
+    });
+
+    testWidgets('what is typed stays hidden until asked for', (tester) async {
+      toPick = [picked('locked.zip', lockedZip('sesame'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(tester.widget<TextField>(passwordBox).obscureText, isTrue);
+      expect(tester.widget<TextField>(passwordBox).enableSuggestions, isFalse);
+      await tester.tap(find.byTooltip('Show password'));
+      await tester.pump();
+      expect(tester.widget<TextField>(passwordBox).obscureText, isFalse);
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+    });
+
+    testWidgets('a batch with one password asks only once', (tester) async {
+      toPick = [
+        picked('a.zip', lockedZip('same')),
+        picked('b.zip', lockedZip('same')),
+        picked('c.zip', lockedZip('same')),
+      ];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.text('This file is locked'), findsOneWidget);
+      await answer(tester, 'same');
+      expect(find.text('This file is locked'), findsNothing, reason: 'One answer is enough');
+      expect(find.byTooltip('Save'), findsNWidgets(3));
+    });
+
+    testWidgets('a batch with different passwords asks for each, without calling it wrong', (
+      tester,
+    ) async {
+      toPick = [picked('a.zip', lockedZip('one')), picked('b.zip', lockedZip('two'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      expect(find.textContaining('a.zip needs'), findsOneWidget);
+      await answer(tester, 'one');
+      expect(find.textContaining('b.zip needs'), findsOneWidget);
+      expect(find.textContaining('didn\'t work'), findsNothing);
+      await answer(tester, 'two');
+      expect(find.byTooltip('Save'), findsNWidgets(2));
+    });
+
+    testWidgets('skipping one locked file leaves the rest of the batch', (tester) async {
+      toPick = [picked('a.zip', lockedZip('one')), picked('b.zip', lockedZip('two'))];
+      await pump(tester);
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+      await answer(tester, 'two');
+      expect(find.byTooltip('Save'), findsOneWidget);
+      expect(find.textContaining('a.zip has a password'), findsOneWidget);
+    });
+
+    testWidgets('the password reaches the PDF engine', (tester) async {
+      final pdf = Uint8List.fromList('%PDF-1.7 locked'.codeUnits);
+      final passwords = <String?>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ConverterScreen(
+            pickFiles: () async => [picked('locked.pdf', pdf)],
+            saveFile: (file) async => true,
+            mediaAvailable: false,
+            pdfConverter: (action, files, onProgress, options) async {
+              passwords.add(options.password);
+              if (options.password != 'right') throw PasswordNeeded('locked.pdf');
+              return [PdfResult(PortableFile('locked (converted).jpg', pdf))];
+            },
+          ),
+        ),
+      );
+      await chooseFiles(tester);
+      await selectFirstSlice(tester);
+      await settleWork(tester);
+      await answer(tester, 'right');
+      expect(passwords, [null, 'right']);
+      expect(find.byTooltip('Save'), findsOneWidget);
+    });
+
+    test('the background worker carries the question back', () async {
+      await expectLater(
+        convert(actionById('archive-extract')!, [
+          PortableFile('locked.zip', lockedZip('x')),
+        ], (_) {}),
+        throwsA(isA<PasswordNeeded>().having((e) => e.fileName, 'fileName', 'locked.zip')),
+      );
+      final out = await convert(
+        actionById('archive-extract')!,
+        [PortableFile('locked.zip', lockedZip('x'))],
+        (_) {},
+        const ActionOptions(password: 'x'),
+      );
+      expect(out.single.name, 'a.txt');
+    });
+  });
+
   group('one file at a time', () {
     Uint8List broken() {
       // A JPEG's start, so it is taken for one, and nothing after it.
@@ -546,7 +708,7 @@ void main() {
           pickFiles: () async => toPick,
           saveFile: (file) async => true,
           mediaAvailable: false,
-          pdfConverter: (action, files, onProgress) async => [
+          pdfConverter: (action, files, onProgress, options) async => [
             PdfResult(
               PortableFile('form (converted).jpg', pdfBytes),
               note: 'Pages are now pictures.',

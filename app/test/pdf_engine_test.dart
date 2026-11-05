@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/pdf_engine.dart';
@@ -68,6 +69,26 @@ void main() {
     await pdfrxFlutterInitialize();
   });
 
+  group('telling whether a PDF is locked', () {
+    Uint8List sample(String name) {
+      final testFiles = p.join(Directory.current.parent.path, 'test-files');
+      return File(p.join(testFiles, name)).readAsBytesSync();
+    }
+
+    test('a password', () => expect(isPdfLocked(sample('locked.pdf')), isTrue));
+    test('only restrictions', () => expect(isPdfLocked(sample('restricted.pdf')), isTrue));
+
+    test('none', () {
+      final plain = buildImagePdf([img.encodeJpg(img.Image(width: 8, height: 8))]);
+      expect(isPdfLocked(plain), isFalse);
+    });
+
+    test('an empty or tiny file', () {
+      expect(isPdfLocked(Uint8List(0)), isFalse);
+      expect(isPdfLocked(Uint8List.fromList('/Encryp'.codeUnits)), isFalse);
+    });
+  });
+
   group('which actions run', () {
     test('the ones PDFium can do', () {
       for (final id in [
@@ -84,8 +105,12 @@ void main() {
       }
     });
 
-    test('passwords and page picking wait for their screens', () {
-      for (final id in ['pdf-add-password', 'pdf-remove-password', 'pdf-extract-pages']) {
+    test('removing a password is here, as PDFium can do it', () {
+      expect(canRunPdf(actionById('pdf-remove-password')!, FileKind.pdf), isTrue);
+    });
+
+    test('adding a password needs qpdf, and page picking needs a screen', () {
+      for (final id in ['pdf-add-password', 'pdf-extract-pages']) {
         expect(canRunPdf(actionById(id)!, FileKind.pdf), isFalse, reason: id);
       }
     });
@@ -199,7 +224,17 @@ void main() {
     });
 
     test('under a limit really is', () async {
-      final source = pdf('doc.pdf', 1);
+      // Like a photo. Pure noise is rightly refused: it can't be both this small and readable.
+      final image = img.Image(width: 1200, height: 1600);
+      var state = 1;
+      for (final pixel in image) {
+        state = (state * 1103515245 + 12345) & 0x7FFFFFFF;
+        pixel
+          ..r = pixel.x ~/ 5 + state % 16
+          ..g = pixel.y ~/ 7 + (state >> 8) % 16
+          ..b = 100 + (state >> 16) % 16;
+      }
+      final source = PortableFile('doc.pdf', buildImagePdf([img.encodeJpg(image, quality: 95)]));
       expect(source.bytes.length, greaterThan(100 * 1024));
       final out = (await run('fit-pdf-100kb', [source])).single;
       expect(out.file.bytes.length, lessThanOrEqualTo(100 * 1024));
@@ -249,6 +284,124 @@ void main() {
         run('pdf-to-jpg', [junk]),
         throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('bad.pdf'))),
       );
+    });
+  });
+
+  group('pictures turned into PDFs have huge pages', skip: skipReal, () {
+    test('they can still fit a limit', () async {
+      final source = pdf('photo.pdf', 1, width: 3000, height: 2000);
+      final out = (await run('fit-pdf-500kb', [source])).single;
+      expect(out.file.bytes.length, lessThanOrEqualTo(500 * 1024));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('shrinking does not blow them up first', () async {
+      final source = pdf('photo.pdf', 1, width: 3000, height: 2000);
+      final out = (await run('pdf-compress', [source])).single;
+      expect(out.file.bytes.length, lessThan(source.bytes.length));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('saving as a picture keeps every pixel and adds none', () async {
+      final source = pdf('photo.pdf', 1, width: 3000, height: 2000);
+      final out = (await run('pdf-to-png', [source])).single;
+      final picture = img.decodePng(out.file.bytes)!;
+      expect(picture.width, 3000);
+      expect(picture.height, 2000);
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('a paper-sized page still comes out at full quality', () async {
+      final source = pdf('page.pdf', 1, width: 595, height: 842);
+      final picture = img.decodePng((await run('pdf-to-png', [source])).single.file.bytes)!;
+      expect(picture.height, closeTo(842 * 150 / 72, 2));
+    });
+  });
+
+  group('locked PDFs', skip: skipReal, () {
+    final testFiles = p.join(Directory.current.parent.path, 'test-files');
+    final locked = PortableFile(
+      'locked.pdf',
+      File(p.join(testFiles, 'locked.pdf')).readAsBytesSync(),
+    );
+    final restricted = PortableFile(
+      'restricted.pdf',
+      File(p.join(testFiles, 'restricted.pdf')).readAsBytesSync(),
+    );
+    const right = ActionOptions(password: 'open sesame');
+
+    Future<bool> opensFreely(Uint8List bytes) async {
+      try {
+        await pagesIn(bytes);
+        return true;
+      } on PdfPasswordException {
+        return false;
+      }
+    }
+
+    test('with no password it asks, naming the file', () async {
+      await expectLater(
+        run('pdf-to-jpg', [locked]),
+        throwsA(isA<PasswordNeeded>().having((e) => e.fileName, 'fileName', 'locked.pdf')),
+      );
+    });
+
+    test('a wrong password asks again', () async {
+      await expectLater(
+        run('pdf-to-jpg', [locked], options: const ActionOptions(password: 'nope')),
+        throwsA(isA<PasswordNeeded>()),
+      );
+    });
+
+    test('the right one opens it', () async {
+      final out = (await run('pdf-to-jpg', [locked], options: right)).single;
+      expect(detectKind(out.file.bytes), FileKind.zip);
+    });
+
+    test('removing the password really removes it', () async {
+      final out = (await run('pdf-remove-password', [locked], options: right)).single;
+      expect(out.file.name, 'locked (unlocked).pdf');
+      expect(await opensFreely(locked.bytes), isFalse, reason: 'The sample must really be locked');
+      expect(await opensFreely(out.file.bytes), isTrue);
+      expect(await pagesIn(out.file.bytes), 2);
+      expect(isPdfLocked(out.file.bytes), isFalse);
+    });
+
+    test('the original is left locked', () async {
+      final before = Uint8List.fromList(locked.bytes);
+      await run('pdf-remove-password', [locked], options: right);
+      expect(locked.bytes, before);
+    });
+
+    test('removing restrictions needs no password', () async {
+      final out = (await run('pdf-remove-password', [restricted])).single;
+      expect(isPdfLocked(out.file.bytes), isFalse);
+    });
+
+    test('a PDF with no password says there is nothing to remove', () async {
+      await expectLater(
+        run('pdf-remove-password', [pdf('plain.pdf', 1, width: 50, height: 50)]),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('no password'))),
+      );
+    });
+
+    test('rotating leaves it locked, as nobody asked to unlock it', () async {
+      final out = (await run('pdf-rotate', [locked], options: right)).single;
+      expect(await opensFreely(out.file.bytes), isFalse);
+    });
+
+    test('merging opens with the password', () async {
+      final out = (await run('pdf-merge', [
+        locked,
+        pdf('b.pdf', 1, width: 50, height: 50),
+      ], options: right)).single;
+      expect(await pagesIn(out.file.bytes), 3);
+    });
+
+    test('a password never shows in an error', () async {
+      try {
+        await run('pdf-to-jpg', [locked], options: const ActionOptions(password: 'my secret'));
+        fail('Should not open');
+      } on EngineFailed catch (error) {
+        expect(error.toString(), isNot(contains('my secret')));
+      }
     });
   });
 }

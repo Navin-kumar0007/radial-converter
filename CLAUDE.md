@@ -56,11 +56,11 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 498 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 204 tests, plus 19 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 74-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 511 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 223 tests, plus 33 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `presets/` | Form-ready presets, one JSON file per preset; file name must equal the id. |
-| `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are. |
+| `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf. |
 | `docs/` | User guide, privacy policy, website (later). |
 
 The first `core/` (from `radial-core.zip` in the planning chat) never reached git. This one was
@@ -93,7 +93,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - PDF on every platform through `app/lib/pdf_engine.dart`, using pdfrx 2.9.0 (MIT) and PDFium (BSD): to JPG or
   PNG, merge, split, rotate, compress, under a size limit. Compress and size limits redraw pages as
   pictures, because that is the only way to shrink a scan, and the result says text can't be selected.
-  Passwords and page picking need screens; adding a password needs qpdf, since PDFium can't.
+  Page picking needs a screen. A page larger than A4 is drawn as A4 when shrinking, or a photo PDF, a page 55 inches
+  wide, could never fit a limit. These tests need real PDFium, which the `macos` CI job runs against what it just built.
   Size limits try a few sample pages first, because redrawing all of a long PDF per step takes minutes,
   and they stop at 72 dpi rather than produce something unreadable. It works on the page in a browser, so
   long PDFs stutter; moving JPEG encoding into the worker would fix that.
@@ -128,6 +129,13 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   button are held an invisible window sits under the cursor, and only a file drag entering it reveals the menu. Drawn with
   plain GDI, so edges are jagged for now. Closing the window quits, as there's no tray icon yet. Nobody has run it.
 - Not started: playing video and sound while trimming, tray icon.
+- Passwords: a locked PDF or ZIP throws `PasswordNeeded`, and the screen asks and runs it again, so every action handles
+  locked files with no code of its own. The right password is tried on the next file of a batch before asking, and lasts
+  only for that job. Remove password runs on PDFs through PDFium; Add password runs on archives and always makes an AES
+  ZIP. Adding one to a PDF is not offered: it needs qpdf, which isn't bundled. Merging only takes one password. Results
+  redrawn or rebuilt (Compress, Split, Merge) have no password; Rotate keeps it. PDFium leaves the old encryption
+  details behind as an unused object after removing a password, so hashes of it stay in the file.
+- Never use pdfrx's `isEncrypted`: in a browser it's false for nearly all locked PDFs. `isPdfLocked` reads the file.
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
   video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
   service yet.
@@ -187,7 +195,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 2. Try a real iPhone HEIC photo, on every platform.
 3. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Finder and from Explorer in the Windows VM.
-5. Extract to a folder, ZIP passwords, 7z and RAR. PDF password screens.
+5. Extract to a folder, 7z and RAR. Adding a password to a PDF, once qpdf is bundled.
 6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.

@@ -108,6 +108,7 @@ void main() {
       const options = ActionOptions(
         crop: (left: 0, top: 0, width: 10, height: 10),
         shift: Duration(seconds: 1),
+        newPassword: 'x',
       );
       for (final action in portable) {
         final PortableFile file;

@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/android_media.dart';
 import 'package:radialconverter/convert_native.dart';
+import 'package:radialconverter/pdf_engine.dart';
 import 'package:radialconverter/picked_file.dart';
 import 'package:radialconverter/shared_files.dart';
 
@@ -50,6 +51,23 @@ void main() {
     );
     return results.single;
   }
+
+  testWidgets('a locked PDF asks, then opens and unlocks with its password', (tester) async {
+    final locked = PortableFile('locked.pdf', base64.decode(lockedPdfBase64));
+    final remove = actionById('pdf-remove-password')!;
+    await expectLater(convertPdf(remove, [locked], (_) {}), throwsA(isA<PasswordNeeded>()));
+    final out = await convertPdf(
+      remove,
+      [locked],
+      (_) {},
+      options: const ActionOptions(password: 'open sesame'),
+    );
+    final unlocked = out.single.file;
+    await expectLater(
+      convertPdf(remove, [unlocked], (_) {}),
+      throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('no password'))),
+    );
+  });
 
   testWidgets('a frame comes back as a small picture', (tester) async {
     final frame = await videoFrame(picked(), 0.5);

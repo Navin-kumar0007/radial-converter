@@ -99,7 +99,15 @@ Future<List<PortableFile>> runPortable(
   for (var i = 0; i < files.length; i++) {
     void step(double progress) => onProgress?.call((i + progress) / files.length);
     if (kinds[i].family == FileFamily.archive) {
-      outputs.addAll(runArchive(action, files[i], kinds[i]));
+      outputs.addAll(
+        runArchive(
+          action,
+          files[i],
+          kinds[i],
+          password: options.password,
+          newPassword: options.newPassword,
+        ),
+      );
       step(1);
       continue;
     }

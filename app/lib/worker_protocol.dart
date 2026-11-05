@@ -18,6 +18,8 @@ extension type WorkerRequest._(JSObject _) implements JSObject {
     JSNumber? cropWidth,
     JSNumber? cropHeight,
     JSNumber? shiftMilliseconds,
+    JSString? password,
+    JSString? newPassword,
   });
 
   external JSString get actionId;
@@ -27,13 +29,23 @@ extension type WorkerRequest._(JSObject _) implements JSObject {
   external JSNumber? get cropWidth;
   external JSNumber? get cropHeight;
   external JSNumber? get shiftMilliseconds;
+  external JSString? get password;
+  external JSString? get newPassword;
 }
 
 /// What the worker sends back: progress, then the results or why it failed.
 extension type WorkerReply._(JSObject _) implements JSObject {
-  external factory WorkerReply({JSNumber? progress, JSArray<WorkerFile>? files, JSString? failure});
+  external factory WorkerReply({
+    JSNumber? progress,
+    JSArray<WorkerFile>? files,
+    JSString? failure,
+    JSString? passwordNeeded,
+  });
 
   external JSNumber? get progress;
   external JSArray<WorkerFile>? get files;
   external JSString? get failure;
+
+  /// The name of a locked file that no password given opens.
+  external JSString? get passwordNeeded;
 }

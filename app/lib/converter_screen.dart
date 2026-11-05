@@ -33,6 +33,7 @@ typedef PdfConverter = Future<List<PdfResult>> Function(
   RadialAction action,
   List<PortableFile> files,
   void Function(double progress) onProgress,
+  ActionOptions options,
 );
 typedef PhotoDecoder = Future<Uint8List> Function(PickedFile file);
 typedef MediaConverter = Future<List<ConvertedFile>> Function(
@@ -78,7 +79,8 @@ Future<List<PdfResult>> _defaultPdf(
   RadialAction action,
   List<PortableFile> files,
   void Function(double) onProgress,
-) => convertPdf(action, files, onProgress);
+  ActionOptions options,
+) => convertPdf(action, files, onProgress, options: options);
 
 class ConverterScreen extends StatefulWidget {
   const ConverterScreen({
@@ -364,13 +366,42 @@ class _ConverterScreenState extends State<ConverterScreen> {
     ActionOptions options, {
     required List<_Job> failed,
     required bool Function() wanted,
+    required bool outsideTheWindow,
   }) async {
     if (_inMemory(action, kinds)) {
       final tooLarge = _tooLarge();
       if (tooLarge != null) throw EngineFailed(tooLarge);
     }
+
+    // Files in a batch often share a password, so one that worked is tried on the next before
+    // asking. It lasts only as long as this job.
+    String? remembered;
+    Future<List<_Result>> unlocking(
+      List<PickedFile> some,
+      List<FileKind> theirKinds,
+      void Function(double) progress,
+    ) async {
+      var current = remembered == null ? options : options.withPassword(remembered!);
+      var typedOne = false;
+      while (true) {
+        try {
+          return await _runTogether(action, some, theirKinds, progress, control, current);
+        } on PasswordNeeded catch (needed) {
+          if (!wanted()) throw const JobCancelled();
+          if (outsideTheWindow) showAppWindow();
+          if (!mounted) rethrow;
+          final password = await askForPassword(context, needed.fileName, wrong: typedOne);
+          if (password == null) rethrow;
+          if (!wanted()) throw const JobCancelled();
+          typedOne = true;
+          remembered = password;
+          current = options.withPassword(password);
+        }
+      }
+    }
+
     if (files.length == 1 || combinesFiles(action)) {
-      return _runTogether(action, files, kinds, onProgress, control, options);
+      return unlocking(files, kinds, onProgress);
     }
     _Job failure(PickedFile file, String message) {
       return _Job(file.name, null)
@@ -383,13 +414,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (!wanted()) throw const JobCancelled();
       try {
         results.addAll(
-          await _runTogether(
-            action,
+          await unlocking(
             [files[i]],
             [kinds[i]],
             (progress) => onProgress((i + progress) / files.length),
-            control,
-            options,
           ),
         );
       } on JobCancelled {
@@ -443,7 +471,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       throw const EngineFailed('This file could not be read. It may have moved or be too large.');
     }
     if (isPdf) {
-      final results = await widget.pdfConverter(action, inputs, onProgress);
+      final results = await widget.pdfConverter(action, inputs, onProgress, options);
       return matched([
         for (final result in results)
           ConvertedFile(
@@ -529,6 +557,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         options,
         failed: failed,
         wanted: () => mounted && identical(_jobs, jobs),
+        outsideTheWindow: saveBeside,
       );
       if (saveBeside) {
         results = await _saveBeside(results);

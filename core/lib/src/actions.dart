@@ -268,6 +268,7 @@ final List<RadialAction> actionCatalogue = List.unmodifiable([
   _convert('archive-to-targz', 'TAR.GZ', Engine.libarchive, _archives, FileKind.tarGz),
   _convert('archive-to-7z', '7z', Engine.libarchive, _archives, FileKind.sevenZip),
   _tool('archive-extract', 'Extract', Engine.libarchive, _archives, 'extracted'),
+  _tool('archive-add-password', 'Add password', Engine.libarchive, _archives, 'protected'),
   _tool(
     'folder-compress',
     'Compress folder',

@@ -300,4 +300,128 @@ void main() {
       expect(zip.bytes.length, greaterThan(bytes.length));
     });
   });
+
+  group('passwords', () {
+    final extract = actionById('archive-extract')!;
+    final addPassword = actionById('archive-add-password')!;
+
+    PortableFile locked(String password) {
+      final archive = archiveOf({'secret.txt': 'hello'});
+      return PortableFile(
+        'locked.zip',
+        Uint8List.fromList(ZipEncoder(password: password).encodeBytes(archive)),
+      );
+    }
+
+    test('a locked ZIP asks for its password, naming the file', () {
+      expect(
+        () => runArchive(extract, locked('sesame'), FileKind.zip),
+        throwsA(isA<PasswordNeeded>().having((e) => e.fileName, 'fileName', 'locked.zip')),
+      );
+    });
+
+    test('the right password opens it', () {
+      final files = runArchive(extract, locked('sesame'), FileKind.zip, password: 'sesame');
+      expect(files.single.name, 'secret.txt');
+      expect(utf8.decode(files.single.bytes), 'hello');
+    });
+
+    test('the wrong password asks again rather than giving rubbish', () {
+      expect(
+        () => runArchive(extract, locked('sesame'), FileKind.zip, password: 'wrong'),
+        throwsA(isA<PasswordNeeded>()),
+      );
+    });
+
+    test('a ZIP without a password ignores one', () {
+      final plain = PortableFile(
+        'plain.zip',
+        Uint8List.fromList(ZipEncoder().encodeBytes(archiveOf({'a.txt': 'hi'}))),
+      );
+      expect(runArchive(extract, plain, FileKind.zip, password: 'x').single.name, 'a.txt');
+    });
+
+    test('a password goes on, and only it opens the result', () {
+      final plain = PortableFile(
+        'plain.zip',
+        Uint8List.fromList(ZipEncoder().encodeBytes(archiveOf({'a.txt': 'hi'}))),
+      );
+      final out = runArchive(addPassword, plain, FileKind.zip, newPassword: 'new one').single;
+      expect(out.name, 'plain (protected).zip');
+      expect(() => runArchive(extract, out, FileKind.zip), throwsA(isA<PasswordNeeded>()));
+      expect(
+        () => runArchive(extract, out, FileKind.zip, password: 'not it'),
+        throwsA(isA<PasswordNeeded>()),
+      );
+      final back = runArchive(extract, out, FileKind.zip, password: 'new one').single;
+      expect(utf8.decode(back.bytes), 'hi');
+    });
+
+    test('the contents really are scrambled', () {
+      final secret = 'a secret nobody should read ' * 20;
+      final plain = PortableFile(
+        'plain.zip',
+        Uint8List.fromList(ZipEncoder().encodeBytes(archiveOf({'a.txt': secret}))),
+      );
+      final out = runArchive(addPassword, plain, FileKind.zip, newPassword: 'x').single;
+      expect(latin1.decode(out.bytes), isNot(contains('a secret nobody')));
+    });
+
+    test('it uses AES, not the old ZIP scheme that can be broken', () {
+      final plain = PortableFile(
+        'plain.zip',
+        Uint8List.fromList(ZipEncoder().encodeBytes(archiveOf({'a.txt': 'hi'}))),
+      );
+      final out = runArchive(addPassword, plain, FileKind.zip, newPassword: 'x').single;
+      // Compression method 99 marks AES in the first file's header.
+      final method = ByteData.sublistView(out.bytes).getUint16(8, Endian.little);
+      expect(method, 99);
+    });
+
+    test('adding one with none chosen is refused', () {
+      final plain = PortableFile(
+        'plain.zip',
+        Uint8List.fromList(ZipEncoder().encodeBytes(archiveOf({'a.txt': 'hi'}))),
+      );
+      expect(() => runArchive(addPassword, plain, FileKind.zip), throwsA(isA<EngineFailed>()));
+    });
+
+    test('a TAR can get a password too, and comes out a ZIP', () {
+      final tar = PortableFile(
+        'plain.tar',
+        Uint8List.fromList(TarEncoder().encodeBytes(archiveOf({'a.txt': 'hi'}))),
+      );
+      final out = runArchive(addPassword, tar, FileKind.tar, newPassword: 'x').single;
+      expect(out.name, 'plain (protected).zip');
+      expect(detectKind(out.bytes), FileKind.zip);
+    });
+
+    test('a locked ZIP can have a new password put on it', () {
+      final out = runArchive(
+        addPassword,
+        locked('old'),
+        FileKind.zip,
+        password: 'old',
+        newPassword: 'new',
+      ).single;
+      expect(runArchive(extract, out, FileKind.zip, password: 'new').single.name, 'secret.txt');
+    });
+
+    test('through the engine, as the app runs it', () async {
+      final out = await runPortable(extract, [
+        locked('sesame'),
+      ], options: const ActionOptions(password: 'sesame'));
+      expect(out.single.name, 'secret.txt');
+      await expectLater(runPortable(extract, [locked('sesame')]), throwsA(isA<PasswordNeeded>()));
+    });
+
+    test('a password never shows in an error', () {
+      try {
+        runArchive(extract, locked('sesame'), FileKind.zip, password: 'my secret');
+        fail('Should not open');
+      } on EngineFailed catch (error) {
+        expect(error.toString(), isNot(contains('my secret')));
+      }
+    });
+  });
 }

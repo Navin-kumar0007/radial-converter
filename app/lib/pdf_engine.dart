@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -12,6 +13,7 @@ const _pdfActions = {
   'pdf-split',
   'pdf-rotate',
   'pdf-compress',
+  'pdf-remove-password',
   'fit-email-pdf',
   'fit-pdf-100kb',
   'fit-pdf-500kb',
@@ -46,16 +48,43 @@ const _shrinkSteps = [(150.0, 70), (120.0, 55), (96.0, 45), (72.0, 35)];
 /// A few pages are tried first, because drawing every page for each step takes minutes.
 const _samplePages = 3;
 
+/// True if this PDF is encrypted, which every kind of password or restriction needs. PDFs name it
+/// outside anything compressed, as `/Encrypt`. Read from the file because pdfrx's `isEncrypted` is
+/// false for nearly every locked PDF in a browser: it takes the negative permissions they all have
+/// to mean there are none.
+bool isPdfLocked(Uint8List bytes) {
+  const name = [0x2F, 0x45, 0x6E, 0x63, 0x72, 0x79, 0x70, 0x74];
+  outer:
+  for (var i = 0; i <= bytes.length - name.length; i++) {
+    if (bytes[i] != name[0]) continue;
+    for (var j = 1; j < name.length; j++) {
+      if (bytes[i + j] != name[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
 int _sourceCounter = 0;
 
 /// Each document needs its own name, or PDFium may mix them up.
 String _sourceName(String name) => 'radial-${_sourceCounter++}-$name';
 
-Future<PdfDocument> _open(PortableFile file) async {
+Future<PdfDocument> _open(PortableFile file, String? password) async {
+  // PDFium asks again after a wrong answer, and offering nothing is what ends that.
+  var offered = false;
   try {
-    return await PdfDocument.openData(file.bytes, sourceName: _sourceName(file.name));
+    return await PdfDocument.openData(
+      file.bytes,
+      sourceName: _sourceName(file.name),
+      passwordProvider: () {
+        if (offered) return null;
+        offered = true;
+        return password;
+      },
+    );
   } on PdfPasswordException {
-    throw EngineFailed('${file.name} has a password, so it can\'t be opened yet.');
+    throw PasswordNeeded(file.name);
   } catch (_) {
     throw EngineFailed('${file.name} could not be read. It may be damaged.');
   }
@@ -72,12 +101,12 @@ Future<List<PdfResult>> convertPdf(
     throw EngineFailed('"${action.label}" needs at least ${action.minFiles} files.');
   }
   await pdfrxFlutterInitialize();
-  if (action.id == 'pdf-merge') return [await _merge(action, files)];
+  if (action.id == 'pdf-merge') return [await _merge(action, files, options.password)];
 
   final results = <PdfResult>[];
   for (var i = 0; i < files.length; i++) {
     void step(double progress) => onProgress((i + progress) / files.length);
-    final document = await _open(files[i]);
+    final document = await _open(files[i], options.password);
     try {
       results.add(await _one(action, files[i], document, step, options));
     } finally {
@@ -124,6 +153,10 @@ Future<PdfResult> _one(
       return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes));
     case 'pdf-compress':
       return _compress(action, file, document, step);
+    case 'pdf-remove-password':
+      if (!isPdfLocked(file.bytes)) throw EngineFailed('${file.name} has no password to remove.');
+      final bytes = await document.encodePdf(removeSecurity: true);
+      return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes));
   }
   return _fit(action, file, document, step);
 }
@@ -189,30 +222,44 @@ Future<int> _estimateBytes(PdfDocument document, double dpi, int quality) async 
   return count == 0 ? 0 : bytes * total ~/ count;
 }
 
-/// Draws one page at [dpi], on white. Null if PDFium could not draw it.
-Future<img.Image?> _draw(PdfPage page, double dpi) async {
-  final scale = dpi / 72;
+/// A4's long side in points. Pictures turned into PDFs often have far larger pages, one point to a
+/// pixel, so a phone photo is a page 55 inches wide.
+const _paperSide = 842.0;
+
+/// Past this many pixels on a side a page is taken for a picture, which has no more detail to give.
+const _largestDrawn = 4000.0;
+
+/// Draws one page at [dpi], on white. Null if PDFium could not draw it. When [shrinking], a page
+/// larger than paper is drawn as if it were paper, or no setting could ever make it small. Otherwise
+/// a very large page stays one pixel to a point, rather than being blown up.
+Future<img.Image?> _draw(PdfPage page, double dpi, {bool shrinking = true}) async {
+  final longest = math.max(page.width, page.height);
+  final wanted = longest * dpi / 72;
+  final drawn = shrinking
+      ? math.min(wanted, _paperSide * dpi / 72)
+      : (wanted <= _largestDrawn ? wanted : longest);
+  final scale = drawn / longest;
   final width = (page.width * scale).ceil();
   final height = (page.height * scale).ceil();
-  final drawn = await page.render(
+  final rendered = await page.render(
     width: width,
     height: height,
     fullWidth: width.toDouble(),
     fullHeight: height.toDouble(),
     backgroundColor: 0xFFFFFFFF,
   );
-  if (drawn == null) return null;
+  if (rendered == null) return null;
   try {
     return img.Image.fromBytes(
-      width: drawn.width,
-      height: drawn.height,
-      bytes: drawn.pixels.buffer,
-      bytesOffset: drawn.pixels.offsetInBytes,
+      width: rendered.width,
+      height: rendered.height,
+      bytes: rendered.pixels.buffer,
+      bytesOffset: rendered.pixels.offsetInBytes,
       numChannels: 4,
       order: img.ChannelOrder.bgra,
     ).convert(numChannels: 3);
   } finally {
-    drawn.dispose();
+    rendered.dispose();
   }
 }
 
@@ -271,7 +318,7 @@ Future<PdfResult> _toPictures(
   if (total == 0) throw EngineFailed('${file.name} has no pages.');
   final pictures = <String, Uint8List>{};
   for (var i = 0; i < total; i++) {
-    final picture = await _draw(document.pages[i], _pictureDpi);
+    final picture = await _draw(document.pages[i], _pictureDpi, shrinking: false);
     if (picture == null) throw EngineFailed('Page ${i + 1} of ${file.name} could not be drawn.');
     await _breathe();
     pictures['$stem page ${i + 1}.$extension'] = jpeg
@@ -310,11 +357,11 @@ Future<PdfResult> _split(
   return PdfResult(PortableFile(_name(action, file.name, 'zip'), _zip(pages)));
 }
 
-Future<PdfResult> _merge(RadialAction action, List<PortableFile> files) async {
+Future<PdfResult> _merge(RadialAction action, List<PortableFile> files, String? password) async {
   final sources = <PdfDocument>[];
   try {
     for (final file in files) {
-      sources.add(await _open(file));
+      sources.add(await _open(file, password));
     }
     final merged = await PdfDocument.createNew(sourceName: _sourceName('merged'));
     try {

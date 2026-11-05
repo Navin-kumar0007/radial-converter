@@ -143,6 +143,12 @@ jobs:
       - name: Build
         working-directory: app
         run: flutter build macos --release
+      # A test has no app holding PDFium, and this is the one job that has just built one.
+      - name: Test PDFs against the real PDFium
+        working-directory: app
+        run: |
+          PDFIUM_PATH="$PWD/build/macos/Build/Products/Release/radialconverter.app/Contents/Frameworks/PDFium.framework/pdfium" \
+            flutter test test/pdf_engine_test.dart
       - name: Reuse the video engine if its recipe has not changed
         id: engine
         uses: actions/cache@v4

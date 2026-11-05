@@ -32,7 +32,11 @@ Future<List<PortableFile>> convert(
     if (progress != null) onProgress(progress.toDartDouble);
     final failure = reply.failure;
     final outputs = reply.files;
-    if (failure != null) {
+    final locked = reply.passwordNeeded;
+    if (locked != null) {
+      worker.terminate();
+      if (!done.isCompleted) done.completeError(PasswordNeeded(locked.toDart));
+    } else if (failure != null) {
       worker.terminate();
       if (!done.isCompleted) done.completeError(EngineFailed(failure.toDart));
     } else if (outputs != null) {
@@ -62,6 +66,8 @@ Future<List<PortableFile>> convert(
     cropWidth: options.crop?.width.toJS,
     cropHeight: options.crop?.height.toJS,
     shiftMilliseconds: options.shift?.inMilliseconds.toJS,
+    password: options.password?.toJS,
+    newPassword: options.newPassword?.toJS,
   );
   worker.postMessage(request);
   return done.future;

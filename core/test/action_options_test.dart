@@ -46,4 +46,13 @@ void main() {
       }
     });
   });
+
+  test('a password joins what was already chosen', () {
+    const options = ActionOptions(degrees: 90, newPassword: 'n', startSeconds: 2);
+    final withPassword = options.withPassword('p');
+    expect(withPassword.password, 'p');
+    expect(withPassword.degrees, 90);
+    expect(withPassword.newPassword, 'n');
+    expect(withPassword.startSeconds, 2);
+  });
 }

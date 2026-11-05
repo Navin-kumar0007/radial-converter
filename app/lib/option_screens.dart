@@ -4,7 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:radial_core/radial_core.dart';
 
-const _askFirst = {'image-crop', 'subtitle-shift', 'video-trim', 'audio-trim'};
+const _askFirst = {
+  'image-crop',
+  'subtitle-shift',
+  'video-trim',
+  'audio-trim',
+  'archive-add-password',
+};
 
 /// True if the user must choose something before [action] can run.
 bool needsOptions(RadialAction action) => _askFirst.contains(action.id);
@@ -22,9 +28,195 @@ Future<ActionOptions?> askForOptions(
     builder: (context) => switch (action.id) {
       'image-crop' => CropDialog(loadPicture: loadPicture),
       'subtitle-shift' => const ShiftDialog(),
+      'archive-add-password' => const AddPasswordDialog(),
       _ => TrimDialog(preview: trimPreview),
     },
   );
+}
+
+/// Asks what opens [fileName], or returns null if the user would rather not.
+Future<String?> askForPassword(BuildContext context, String fileName, {required bool wrong}) {
+  return showDialog<String>(
+    context: context,
+    builder: (context) => PasswordDialog(fileName: fileName, wrong: wrong),
+  );
+}
+
+/// A password box whose text stays hidden unless asked for, and is never suggested or remembered.
+class _PasswordField extends StatefulWidget {
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    this.errorText,
+    this.autofocus = false,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String? errorText;
+  final bool autofocus;
+  final void Function(String)? onSubmitted;
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _hidden = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: widget.controller,
+      autofocus: widget.autofocus,
+      obscureText: _hidden,
+      autocorrect: false,
+      enableSuggestions: false,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        errorText: widget.errorText,
+        // Tab goes on to the next box. This stays a click away, and in reach of a screen reader.
+        suffixIcon: ExcludeFocusTraversal(
+          child: IconButton(
+            tooltip: _hidden ? 'Show password' : 'Hide password',
+            icon: Icon(_hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+            onPressed: () => setState(() => _hidden = !_hidden),
+          ),
+        ),
+      ),
+      onSubmitted: widget.onSubmitted,
+    );
+  }
+}
+
+/// What opens a locked file.
+class PasswordDialog extends StatefulWidget {
+  const PasswordDialog({super.key, required this.fileName, required this.wrong});
+
+  final String fileName;
+
+  /// The last password typed didn't open it.
+  final bool wrong;
+
+  @override
+  State<PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<PasswordDialog> {
+  final _password = TextEditingController();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.wrong) _error = 'That password didn\'t work. Try again.';
+  }
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _finish() {
+    if (_password.text.isEmpty) {
+      setState(() => _error = 'Type the password.');
+      return;
+    }
+    Navigator.of(context).pop(_password.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('This file is locked'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${widget.fileName} needs a password to open. It stays on this device.'),
+          const SizedBox(height: 16),
+          _PasswordField(
+            controller: _password,
+            label: 'Password',
+            errorText: _error,
+            autofocus: true,
+            onSubmitted: (_) => _finish(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(onPressed: _finish, child: const Text('Open')),
+      ],
+    );
+  }
+}
+
+/// What a new locked file should open with, typed twice since a mistake here can't be undone.
+class AddPasswordDialog extends StatefulWidget {
+  const AddPasswordDialog({super.key});
+
+  @override
+  State<AddPasswordDialog> createState() => _AddPasswordDialogState();
+}
+
+class _AddPasswordDialogState extends State<AddPasswordDialog> {
+  final _password = TextEditingController();
+  final _again = TextEditingController();
+  String? _error;
+  String? _againError;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _again.dispose();
+    super.dispose();
+  }
+
+  void _finish() {
+    setState(() {
+      _error = _password.text.isEmpty ? 'Choose a password.' : null;
+      _againError = _error == null && _again.text != _password.text ? 'These don\'t match.' : null;
+    });
+    if (_error != null || _againError != null) return;
+    Navigator.of(context).pop(ActionOptions(newPassword: _password.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add password'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Nobody can open the result without it, and a lost password can\'t be recovered.',
+          ),
+          const SizedBox(height: 16),
+          _PasswordField(
+            controller: _password,
+            label: 'Password',
+            errorText: _error,
+            autofocus: true,
+          ),
+          const SizedBox(height: 16),
+          _PasswordField(
+            controller: _again,
+            label: 'The same password again',
+            errorText: _againError,
+            onSubmitted: (_) => _finish(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(onPressed: _finish, child: const Text('Add password')),
+      ],
+    );
+  }
 }
 
 /// How far to move subtitles, and which way.

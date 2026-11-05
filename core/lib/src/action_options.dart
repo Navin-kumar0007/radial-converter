@@ -9,6 +9,7 @@ class ActionOptions {
     this.endSeconds,
     this.pages,
     this.password,
+    this.newPassword,
     this.audioKbps,
     this.targetMb,
     this.shift,
@@ -27,10 +28,33 @@ class ActionOptions {
 
   /// A qpdf page range such as `1-3,7`.
   final String? pages;
+
+  /// What opens a locked file. Held only for the job, and never logged or shown.
   final String? password;
+
+  /// What a result should be locked with.
+  final String? newPassword;
   final int? audioKbps;
   final double? targetMb;
   final Duration? shift;
+
+  /// These same choices, with what opens a locked file.
+  ActionOptions withPassword(String value) {
+    return ActionOptions(
+      longSide: longSide,
+      crop: crop,
+      degrees: degrees,
+      flipVertical: flipVertical,
+      startSeconds: startSeconds,
+      endSeconds: endSeconds,
+      pages: pages,
+      password: value,
+      newPassword: newPassword,
+      audioKbps: audioKbps,
+      targetMb: targetMb,
+      shift: shift,
+    );
+  }
 }
 
 /// An engine could not do the job. [message] is written for the user; [details] is what
@@ -43,6 +67,14 @@ class EngineFailed implements Exception {
 
   @override
   String toString() => details.isEmpty ? message : '$message\n$details';
+}
+
+/// A file is locked and no password given opens it, so the app can ask. A wrong password and none
+/// at all look the same from here.
+class PasswordNeeded extends EngineFailed {
+  PasswordNeeded(this.fileName) : super('$fileName has a password, so it wasn\'t opened.');
+
+  final String fileName;
 }
 
 /// Seconds from a time as people write it: `90`, `1:30`, `1:02:03` or `1:30.5`. Null if it isn't one.

@@ -31,6 +31,8 @@ ActionOptions _options(WorkerRequest request) {
             height: height.toDartInt,
           ),
     shift: shift == null ? null : Duration(milliseconds: shift.toDartInt),
+    password: request.password?.toDart,
+    newPassword: request.newPassword?.toDart,
   );
 }
 
@@ -53,6 +55,8 @@ Future<void> _handle(WorkerRequest request) async {
         ].toJS,
       ),
     );
+  } on PasswordNeeded catch (needed) {
+    reply(WorkerReply(passwordNeeded: needed.fileName.toJS));
   } on EngineFailed catch (error) {
     reply(WorkerReply(failure: error.message.toJS));
   } catch (_) {

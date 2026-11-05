@@ -9,7 +9,7 @@ import 'naming.dart';
 import 'portable_engine.dart';
 
 const _readable = {FileKind.zip, FileKind.tar, FileKind.gz};
-const _runs = {'archive-to-zip', 'archive-to-targz', 'archive-extract'};
+const _runs = {'archive-to-zip', 'archive-to-targz', 'archive-extract', 'archive-add-password'};
 
 /// Archives are small and hold a lot, so this is what they may open up to, not their own size.
 const maxOpenedBytes = 1024 * 1024 * 1024;
@@ -29,15 +29,25 @@ List<PortableFile> runArchive(
   PortableFile file,
   FileKind kind, {
   int limit = maxOpenedBytes,
+  String? password,
+  String? newPassword,
 }) {
-  final entries = _open(file, kind, limit);
+  final entries = _open(file, kind, limit, password);
   if (action.id == 'archive-extract') return _extract(file, entries);
+  final locking = action.id == 'archive-add-password';
+  if (locking && (newPassword == null || newPassword.isEmpty)) {
+    throw const EngineFailed('"Add password" needs a password.');
+  }
 
   final archive = Archive();
   entries.forEach(archive.addFile);
   final Uint8List bytes;
   final String extension;
-  if (action.id == 'archive-to-zip') {
+  if (locking) {
+    // This library always uses AES, not the old ZIP scheme that can be broken in minutes.
+    bytes = ZipEncoder(password: newPassword).encodeBytes(archive);
+    extension = FileKind.zip.extension;
+  } else if (action.id == 'archive-to-zip') {
     bytes = ZipEncoder().encodeBytes(archive);
     extension = FileKind.zip.extension;
   } else {
@@ -53,10 +63,15 @@ List<PortableFile> runArchive(
   return [PortableFile(name, bytes)];
 }
 
-List<ArchiveFile> _open(PortableFile file, FileKind kind, int limit) {
+List<ArchiveFile> _open(PortableFile file, FileKind kind, int limit, String? password) {
   try {
     if (kind == FileKind.zip) {
-      final archive = ZipDecoder().decodeBytes(file.bytes, verify: true, throwOnError: true);
+      final archive = ZipDecoder().decodeBytes(
+        file.bytes,
+        verify: true,
+        throwOnError: true,
+        password: password,
+      );
       return _entries(file, archive, limit);
     }
     if (kind == FileKind.tar) return _entries(file, TarDecoder().decodeBytes(file.bytes), limit);
@@ -68,7 +83,7 @@ List<ArchiveFile> _open(PortableFile file, FileKind kind, int limit) {
     if (_isTar(inner)) return _entries(file, TarDecoder().decodeBytes(inner), limit);
     return [ArchiveFile.bytes(splitFileName(file.name).stem, inner)];
   } on ArchivePasswordException {
-    throw EngineFailed('${file.name} has a password, so it can\'t be opened yet.');
+    throw PasswordNeeded(file.name);
   } on ArchiveLimitException {
     throw EngineFailed('${file.name} is too large to open here.');
   } on EngineFailed {

@@ -480,6 +480,53 @@ void main() {
     });
   });
 
+  group('adding a password', () {
+    Future<ActionOptions?> add(WidgetTester tester, String first, String second) async {
+      ActionOptions? chosen;
+      await tester.pumpWidget(_host((value) => chosen = value, const AddPasswordDialog()));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, first);
+      await tester.enterText(find.byType(TextField).last, second);
+      await tester.tap(find.text('Add password').last);
+      await tester.pumpAndSettle();
+      return chosen;
+    }
+
+    testWidgets('typed twice the same, it goes through', (tester) async {
+      expect((await add(tester, 'secret', 'secret'))!.newPassword, 'secret');
+    });
+
+    testWidgets('a mistake is caught before it locks anything', (tester) async {
+      expect(await add(tester, 'secret', 'secrt'), isNull);
+      expect(find.textContaining('don\'t match'), findsOneWidget);
+    });
+
+    testWidgets('it must have one', (tester) async {
+      expect(await add(tester, '', ''), isNull);
+      expect(find.text('Choose a password.'), findsOneWidget);
+    });
+
+    testWidgets('Tab goes straight to the second box', (tester) async {
+      await tester.pumpWidget(_host((_) {}, const AddPasswordDialog()));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      final second = tester.widget<EditableText>(find.byType(EditableText).last);
+      expect(second.focusNode.hasFocus, isTrue);
+    });
+
+    testWidgets('both boxes stay hidden', (tester) async {
+      await tester.pumpWidget(_host((_) {}, const AddPasswordDialog()));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      for (final box in tester.widgetList<TextField>(find.byType(TextField))) {
+        expect(box.obscureText, isTrue);
+      }
+    });
+  });
+
   group('cropping', () {
     final png = img.encodePng(img.Image(width: 40, height: 30));
 
