@@ -85,18 +85,30 @@ void main() {
       );
     });
 
-    test('opening the app clears what earlier runs left', () async {
-      await dragOut(
-        ConvertedFile(
-          name: 'old.png',
-          size: 1,
-          inMemory: PortableFile('old.png', Uint8List.fromList([1])),
-        ),
-      );
-      final path = pathsOf(calls.single).single;
-      expect(File(path).existsSync(), isTrue);
-      await cleanUpHandedOver();
-      expect(File(path).existsSync(), isFalse);
+    group('clearing what earlier runs left', () {
+      Future<String> handOver() async {
+        await dragOut(
+          ConvertedFile(
+            name: 'old.png',
+            size: 1,
+            inMemory: PortableFile('old.png', Uint8List.fromList([1])),
+          ),
+        );
+        return pathsOf(calls.last).single;
+      }
+
+      test('old ones go', () async {
+        final path = await handOver();
+        expect(File(path).existsSync(), isTrue);
+        await cleanUpHandedOver(olderThan: Duration.zero);
+        expect(File(path).existsSync(), isFalse);
+      });
+
+      test('a recent one stays, as another copy of the app may be dragging it', () async {
+        final path = await handOver();
+        await cleanUpHandedOver();
+        expect(File(path).readAsBytesSync(), [1]);
+      });
     });
   });
 

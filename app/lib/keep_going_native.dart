@@ -18,13 +18,23 @@ int _next = 0;
 /// Results handed to other apps sit here, as they need a real file. They go when the app next opens.
 Directory get _desktopFolder => Directory(p.join(Directory.systemTemp.path, 'radial_handed_over'));
 
-/// Removes what earlier runs left. Nothing can still need it: a drop copies the file.
-Future<void> cleanUpHandedOver() async {
+/// Removes what earlier runs left. Only what's [olderThan] this: another copy of the app may be open
+/// and dragging its file right now, and a drop may still be copying.
+Future<void> cleanUpHandedOver({Duration olderThan = const Duration(days: 1)}) async {
   if (!canDragOut) return;
+  final cutOff = DateTime.now().subtract(olderThan);
   try {
-    if (_desktopFolder.existsSync()) await _desktopFolder.delete(recursive: true);
+    if (!_desktopFolder.existsSync()) return;
+    await for (final entry in _desktopFolder.list()) {
+      try {
+        final changed = (await entry.stat()).modified;
+        if (!changed.isAfter(cutOff)) await entry.delete(recursive: true);
+      } on FileSystemException {
+        // Still in use. It can wait for next time.
+      }
+    }
   } on FileSystemException {
-    // Still in use, perhaps by another copy of the app. It can wait for next time.
+    // Nothing is lost by leaving it.
   }
 }
 

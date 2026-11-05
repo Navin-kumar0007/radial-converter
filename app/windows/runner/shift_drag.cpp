@@ -114,7 +114,7 @@ IDataObject* DataObjectFor(const std::vector<std::wstring>& paths) {
   IDataObject* data = nullptr;
   if (!items.empty()) {
     IShellItemArray* array = nullptr;
-    const std::vector<PCIDLIST_ABSOLUTE> ids(items.begin(), items.end());
+    std::vector<PCIDLIST_ABSOLUTE> ids(items.begin(), items.end());
     if (SUCCEEDED(::SHCreateShellItemArrayFromIDLists(static_cast<UINT>(ids.size()), ids.data(),
                                                       &array))) {
       array->BindToHandler(nullptr, BHID_DataObject, IID_PPV_ARGS(&data));
