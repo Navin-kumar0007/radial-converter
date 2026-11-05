@@ -55,7 +55,7 @@ void main() {
       MaterialApp(
         home: ConverterScreen(
           pickFiles: () async => files,
-          saveFile: (file) async => true,
+          saveFile: (file) async => const SavedAs(),
           mediaConverter: converter,
           mediaAvailable: mediaAvailable,
         ),
@@ -243,7 +243,7 @@ void main() {
         MaterialApp(
           home: ConverterScreen(
             pickFiles: () async => [photo()],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             photoDecoder: decoder,
             converter: converter ?? (a, f, p, o) async => const [],
             mediaAvailable: mediaAvailable,
@@ -301,7 +301,7 @@ void main() {
       MaterialApp(
         home: ConverterScreen(
           pickFiles: () async => [file],
-          saveFile: (file) async => true,
+          saveFile: (file) async => const SavedAs(),
           mediaAvailable: false,
           converter: (action, files, onProgress, options) async => [
             PortableFile('a.txt', Uint8List(2048)),

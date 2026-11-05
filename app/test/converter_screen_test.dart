@@ -67,7 +67,7 @@ void main() {
           pickFiles: () async => toPick,
           saveFile: (file) async {
             if (saveWorks) saved.add(file);
-            return saveWorks;
+            return saveWorks ? const SavedAs() : null;
           },
           mediaAvailable: false,
           // Isolates need real time, so tests run the conversion directly.
@@ -397,7 +397,7 @@ void main() {
         MaterialApp(
           home: ConverterScreen(
             pickFiles: () async => toPick,
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: false,
             resultsDrag: drag,
             resultsShare: share,
@@ -464,7 +464,7 @@ void main() {
             pickFiles: () async => [picked('notes.rar', rar)],
             saveFile: (file) async {
               saved.add(file);
-              return true;
+              return const SavedAs();
             },
             mediaAvailable: false,
             archiveUnpacker: unpacker,
@@ -651,7 +651,7 @@ void main() {
         MaterialApp(
           home: ConverterScreen(
             pickFiles: () async => [picked('locked.pdf', pdf)],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: false,
             pdfConverter: (action, files, onProgress, options) async {
               passwords.add(options.password);
@@ -804,7 +804,7 @@ void main() {
       MaterialApp(
         home: ConverterScreen(
           pickFiles: () async => throw StateError('no access'),
-          saveFile: (file) async => false,
+          saveFile: (file) async => null,
           mediaAvailable: false,
         ),
       ),
@@ -845,7 +845,7 @@ void main() {
       MaterialApp(
         home: ConverterScreen(
           pickFiles: () async => toPick,
-          saveFile: (file) async => true,
+          saveFile: (file) async => const SavedAs(),
           mediaAvailable: false,
           pdfConverter: (action, files, onProgress, options) async => [
             PdfResult(

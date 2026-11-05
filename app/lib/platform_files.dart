@@ -22,8 +22,8 @@ Future<List<PickedFile>> pickFilesFromDevice() async {
   ];
 }
 
-/// Opens the system save dialog, or downloads the file in a browser. False if cancelled.
-Future<bool> saveFileToDevice(PortableFile file) async {
+/// Opens the system save dialog, or downloads the file in a browser. Null if cancelled.
+Future<SavedAs?> saveFileToDevice(PortableFile file) async {
   final detected = detectKind(file.bytes, fileName: file.name);
   final saved = await FilePicker.saveFile(
     fileName: file.name,
@@ -31,5 +31,8 @@ Future<bool> saveFileToDevice(PortableFile file) async {
     mimeType: detected.mime,
   );
   // A browser just starts a download, with no dialog to cancel and nothing to return.
-  return saved != null || kIsWeb;
+  if (kIsWeb) return const SavedAs();
+  if (saved == null) return null;
+  // A phone may give an address that isn't a path, and then nothing can follow the file later.
+  return SavedAs(path: saved.scheme == 'file' ? saved.toFilePath() : null);
 }

@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 587 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 265 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 601 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 286 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -168,9 +168,14 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
   video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
   service yet.
-- History only records: moving an undone output to the Trash needs native code, and the app must
-  call `prune` on launch. After changing the schema, run `dart run build_runner build` in `core/`;
-  `history_database.g.dart` is generated but checked in.
+- History and undo (`core/lib/src/history_log.dart`, `history_store_*.dart`, `history_screen.dart`): each saved result is
+  listed for 30 days, at most 500, as facts only, in a small file or the browser's storage. Damaged history starts afresh
+  and failing to store it never stops a conversion. Undo moves a result to the Trash or Recycle Bin, never deleting it,
+  on Mac and Windows only, and refuses if the file's size has changed. Phones and browsers list only, as their saves go where
+  the app can't follow. Only a day-old handed-over file is cleared, as another copy of the app may be dragging one.
+  `core/lib/history.dart` is an older drift database, used by nothing in the app. It needs SQLite on each platform for
+  what's a small list, so it wasn't connected. Remove it unless the command line tool wants it.
+  After changing its schema, run `dart run build_runner build` in `core/`; `history_database.g.dart` is checked in.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
   Android, Windows and macOS downloads on every push.
 

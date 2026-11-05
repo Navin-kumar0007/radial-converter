@@ -77,6 +77,14 @@ class ConvertedFile {
   final String? note;
 }
 
+/// Where a result was saved. Null in its place means the user changed their mind.
+class SavedAs {
+  const SavedAs({this.path});
+
+  /// Null where a save has no path to give, as in a browser.
+  final String? path;
+}
+
 /// Lets the screen stop a running conversion.
 class ConvertControl {
   void Function()? cancel;

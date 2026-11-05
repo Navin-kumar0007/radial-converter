@@ -398,3 +398,13 @@ final class ResultChip {
     panel.orderOut(nil)
   }
 }
+
+/// Moves a file to the Trash, where it can still be got back. False if that couldn't be done.
+func moveFileToTrash(_ path: String) -> Bool {
+  do {
+    try FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
+    return true
+  } catch {
+    return false
+  }
+}

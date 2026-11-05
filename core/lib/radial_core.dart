@@ -7,6 +7,7 @@ export 'src/detect.dart';
 export 'src/docx_writer.dart';
 export 'src/file_kind.dart';
 export 'src/folder_files.dart';
+export 'src/history_log.dart';
 export 'src/job_queue.dart';
 export 'src/media_plan.dart';
 export 'src/menu_pages.dart';

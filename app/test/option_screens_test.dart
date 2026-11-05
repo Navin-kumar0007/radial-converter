@@ -288,7 +288,7 @@ void main() {
           pickFiles: () async => [
             PickedFile(name: 'me.jpg', size: bytes.length, head: bytes, read: () async => bytes),
           ],
-          saveFile: (file) async => true,
+          saveFile: (file) async => const SavedAs(),
           mediaAvailable: false,
           presetLoader: () async => const [],
           converter: (action, files, onProgress, options) async {
@@ -724,7 +724,7 @@ void main() {
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
             ],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: true,
             mediaProbe: (file) async {
               probed.add(file.name);
@@ -752,7 +752,7 @@ void main() {
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
             ],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: true,
             mediaProbe: (file) async => throw const EngineFailed('Not in a test'),
             mediaConverter: (a, f, k, p, c, options) async {
@@ -777,7 +777,7 @@ void main() {
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
             ],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: true,
             mediaProbe: (file) async => throw const EngineFailed('Not in a test'),
             mediaConverter: (a, f, k, p, c, o) async {

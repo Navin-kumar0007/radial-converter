@@ -8,6 +8,8 @@ import 'package:radial_core/radial_core.dart';
 import 'conversion.dart';
 import 'drop_files.dart';
 import 'file_chip.dart';
+import 'history_screen.dart';
+import 'history_store.dart';
 import 'keep_going.dart';
 import 'option_screens.dart';
 import 'presets.dart';
@@ -21,7 +23,7 @@ typedef ShiftDragListener = void Function() Function({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
   required void Function(RadialAction action, List<String> paths) chosen,
 });
-typedef FileSaver = Future<bool> Function(PortableFile file);
+typedef FileSaver = Future<SavedAs?> Function(PortableFile file);
 typedef ArchiveUnpacker = Future<Uint8List> Function(PickedFile file);
 typedef ResultHandOver = Future<void> Function(ConvertedFile output);
 typedef MediaProbe = Future<MediaInfo> Function(PickedFile file);
@@ -75,6 +77,13 @@ class _Job {
   PickedFile? from;
   String? message;
   bool saved = false;
+
+  /// What was done, as the menu called it.
+  String? actionLabel;
+
+  /// Its line in the history, once saved.
+  int? historyId;
+  bool undone = false;
 }
 
 /// Pick files, choose a slice, save the result. The same screen on every platform. On desktop
@@ -100,6 +109,11 @@ class ConverterScreen extends StatefulWidget {
     this.shareResult = shareOut,
     this.resultsDrag,
     this.resultsShare,
+    this.historyReader = readHistoryText,
+    this.historyWriter = writeHistoryText,
+    this.trashResult = moveResultToTrash,
+    this.revealResult = showResultInFolder,
+    this.undoAvailable,
     this.mediaProbe = probeMedia,
     this.frameReader = videoFrame,
     this.presetLoader = loadBundledPresets,
@@ -124,6 +138,13 @@ class ConverterScreen extends StatefulWidget {
   /// Whether results can be dragged to other apps, or shared with them. Null asks the platform.
   final bool? resultsDrag;
   final bool? resultsShare;
+  final Future<String?> Function() historyReader;
+  final Future<void> Function(String text) historyWriter;
+  final Future<void> Function(String path, int expectedSize) trashResult;
+  final Future<void> Function(String path) revealResult;
+
+  /// Whether saved results can be undone and shown. Null asks the platform.
+  final bool? undoAvailable;
   final MediaProbe mediaProbe;
   final FrameReader frameReader;
   final Future<List<Preset>> Function() presetLoader;
@@ -170,6 +191,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
               defaultTargetPlatform == TargetPlatform.windows));
   late final bool _resultsDrag = widget.resultsDrag ?? canDragOut;
   late final bool _resultsShare = widget.resultsShare ?? canShareOut;
+  late final bool _undoAvailable = widget.undoAvailable ?? canUndoSaved;
+  HistoryLog _history = HistoryLog();
   bool _savingAll = false;
   bool _dragging = false;
   bool _receiving = false;
@@ -182,6 +205,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     _shares = widget.sharedFiles().listen(_shared);
     _stopShiftDrag = widget.shiftDrag(menuFor: _menuFor, chosen: _chosenFromShiftDrag);
     cleanUpHandedOver();
+    _loadHistory();
   }
 
   @override
@@ -189,6 +213,126 @@ class _ConverterScreenState extends State<ConverterScreen> {
     _shares.cancel();
     _stopShiftDrag();
     super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final loaded = HistoryLog.decode(await widget.historyReader());
+      final forgot = loaded.prune(DateTime.now());
+      // Anything already added while this was reading stays, newest first.
+      final added = _history.items;
+      _history = HistoryLog([...added, ...loaded.items]);
+      if (forgot > 0 || added.isNotEmpty) await _storeHistory();
+    } catch (error) {
+      debugPrint('Could not read history: $error');
+    }
+  }
+
+  /// A list that can't be written must never get in the way of the conversion itself.
+  Future<void> _storeHistory() async {
+    try {
+      await widget.historyWriter(_history.encode());
+    } catch (error) {
+      debugPrint('Could not write history: $error');
+    }
+  }
+
+  HistoryItem _remember({
+    required String actionLabel,
+    required String name,
+    required int bytesAfter,
+    String? path,
+    int? bytesBefore,
+  }) {
+    final item = _history.add(
+      finishedAt: DateTime.now(),
+      actionLabel: actionLabel,
+      name: name,
+      path: path,
+      bytesBefore: bytesBefore,
+      bytesAfter: bytesAfter,
+    );
+    _storeHistory();
+    return item;
+  }
+
+  void _rememberJob(_Job job, {String? path}) {
+    final output = job.output;
+    if (output == null || job.historyId != null) return;
+    job.historyId = _remember(
+      actionLabel: job.actionLabel ?? '',
+      name: output.name,
+      path: path,
+      bytesBefore: job.bytesBefore,
+      bytesAfter: output.size,
+    ).id;
+  }
+
+  /// Moves a saved result to the Trash. True if it went.
+  Future<bool> _undo(HistoryItem item) async {
+    final path = item.path;
+    if (path == null || item.undoneAt != null) return false;
+    try {
+      await widget.trashResult(path, item.bytesAfter);
+    } on EngineFailed catch (error) {
+      _sayOnTop(error.message);
+      return false;
+    } catch (error) {
+      debugPrint('Undo failed: $error');
+      _sayOnTop('This could not be undone.');
+      return false;
+    }
+    _history.markUndone(item.id, DateTime.now());
+    await _storeHistory();
+    if (!mounted) return true;
+    setState(() {
+      for (final job in _jobs) {
+        if (job.historyId == item.id) job.undone = true;
+      }
+    });
+    _sayOnTop('Moved to $trashName.');
+    return true;
+  }
+
+  Future<void> _reveal(HistoryItem item) async {
+    final path = item.path;
+    if (path == null) return;
+    try {
+      await widget.revealResult(path);
+    } on EngineFailed catch (error) {
+      _sayOnTop(error.message);
+    } catch (error) {
+      debugPrint('Showing a file failed: $error');
+      _sayOnTop('This could not be shown.');
+    }
+  }
+
+  /// Says something over whichever screen is showing, as history opens above this one.
+  void _sayOnTop(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openHistory() {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => HistoryScreen(
+          log: _history,
+          onClear: () async {
+            _history.clear();
+            setState(() {
+              for (final job in _jobs) {
+                job.historyId = null;
+              }
+            });
+            await _storeHistory();
+          },
+          onUndo: _undoAvailable ? _undo : null,
+          onShow: _undoAvailable ? _reveal : null,
+        ),
+      ),
+    );
   }
 
   /// What the Shift-drag menu offers. It has room for few slices, and a drag can't stop to ask
@@ -604,9 +748,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
               ..state = FileChipState.done
               ..output = result.output
               ..from = result.from
+              ..actionLabel = action.label
               ..saved = result.output.savedPath != null,
           ...failed,
         ];
+        for (final done in _jobs) {
+          final path = done.output?.savedPath;
+          if (path != null) _rememberJob(done, path: path);
+        }
       });
     } on JobCancelled {
       // The screen already moved on.
@@ -637,21 +786,25 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<void> _save(_Job job) async {
     final output = job.output;
     if (output == null) return;
-    final bool saved;
+    final SavedAs? saved;
     try {
       final inMemory = output.inMemory;
       if (inMemory != null) {
         saved = await widget.saveFile(inMemory);
       } else {
-        saved = await output.download?.call() ?? false;
+        saved = await output.download?.call() == true ? const SavedAs() : null;
       }
     } catch (error) {
       debugPrint('Saving failed: $error');
       if (mounted) _say('This file could not be saved. Try again.');
       return;
     }
-    if (!mounted || !saved) return;
-    setState(() => job.saved = true);
+    if (!mounted || saved == null) return;
+    final path = saved.path;
+    setState(() {
+      job.saved = true;
+      _rememberJob(job, path: path);
+    });
   }
 
   /// Results that have no home yet and can be saved with others. Video brings its own way to save.
@@ -675,13 +828,20 @@ class _ConverterScreenState extends State<ConverterScreen> {
             job
               ..output = _savedAt(output, path)
               ..saved = true;
+            _rememberJob(job, path: path);
           });
         }
       } else {
-        final saved = await widget.saveFile(
-          zipFiles([for (final job in waiting) job.output!.inMemory!]),
+        final zip = zipFiles([for (final job in waiting) job.output!.inMemory!]);
+        final saved = await widget.saveFile(zip);
+        if (!mounted || saved == null) return;
+        // One file came of them, so one line, and undoing it must not touch the others.
+        _remember(
+          actionLabel: waiting.first.actionLabel ?? '',
+          name: zip.name,
+          path: saved.path,
+          bytesAfter: zip.bytes.length,
         );
-        if (!mounted || !saved) return;
         setState(() {
           for (final job in waiting) {
             job.saved = true;
@@ -701,6 +861,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget build(BuildContext context) {
     final styles = Theme.of(context).textTheme;
     final screen = Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 44,
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(tooltip: 'History', icon: const Icon(Icons.history), onPressed: _openHistory),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -866,8 +1033,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget _buildChip(_Job job) {
     final output = job.output;
     final canHandOver =
+        !job.undone &&
         output != null &&
         (output.inMemory != null || output.savedPath != null || output.cachedPath != null);
+    final remembered = job.historyId == null ? null : _history.find(job.historyId!);
+    final canReach = _undoAvailable && !job.undone && remembered?.path != null;
     final note = output?.note;
     final before = job.bytesBefore;
     final sizes = output == null
@@ -879,14 +1049,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
       state: job.state,
       progress: job.progress ?? 0,
       indeterminate: job.state == FileChipState.working && job.progress == null,
-      detail: output?.savedPath != null
+      detail: job.undone
+          ? 'Moved to $trashName.'
+          : output?.savedPath != null
           ? 'Saved beside the original. $sizes'
           : job.saved
           ? 'Saved. $sizes'
           : sizes,
       message: job.message,
       fadeAfter: null,
-      onSave: output == null || output.savedPath != null ? null : () => _save(job),
+      onSave: job.undone || output == null || output.savedPath != null ? null : () => _save(job),
+      onUndo: canReach ? () => _undo(remembered!) : null,
+      onShowInFolder: canReach ? () => _reveal(remembered!) : null,
       onShare: _resultsShare && canHandOver ? () => _handOver(widget.shareResult, output) : null,
       onDragOut: _resultsDrag && canHandOver ? () => _handOver(widget.dragResultOut, output) : null,
       onCancel: job.state == FileChipState.working ? _cancel : null,

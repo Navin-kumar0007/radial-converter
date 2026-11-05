@@ -149,6 +149,26 @@ std::vector<std::wstring> PathsFrom(const EncodableValue* arguments) {
   return paths;
 }
 
+// Moves a file to the Recycle Bin, where it can still be got back.
+bool MoveToRecycleBin(const std::wstring& path) {
+  // This list of paths ends with an empty one, so a path needs two zeros after it.
+  std::wstring from = path;
+  from.push_back(L'\0');
+  SHFILEOPSTRUCTW operation = {};
+  operation.wFunc = FO_DELETE;
+  operation.pFrom = from.c_str();
+  operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI;
+  return ::SHFileOperationW(&operation) == 0 && !operation.fAnyOperationsAborted;
+}
+
+// Opens the folder holding a file, with it selected.
+void ShowInExplorer(const std::wstring& path) {
+  PIDLIST_ABSOLUTE item = nullptr;
+  if (FAILED(::SHParseDisplayName(path.c_str(), nullptr, &item, 0, nullptr))) return;
+  ::SHOpenFolderAndSelectItems(item, 0, nullptr, 0);
+  ::CoTaskMemFree(item);
+}
+
 EncodableValue PathsArgument(const std::vector<std::string>& paths) {
   EncodableList list;
   for (const auto& path : paths) list.push_back(EncodableValue(path));
@@ -172,6 +192,13 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
       return;
     } else if (call.method_name() == "showChip") {
       ShowChip(PathsFrom(call.arguments()));
+    } else if (call.method_name() == "moveToTrash") {
+      const auto paths = PathsFrom(call.arguments());
+      result->Success(EncodableValue(paths.size() == 1 && MoveToRecycleBin(paths[0])));
+      return;
+    } else if (call.method_name() == "showInFolder") {
+      const auto paths = PathsFrom(call.arguments());
+      if (paths.size() == 1) ShowInExplorer(paths[0]);
     }
     result->Success();
   });

@@ -77,3 +77,31 @@ void showChipAtCursor(List<String> paths) {
     // Nothing to do without it: the results are saved already.
   });
 }
+
+/// Whether saved results can be undone or shown here. A phone's saves go where the app can't follow.
+bool get canUndoSaved => Platform.isMacOS || Platform.isWindows;
+
+/// What the place results go when undone is called here.
+String get trashName => Platform.isWindows ? 'the Recycle Bin' : 'the Trash';
+
+/// Moves a result to the Trash, where it can still be got back. Never deletes anything itself. It
+/// refuses if the file isn't the size it was left at, as that means it isn't what was made any more.
+Future<void> moveResultToTrash(String path, int expectedSize) async {
+  final file = File(path);
+  if (!file.existsSync()) throw EngineFailed('${p.basename(path)} is no longer there.');
+  if (file.lengthSync() != expectedSize) {
+    throw EngineFailed('${p.basename(path)} has changed since, so it was left alone.');
+  }
+  final moved = await shiftDragChannel.invokeMethod<bool>('moveToTrash', {
+    'paths': [path],
+  });
+  if (moved != true) throw EngineFailed('${p.basename(path)} could not be moved to $trashName.');
+}
+
+/// Opens the folder holding a result, with it selected.
+Future<void> showResultInFolder(String path) async {
+  if (!File(path).existsSync()) throw EngineFailed('${p.basename(path)} is no longer there.');
+  await shiftDragChannel.invokeMethod<void>('showInFolder', {
+    'paths': [path],
+  });
+}

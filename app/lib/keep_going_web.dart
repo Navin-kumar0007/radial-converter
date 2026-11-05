@@ -41,3 +41,11 @@ Future<void> shareOut(ConvertedFile output) async {
     if (!'$error'.contains('AbortError')) rethrow;
   }
 }
+
+bool get canUndoSaved => false;
+
+String get trashName => 'the Trash';
+
+Future<void> moveResultToTrash(String path, int expectedSize) async {}
+
+Future<void> showResultInFolder(String path) async {}

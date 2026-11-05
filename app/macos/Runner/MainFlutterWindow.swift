@@ -52,6 +52,11 @@ class MainFlutterWindow: NSWindow {
       case "showChip":
         self.resultChip.show(paths: paths)
         result(nil)
+      case "moveToTrash":
+        result(paths.count == 1 && moveFileToTrash(paths[0]))
+      case "showInFolder":
+        NSWorkspace.shared.activateFileViewerSelecting(paths.map { URL(fileURLWithPath: $0) })
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

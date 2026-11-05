@@ -142,7 +142,7 @@ void main() {
         MaterialApp(
           home: ConverterScreen(
             pickFiles: () async => const [],
-            saveFile: (file) async => true,
+            saveFile: (file) async => const SavedAs(),
             mediaAvailable: false,
             dropReader: reader,
             acceptsDrops: acceptsDrops,

@@ -112,6 +112,71 @@ void main() {
     });
   });
 
+  group('undoing moves to the Trash, and only what\'s still the same', skip: skip, () {
+    late Directory folder;
+    setUp(() => folder = Directory.systemTemp.createTempSync('radial_undo_'));
+    tearDown(() => folder.deleteSync(recursive: true));
+
+    String made(List<int> bytes) {
+      final path = p.join(folder.path, 'a (converted).jpg');
+      File(path).writeAsBytesSync(bytes);
+      return path;
+    }
+
+    test('a result as it was left goes', () async {
+      final path = made([1, 2, 3]);
+      await moveResultToTrash(path, 3);
+      expect(calls.single.method, 'moveToTrash');
+      expect(pathsOf(calls.single), [path]);
+    });
+
+    test('a file that has changed since is left alone', () async {
+      final path = made([1, 2, 3, 4]);
+      await expectLater(
+        moveResultToTrash(path, 3),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('changed'))),
+      );
+      expect(calls, isEmpty);
+      expect(File(path).existsSync(), isTrue);
+    });
+
+    test('one that has gone says so', () async {
+      await expectLater(
+        moveResultToTrash(p.join(folder.path, 'gone.jpg'), 3),
+        throwsA(isA<EngineFailed>().having((e) => e.message, 'message', contains('no longer'))),
+      );
+      expect(calls, isEmpty);
+    });
+
+    test('the system refusing says so', () async {
+      messenger.setMockMethodCallHandler(shiftDragChannel, (call) async => false);
+      await expectLater(moveResultToTrash(made([1]), 1), throwsA(isA<EngineFailed>()));
+    });
+
+    test('this app never deletes anything itself', () async {
+      messenger.setMockMethodCallHandler(shiftDragChannel, (call) async => true);
+      final path = made([1, 2, 3]);
+      await moveResultToTrash(path, 3);
+      expect(
+        File(path).existsSync(),
+        isTrue,
+        reason: 'Only the system moved it, and here nothing did',
+      );
+    });
+
+    test('showing a file that has gone says so', () async {
+      await expectLater(
+        showResultInFolder(p.join(folder.path, 'gone.jpg')),
+        throwsA(isA<EngineFailed>()),
+      );
+    });
+
+    test('showing one asks the system', () async {
+      await showResultInFolder(made([1]));
+      expect(calls.single.method, 'showInFolder');
+    });
+  });
+
   group('the chip after a Shift-drag', skip: skip, () {
     test('it\'s given the saved files', () {
       showChipAtCursor(['/a/b.png']);

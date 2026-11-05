@@ -84,5 +84,20 @@ if chipTitle(for: ["/a/1.png", "/a/2.png", "/a/3.png"]) != "3 files" {
   failures += 1
 }
 
+if moveFileToTrash("/no/such/file/at/all.png") {
+  print("FAILED trashing a missing file should say so")
+  failures += 1
+}
+
+// Only on a build machine, as this puts a file in the real Trash.
+if ProcessInfo.processInfo.environment["CI"] != nil {
+  let trial = NSTemporaryDirectory() + "radial-trash-\(getpid()).txt"
+  FileManager.default.createFile(atPath: trial, contents: Data([1, 2, 3]))
+  if !moveFileToTrash(trial) || FileManager.default.fileExists(atPath: trial) {
+    print("FAILED a file goes to the Trash")
+    failures += 1
+  }
+}
+
 if failures == 0 { print("Shift-drag checks passed.") }
 exit(failures == 0 ? 0 : 1)
