@@ -1,0 +1,12 @@
+# For Cloudflare Pages. These must be checked for changes on each visit, or people keep an old app.
+/app/
+  Cache-Control: no-cache
+/app/index.html
+  Cache-Control: no-cache
+/app/offline_files.js
+  Cache-Control: no-cache
+/app/offline_worker.js
+  Cache-Control: no-cache
+/*
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff

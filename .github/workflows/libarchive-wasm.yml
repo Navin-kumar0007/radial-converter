@@ -1,0 +1,25 @@
+# Builds what reads 7z and RAR in a browser. Its result is checked in at app/web/vendor/libarchive,
+# so this only runs when its recipe changes: download the artifact, test it, and commit it.
+name: Build libarchive for browsers
+
+on:
+  push:
+    paths:
+      - engines/build_libarchive_wasm.sh
+      - engines/libarchive_wasm/**
+      - .github/workflows/libarchive-wasm.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: emscripten/emsdk:4.0.12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install what unpacks the sources
+        run: apt-get update -qq && apt-get install -y -qq xz-utils
+      - name: Build
+        run: bash engines/build_libarchive_wasm.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libarchive-wasm
+          path: app/web/vendor/libarchive

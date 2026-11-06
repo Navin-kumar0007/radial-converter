@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only finished results can be shared with other apps, never anything else in the app's storage. -->
+<paths>
+    <cache-path name="results" path="radial_output/" />
+</paths>

@@ -1,0 +1,8 @@
+{
+  "id": "nta-signature",
+  "label": { "en": "NTA exam signature (10-30 KB)", "hi": "NTA परीक्षा हस्ताक्षर (10-30 KB)" },
+  "accepts": ["image/*"],
+  "output": { "format": "jpg", "minBytes": 10240, "maxBytes": 30000, "background": "white", "crop": "user" },
+  "source": "https://nta.ac.in/Download/Notice/Notice_20200716085610.pdf",
+  "note": "NTA said 4-30 KB for NEET 2020, and guides report other limits since. 10-30 KB fits those seen, but check this year's bulletin."
+}

@@ -1,0 +1,10 @@
+include: package:lints/recommended.yaml
+
+formatter:
+  page_width: 100
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_final_locals
+    - unawaited_futures

@@ -1,0 +1,8 @@
+{
+  "id": "job-form-photo",
+  "label": { "en": "Job form photo (200 x 230, 20-50 KB)", "hi": "नौकरी फ़ॉर्म फ़ोटो (200 x 230, 20-50 KB)" },
+  "accepts": ["image/*"],
+  "output": { "format": "jpg", "width": 200, "height": 230, "minBytes": 20480, "maxBytes": 50000, "background": "white", "crop": "user" },
+  "source": "https://mstcindia.co.in/MSTC_Careers/OSD/OSD_ImageUploading.aspx",
+  "note": "The size many bank and government job forms ask for, as MSTC states it. Your form may differ."
+}
