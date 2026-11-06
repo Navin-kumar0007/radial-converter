@@ -17,7 +17,8 @@ if grep -nE '(src|href)="(https?:)?//[^"]*"' index.html | grep -vE '<a |<a$' | g
   echo "index.html loads something from another site." >&2
   exit 1
 fi
-if grep -nE 'url\(|@import' style.css; then
+# url(#...) points inside the page, at an SVG gradient, so it's allowed.
+if grep -nE "url\\([[:space:]]*['\"]?[^#'\") ]|@import" style.css; then
   echo "style.css loads something." >&2
   exit 1
 fi
