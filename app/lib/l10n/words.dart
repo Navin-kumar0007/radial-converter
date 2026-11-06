@@ -1502,6 +1502,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The text can be edited. Pictures, tables and exact layout aren\'t kept.'**
   String get noteTextEditable;
+
+  /// No description provided for @trayStillRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Radial Converter is still running'**
+  String get trayStillRunning;
+
+  /// No description provided for @trayHowToQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift-drag keeps working. To quit, right-click this icon.'**
+  String get trayHowToQuit;
+
+  /// No description provided for @trayOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Radial Converter'**
+  String get trayOpen;
+
+  /// No description provided for @trayQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get trayQuit;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -874,4 +874,16 @@ class WordsEn extends Words {
   @override
   String get noteTextEditable =>
       'The text can be edited. Pictures, tables and exact layout aren\'t kept.';
+
+  @override
+  String get trayStillRunning => 'Radial Converter is still running';
+
+  @override
+  String get trayHowToQuit => 'Shift-drag keeps working. To quit, right-click this icon.';
+
+  @override
+  String get trayOpen => 'Open Radial Converter';
+
+  @override
+  String get trayQuit => 'Quit';
 }

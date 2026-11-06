@@ -54,6 +54,9 @@ class MainFlutterWindow: NSWindow {
         result(nil)
       case "moveToTrash":
         result(paths.count == 1 && moveFileToTrash(paths[0]))
+      case "setWords":
+        NativeWords.set(call.arguments)
+        result(nil)
       case "showInFolder":
         NSWorkspace.shared.activateFileViewerSelecting(paths.map { URL(fileURLWithPath: $0) })
         result(nil)

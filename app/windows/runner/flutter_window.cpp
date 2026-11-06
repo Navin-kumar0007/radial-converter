@@ -80,8 +80,12 @@ void FlutterWindow::HideToTray() {
   told_about_tray_ = true;
   tray_.uFlags = NIF_INFO;
   tray_.dwInfoFlags = NIIF_NONE;
-  wcscpy_s(tray_.szInfoTitle, L"Radial Converter is still running");
-  wcscpy_s(tray_.szInfo, L"Shift-drag keeps working. To quit, right-click this icon.");
+  // Cut short rather than fail: these have fixed room, and a translation may be longer.
+  wcsncpy_s(tray_.szInfoTitle, NativeWord("trayStillRunning", L"Radial Converter is still running").c_str(),
+            _TRUNCATE);
+  wcsncpy_s(tray_.szInfo,
+            NativeWord("trayHowToQuit", L"Shift-drag keeps working. To quit, right-click this icon.").c_str(),
+            _TRUNCATE);
   ::Shell_NotifyIconW(NIM_MODIFY, &tray_);
   tray_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 }
@@ -94,9 +98,9 @@ void FlutterWindow::ShowFromTray() {
 void FlutterWindow::ShowTrayMenu() {
   HMENU menu = ::CreatePopupMenu();
   if (menu == nullptr) return;
-  ::AppendMenuW(menu, MF_STRING, kMenuOpen, L"Open Radial Converter");
+  ::AppendMenuW(menu, MF_STRING, kMenuOpen, NativeWord("trayOpen", L"Open Radial Converter").c_str());
   ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-  ::AppendMenuW(menu, MF_STRING, kMenuQuit, L"Quit");
+  ::AppendMenuW(menu, MF_STRING, kMenuQuit, NativeWord("trayQuit", L"Quit").c_str());
   ::SetMenuDefaultItem(menu, kMenuOpen, FALSE);
   POINT cursor = {};
   ::GetCursorPos(&cursor);

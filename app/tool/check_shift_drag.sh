@@ -11,8 +11,3 @@ windows="$(dirname "$out")/windows_check"
 clang++ -std=c++17 -I"$here/windows/runner" "$here/macos/shift_drag_check/windows_slice.cpp" -o "$windows"
 "$windows"
 "$out"
-
-# The Windows menu's geometry is plain C++, so it can be checked here too.
-windows="$(dirname "$out")/windows_check"
-clang++ -std=c++17 -I"$here/windows/runner" "$here/macos/shift_drag_check/windows_slice.cpp" -o "$windows"
-"$windows"

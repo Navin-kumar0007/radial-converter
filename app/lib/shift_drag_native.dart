@@ -31,6 +31,19 @@ void Function() listenForShiftDrag({
     }
     return null;
   });
+  final words = deviceWords;
+  shiftDragChannel
+      .invokeMethod<void>('setWords', {
+        'cancel': words.cancel,
+        'dragToApp': words.dragToApp,
+        'trayStillRunning': words.trayStillRunning,
+        'trayHowToQuit': words.trayHowToQuit,
+        'trayOpen': words.trayOpen,
+        'trayQuit': words.trayQuit,
+      })
+      .catchError((Object _) {
+        // The native side keeps its English.
+      });
   return () => shiftDragChannel.setMethodCallHandler(null);
 }
 

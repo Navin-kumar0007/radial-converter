@@ -599,5 +599,9 @@
       "total": {}
     }
   },
-  "noteTextEditable": "The text can be edited. Pictures, tables and exact layout aren't kept."
+  "noteTextEditable": "The text can be edited. Pictures, tables and exact layout aren't kept.",
+  "trayStillRunning": "Radial Converter is still running",
+  "trayHowToQuit": "Shift-drag keeps working. To quit, right-click this icon.",
+  "trayOpen": "Open Radial Converter",
+  "trayQuit": "Quit"
 }

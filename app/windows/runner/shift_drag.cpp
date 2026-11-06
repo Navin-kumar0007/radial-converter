@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <map>
 #include <utility>
 
 #include "radial_slice.h"
@@ -135,6 +136,11 @@ std::wstring WideFromUtf8(const std::string& text) {
 }
 
 // The "paths" list in a call from Flutter.
+std::map<std::string, std::wstring>& Words() {
+  static std::map<std::string, std::wstring> words;
+  return words;
+}
+
 std::vector<std::wstring> PathsFrom(const EncodableValue* arguments) {
   std::vector<std::wstring> paths;
   const auto* map = std::get_if<EncodableMap>(arguments);
@@ -177,6 +183,11 @@ EncodableValue PathsArgument(const std::vector<std::string>& paths) {
 
 }  // namespace
 
+std::wstring NativeWord(const std::string& key, const wchar_t* english) {
+  const auto found = Words().find(key);
+  return found == Words().end() ? std::wstring(english) : found->second;
+}
+
 ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
     : app_window_(app_window) {
   channel_ = std::make_unique<flutter::MethodChannel<EncodableValue>>(
@@ -196,6 +207,14 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
       const auto paths = PathsFrom(call.arguments());
       result->Success(EncodableValue(paths.size() == 1 && MoveToRecycleBin(paths[0])));
       return;
+    } else if (call.method_name() == "setWords") {
+      if (const auto* map = std::get_if<EncodableMap>(call.arguments())) {
+        for (const auto& [key, value] : *map) {
+          const auto* name = std::get_if<std::string>(&key);
+          const auto* text = std::get_if<std::string>(&value);
+          if (name != nullptr && text != nullptr) Words()[*name] = Utf16FromUtf8(*text);
+        }
+      }
     } else if (call.method_name() == "showInFolder") {
       const auto paths = PathsFrom(call.arguments());
       if (paths.size() == 1) ShowInExplorer(paths[0]);
@@ -282,7 +301,8 @@ void ShiftDrag::PaintChip() {
   ::DrawTextW(dc, title.c_str(), -1, &top, DT_SINGLELINE | DT_PATH_ELLIPSIS | DT_NOPREFIX);
   RECT bottom = {12, 30, kChipWidth - 12, 50};
   ::SetTextColor(dc, ::GetSysColor(COLOR_GRAYTEXT));
-  ::DrawTextW(dc, L"Drag to another app", -1, &bottom, DT_SINGLELINE | DT_NOPREFIX);
+  ::DrawTextW(dc, NativeWord("dragToApp", L"Drag to another app").c_str(), -1, &bottom,
+              DT_SINGLELINE | DT_NOPREFIX);
   ::EndPaint(chip_, &paint);
 }
 
@@ -594,7 +614,8 @@ void ShiftDrag::Paint() {
   ::Ellipse(dc, middle - hub, middle - hub, middle + hub, middle + hub);
   ::SetTextColor(dc, text);
   RECT cancel = {middle - hub, middle - hub, middle + hub, middle + hub};
-  ::DrawTextW(dc, L"Cancel", -1, &cancel, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+  ::DrawTextW(dc, NativeWord("cancel", L"Cancel").c_str(), -1, &cancel,
+              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
   ::SelectObject(dc, old_font);
   ::SelectObject(dc, old_brush);

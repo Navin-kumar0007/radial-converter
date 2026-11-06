@@ -1,5 +1,16 @@
 import AppKit
 
+/// Text the app has put in the user's language, by key. English until it has.
+enum NativeWords {
+  private static var words: [String: String] = [:]
+
+  static func set(_ arguments: Any?) {
+    if let given = arguments as? [String: String] { words = given }
+  }
+
+  static func word(_ key: String, _ english: String) -> String { words[key] ?? english }
+}
+
 /// One choice on the radial menu.
 struct RadialSlice {
   let id: String
@@ -77,7 +88,7 @@ final class RadialDropView: NSView {
         x: centre.x - hubRadius, y: centre.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2))
     NSColor.windowBackgroundColor.withAlphaComponent(0.95).setFill()
     hub.fill()
-    drawLabel("Cancel", at: centre, color: .secondaryLabelColor, size: 11, weight: .regular)
+    drawLabel(NativeWords.word("cancel", "Cancel"), at: centre, color: .secondaryLabelColor, size: 11, weight: .regular)
   }
 
   private func drawLabel(
@@ -338,7 +349,7 @@ private final class ResultChipView: NSView {
         .foregroundColor: NSColor.labelColor,
         .paragraphStyle: style,
       ])
-    ("Drag to another app" as NSString).draw(
+    (NativeWords.word("dragToApp", "Drag to another app") as NSString).draw(
       in: NSRect(x: textX, y: bounds.midY - 18, width: width, height: 16),
       withAttributes: [
         .font: NSFont.systemFont(ofSize: 11),

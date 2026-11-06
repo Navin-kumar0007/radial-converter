@@ -873,4 +873,17 @@ class WordsHi extends Words {
   @override
   String get noteTextEditable =>
       'टेक्स्ट बदला जा सकता है। तस्वीरें, टेबल और सटीक लेआउट नहीं रखे गए।';
+
+  @override
+  String get trayStillRunning => 'Radial Converter अभी भी चल रहा है';
+
+  @override
+  String get trayHowToQuit =>
+      'Shift-drag काम करता रहेगा। बंद करने के लिए इस आइकन पर राइट-क्लिक करें।';
+
+  @override
+  String get trayOpen => 'Radial Converter खोलें';
+
+  @override
+  String get trayQuit => 'बंद करें';
 }

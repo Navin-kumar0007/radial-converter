@@ -11,6 +11,9 @@
 #include <string>
 #include <vector>
 
+// Text the app has put in the user's language, by key, or [english] until it has.
+std::wstring NativeWord(const std::string& key, const wchar_t* english);
+
 // Shows the radial menu when a file is dragged with Shift held, anywhere on Windows. There is no
 // system-wide way to see a drag start, so while the left button is down with Shift held, an invisible
 // window sits under the cursor. Only a file drag entering it makes it appear, so other Shift-drags,
