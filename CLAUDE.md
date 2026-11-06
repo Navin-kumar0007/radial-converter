@@ -191,7 +191,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   The app shows `failureText`, which translates by key and falls back to the English. Workers (`*_worker.js`,
   `convert_worker.dart`) and `MediaEngine.kt` (`Said`) send the key and blanks too. Add a new failure to `Fail` and to
   both ARB files as `fail<Key>`: a test fails if Hindi lacks any key in `failures.dart`.
-- Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. `app/tool/build_site.sh`
+- Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. Scroll scenes are our
+  own `site.js`; springs, the orbit and card effects use Motion 14.6.0 (MIT), vendored unmodified in `docs/site/vendor/motion/`. `app/tool/build_site.sh`
   puts the web app under `/app/`. Not hosted yet, as that needs the owner's account. Download links need a published release.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
   Android, Windows and macOS downloads on every push.

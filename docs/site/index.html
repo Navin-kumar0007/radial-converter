@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#0b1110">
   <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="style.css">
+  <script src="vendor/motion/motion.js" defer></script>
   <script src="site.js" defer></script>
 </head>
 <body>
@@ -32,7 +33,8 @@
   <!-- 1. Opening -->
   <section class="opening" data-scene>
     <div class="stage">
-      <div class="wrap opening-inner">
+      <div class="wrap opening-grid">
+      <div class="opening-inner">
         <p class="eyebrow reveal">Free · Open source · Works offline</p>
         <h1 class="title">
           <span class="line"><span>Hold Shift.</span></span>
@@ -41,9 +43,28 @@
         </h1>
         <p class="lead reveal">A file converter that lives where your files already are. Pictures, video, audio, PDFs and archives. <strong>Nothing ever leaves your device.</strong></p>
         <div class="actions reveal">
-          <a class="button" id="get" href="#download">Download</a>
+          <a class="button magnet" id="get" href="#download">Download</a>
           <a class="ghost" id="browser" href="app/">Open it in your browser</a>
         </div>
+      </div>
+      <div class="orbit-wrap reveal" aria-hidden="true">
+      <div class="orbit">
+        <div class="ring outer">
+          <span class="chip c0"><span>JPG</span></span>
+          <span class="chip c1"><span>MP4</span></span>
+          <span class="chip c2"><span>PDF</span></span>
+          <span class="chip c3"><span>HEIC</span></span>
+          <span class="chip c4"><span>ZIP</span></span>
+          <span class="chip c5"><span>DOCX</span></span>
+        </div>
+        <div class="ring inner">
+          <span class="chip c0"><span>PNG</span></span>
+          <span class="chip c2"><span>MP3</span></span>
+          <span class="chip c4"><span>WebP</span></span>
+        </div>
+        <div class="core"><img src="icon.png" alt="" width="96" height="96"></div>
+      </div>
+      </div>
       </div>
       <a class="cue" href="#how" aria-label="Scroll to see how it works"><span></span></a>
     </div>
@@ -125,7 +146,7 @@
     <div class="stage">
       <div class="wrap fit-inner">
         <p class="eyebrow">Make it fit</p>
-        <h2>Say what it's for,<br>not which settings it needs.</h2>
+        <h2 class="split">Say what it's for,<br>not which settings it needs.</h2>
         <div class="meter">
           <div class="meter-file"><span class="meter-name">holiday-photo.jpg</span><span class="meter-size" data-size>4.8 MB</span></div>
           <div class="meter-track"><span class="meter-fill"></span></div>
@@ -145,40 +166,40 @@
     <div class="stage">
       <div class="reel-head wrap">
         <p class="eyebrow">And it keeps going</p>
-        <h2>Small things that save an afternoon.</h2>
+        <h2 class="split">Small things that save an afternoon.</h2>
       </div>
       <div class="track">
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">01</span>
           <h3>Form photos</h3>
           <p>The exact pixels and KB an exam or job form asks for. Frame it yourself, then get a JPEG inside the limits. Limits stay editable, because forms change them.</p>
         </article>
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">02</span>
           <h3>History and undo</h3>
           <p>Originals are never touched. Change your mind on a Mac or Windows PC and the result goes to the Trash, where you can still get it back.</p>
         </article>
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">03</span>
           <h3>Crop, trim, merge</h3>
           <p>See the real frames while trimming a video. Merge, split, rotate and compress PDFs. Turn a PDF into an editable Word file.</p>
         </article>
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">04</span>
           <h3>Locked files</h3>
           <p>Open password-protected PDFs and ZIPs, remove a PDF's password, or lock a ZIP with one. Passwords are never stored.</p>
         </article>
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">05</span>
           <h3>Whole folders</h3>
           <p>Drop a folder of up to 200 files. A damaged file gets its own error, and the rest still finish.</p>
         </article>
-        <article class="card">
+        <article class="card glow">
           <span class="card-num">06</span>
           <h3>English and हिन्दी</h3>
           <p>The app follows your device's language, down to the reason a file couldn't be converted.</p>
         </article>
-        <article class="card shot">
+        <article class="card shot glow">
           <img src="window.webp" alt="The app window showing holiday-photo.jpg and the round menu with slices for PNG, WhatsApp, WebP, Email, GIF, Form photo, TIFF and More." width="640" height="951">
           <p>No Shift-drag on your device? The same menu works in the window.</p>
         </article>
@@ -191,7 +212,7 @@
     <div class="stage">
       <div class="wrap formats-head">
         <p class="eyebrow">What it converts</p>
-        <h2>One menu. Most of what you have.</h2>
+        <h2 class="split">One menu. Most of what you have.</h2>
       </div>
       <div class="rows" aria-hidden="true">
         <div class="row" data-dir="1"><span>JPG</span><span>PNG</span><span>WebP</span><span>HEIC</span><span>GIF</span><span>TIFF</span><span>BMP</span><span>ICO</span><span>PDF</span><span>JPG</span><span>PNG</span><span>WebP</span></div>
@@ -222,10 +243,10 @@
         <p class="eyebrow">Privacy</p>
         <p class="words" data-words>Nothing is uploaded, because there's nowhere to upload it to. No account. No ads. No tracking.</p>
         <ul class="proofs">
-          <li><h3>Android can't reach a network</h3><p>The app doesn't ask for the permission, so Android itself stops it. Our builds fail if that ever changes.</p></li>
-          <li><h3>The web app can't either</h3><p>Its page carries a security policy that lets it connect only to itself.</p></li>
-          <li><h3>This page loads nothing else</h3><p>No fonts, scripts or counters from other companies. Open your browser's network tab and look.</p></li>
-          <li><h3>All the code is public</h3><p>Read the <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/privacy.md">privacy policy</a>, or the <a href="https://github.com/Navin-kumar0007/radial-converter">source</a>.</p></li>
+          <li class="glow"><h3>Android can't reach a network</h3><p>The app doesn't ask for the permission, so Android itself stops it. Our builds fail if that ever changes.</p></li>
+          <li class="glow"><h3>The web app can't either</h3><p>Its page carries a security policy that lets it connect only to itself.</p></li>
+          <li class="glow"><h3>This page loads nothing else</h3><p>No fonts, scripts or counters from other companies. Open your browser's network tab and look.</p></li>
+          <li class="glow"><h3>All the code is public</h3><p>Read the <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/privacy.md">privacy policy</a>, or the <a href="https://github.com/Navin-kumar0007/radial-converter">source</a>.</p></li>
         </ul>
       </div>
     </div>
@@ -235,30 +256,30 @@
   <section id="download" class="download">
     <div class="wrap">
       <p class="eyebrow">Download</p>
-      <h2>Get it on everything you use.</h2>
+      <h2 class="split">Get it on everything you use.</h2>
       <p class="beta">In beta: please tell us what breaks.</p>
       <div class="platforms">
-        <div class="platform rise" id="mac">
+        <div class="platform rise glow" id="mac">
           <h3>Mac</h3>
           <p class="needs">macOS 12 or newer, Apple Silicon or Intel</p>
           <a class="button" data-main="Download for Mac" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-mac.dmg">Download</a>
           <p class="first">First time: macOS warns the app isn't from an identified developer. Go to System Settings, Privacy &amp; Security, and choose Open Anyway.</p>
         </div>
-        <div class="platform rise" id="windows">
+        <div class="platform rise glow" id="windows">
           <h3>Windows</h3>
           <p class="needs">Windows 10 or newer, 64-bit</p>
           <a class="button" data-main="Download for Windows" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-windows-setup.exe">Installer</a>
           <p class="other">Or the <a href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-windows-portable.zip">portable zip</a>.</p>
           <p class="first">First time: if Windows doesn't recognise the app, choose More info, then Run anyway. The newest and least tried of the four.</p>
         </div>
-        <div class="platform rise" id="android">
+        <div class="platform rise glow" id="android">
           <h3>Android</h3>
           <p class="needs">Android 7 or newer</p>
           <a class="button" data-main="Download for Android" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-android-arm64.apk">For most phones</a>
           <p class="other">Older phone? The <a href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-android.apk">larger APK</a> runs on all.</p>
           <p class="first">First time: Android asks you to allow installing from your browser. Then share any file to the app.</p>
         </div>
-        <div class="platform rise" id="iphone">
+        <div class="platform rise glow" id="iphone">
           <h3>iPhone, iPad, browsers</h3>
           <p class="needs">Nothing to install</p>
           <a class="button" data-main="Open the web app" href="app/">Open the web app</a>
@@ -271,7 +292,7 @@
 
   <section class="questions">
     <div class="wrap">
-      <h2>Questions</h2>
+      <h2 class="split">Questions</h2>
       <details>
         <summary>Is it really free?</summary>
         <p>Yes. No paid version, no ads, no account. The code is open source under the Mozilla Public License 2.0.</p>
@@ -306,7 +327,7 @@
 
 <footer>
   <div class="wrap">
-    <p>Radial Converter is a working name. Our code is under the MPL-2.0, and the parts it includes are listed in the app, under About.</p>
+    <p>Radial Converter is a working name. Our code is under the MPL-2.0, and the parts it includes are listed in the app, under About. This page moves with <a href="vendor/motion/LICENSE.md">Motion</a> (MIT), served from here.</p>
     <p><a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/privacy.md">Privacy policy</a> · <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/user-guide.md">User guide</a> · <a href="https://github.com/Navin-kumar0007/radial-converter">Source code</a></p>
   </div>
 </footer>

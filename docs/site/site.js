@@ -1,6 +1,7 @@
-// Scroll-driven scenes. Each scene's stage stays pinned while the page scrolls past it, and how far
-// through it the reader is (0 to 1) moves what's on stage. Without this script, or with reduced
-// motion, every scene shows its finished state and the page simply scrolls.
+// Scroll-driven scenes, plus Motion (vendor/motion, MIT) for springs: the orbit, the spotlight and
+// tilt on cards, buttons that lean toward the pointer, and headings that blur in. Each scene's stage
+// stays pinned while the page scrolls past it, and how far through it the reader is (0 to 1) moves
+// what's on stage. Without this script, or with reduced motion, every scene shows its finished state.
 (() => {
   const root = document.documentElement;
   const $ = (selector, within = document) => within.querySelector(selector);
@@ -24,24 +25,49 @@
     if (device === 'iphone') document.getElementById('browser').hidden = true;
   }
 
-  // Privacy's sentence lights up word by word, so it is split here rather than in the page.
+  // Privacy's sentence lights up word by word, and headings blur in word by word, so both are split
+  // here rather than in the page. Line breaks stay where they are.
+  const splitWords = (element, className) => {
+    const pieces = [];
+    for (const node of [...element.childNodes]) {
+      if (node.nodeType !== Node.TEXT_NODE) {
+        pieces.push(node);
+        continue;
+      }
+      node.textContent.split(/(\s+)/).forEach((part) => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) {
+          pieces.push(document.createTextNode(part));
+          return;
+        }
+        const span = document.createElement('span');
+        span.textContent = part;
+        if (className) span.className = className;
+        pieces.push(span);
+      });
+    }
+    element.replaceChildren(...pieces);
+    return $$('span', element);
+  };
   const words = $('[data-words]');
-  const spans = words.textContent.trim().split(/\s+/).map((word) => {
-    const span = document.createElement('span');
-    span.textContent = word;
-    return span;
-  });
-  words.replaceChildren(...spans.flatMap((span, i) => (i ? [document.createTextNode(' '), span] : [span])));
+  const spans = splitWords(words);
 
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   root.classList.add('motion');
+  const Motion = window.Motion;
 
   const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
   const part = (p, from, to) => clamp((p - from) / (to - from));
   const ease = (t) => 1 - Math.pow(1 - t, 3);
   const mix = (a, b, t) => a + (b - a) * t;
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-  const scenes = $$('.scene').map((element) => ({ element, length: Number(element.dataset.length) || 2 }));
+  // Scenes. Progress eases toward where the page is, rather than jumping, so scrubbing feels smooth.
+  const scenes = $$('.scene').map((element) => ({
+    element,
+    length: Number(element.dataset.length) || 2,
+    shown: 0,
+  }));
   const sizeScenes = () => {
     for (const scene of scenes) scene.element.style.height = `${scene.length * 100}vh`;
   };
@@ -70,7 +96,7 @@
     tile.style.opacity = 1 - part(p, 0.58, 0.62);
     const open = ease(part(p, 0.26, 0.36));
     const gone = part(p, 0.6, 0.68);
-    wheel.setAttribute('transform', `scale(${0.82 + 0.18 * open})`);
+    wheel.setAttribute('transform', `scale(${0.82 + 0.18 * open}) rotate(${(1 - open) * -24})`);
     wheel.style.opacity = open * (1 - gone);
     halo.style.opacity = 0.8 * open * (1 - gone);
     hit.style.opacity = part(p, 0.5, 0.54);
@@ -99,7 +125,13 @@
     const bytes = Math.exp(mix(Math.log(start), Math.log(end), ease(part(p, 0.08, 0.82))));
     sizeText.textContent = readable(bytes);
     fill.style.transform = `scaleX(${Math.max(0.02, bytes / start)})`;
-    for (const target of targets) target.classList.toggle('hit', bytes <= Number(target.dataset.under));
+    for (const target of targets) {
+      const passed = bytes <= Number(target.dataset.under);
+      if (passed && !target.classList.contains('hit') && Motion) {
+        Motion.animate(target, { scale: [1, 1.12, 1] }, { type: 'spring', stiffness: 400, damping: 14 });
+      }
+      target.classList.toggle('hit', passed);
+    }
   }
 
   // The reel slides sideways as the page goes down.
@@ -125,7 +157,9 @@
   function privacy(p) {
     const lit = part(p, 0.04, 0.55) * spans.length;
     spans.forEach((span, i) => {
-      span.style.opacity = 0.16 + 0.84 * clamp(lit - i);
+      const on = clamp(lit - i);
+      span.style.opacity = 0.16 + 0.84 * on;
+      span.style.filter = on < 1 ? `blur(${(1 - on) * 6}px)` : '';
     });
     rings.forEach((ring, i) => ring.setAttribute('transform', `rotate(${(i ? -1 : 1) * p * 140} 100 100)`));
     lock.setAttribute('transform', `translate(0 ${-10 * (1 - ease(part(p, 0.5, 0.62)))})`);
@@ -133,14 +167,9 @@
   }
 
   const opening = $('.opening-inner');
+  const orbitWrap = $('.orbit-wrap');
   const bar = $('.progress span');
-  const scenesBy = {
-    drag: drag,
-    fit: fit,
-    reel: reel,
-    formats: formats,
-    privacy: privacy,
-  };
+  const play = { drag, fit, reel, formats, privacy };
 
   let waiting = false;
   function frame() {
@@ -148,23 +177,35 @@
     const page = scrollY / Math.max(1, root.scrollHeight - innerHeight);
     bar.style.transform = `scaleX(${page})`;
     const leaving = clamp(scrollY / innerHeight);
-    opening.style.transform = `translateY(${-leaving * 90}px) scale(${1 - leaving * 0.06})`;
+    opening.style.transform = `translateY(${-leaving * 90}px)`;
     opening.style.opacity = 1 - leaving * 1.1;
-    for (const { element } of scenes) {
-      const box = element.getBoundingClientRect();
-      if (box.bottom < -innerHeight || box.top > innerHeight * 2) continue;
-      const name = Object.keys(scenesBy).find((each) => element.classList.contains(each));
-      scenesBy[name](progressOf(element));
+    orbitWrap.style.transform = `translateY(${-leaving * 40}px) scale(${1 - leaving * 0.25})`;
+    orbitWrap.style.opacity = 1 - leaving * 1.2;
+    let moving = false;
+    for (const scene of scenes) {
+      const box = scene.element.getBoundingClientRect();
+      const target = progressOf(scene.element);
+      if (box.bottom < -innerHeight || box.top > innerHeight * 2) {
+        scene.shown = target;
+        continue;
+      }
+      const gap = target - scene.shown;
+      scene.shown = Math.abs(gap) < 0.0005 ? target : scene.shown + gap * 0.16;
+      if (scene.shown !== target) moving = true;
+      const name = Object.keys(play).find((each) => scene.element.classList.contains(each));
+      play[name](scene.shown);
     }
+    if (moving) request();
   }
-  const request = () => {
+  function request() {
     if (!waiting) {
       waiting = true;
       requestAnimationFrame(frame);
     }
-  };
+  }
 
   sizeScenes();
+  for (const scene of scenes) scene.shown = progressOf(scene.element);
   frame();
   addEventListener('scroll', request, { passive: true });
   addEventListener('resize', () => {
@@ -172,16 +213,99 @@
     request();
   });
 
-  // Download cards rise into view once.
-  const watcher = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add('in');
-        watcher.unobserve(entry.target);
-      }
+  if (!Motion) return;
+  const { animate, inView, stagger, motionValue, springValue } = Motion;
+  const smooth = [0.16, 1, 0.3, 1];
+
+  // The orbit turns slowly, its chips stay upright, and the app at the centre breathes.
+  const outer = $('.ring.outer');
+  const inner = $('.ring.inner');
+  animate(outer, { rotate: 360 }, { duration: 60, repeat: Infinity, ease: 'linear' });
+  animate($$('.chip > span', outer), { rotate: -360 }, { duration: 60, repeat: Infinity, ease: 'linear' });
+  animate(inner, { rotate: -360 }, { duration: 38, repeat: Infinity, ease: 'linear' });
+  animate($$('.chip > span', inner), { rotate: 360 }, { duration: 38, repeat: Infinity, ease: 'linear' });
+  animate('.core img', { scale: [1, 1.05, 1] }, { duration: 4, repeat: Infinity, ease: 'easeInOut' });
+
+  // The hero's light and orbit follow the pointer, on a spring.
+  if (fine) {
+    const stage = $('.opening .stage');
+    const orbit = $('.orbit');
+    const pointerX = motionValue(innerWidth * 0.7);
+    const pointerY = motionValue(innerHeight * 0.4);
+    const x = springValue(pointerX, { stiffness: 90, damping: 20 });
+    const y = springValue(pointerY, { stiffness: 90, damping: 20 });
+    const place = () => {
+      stage.style.setProperty('--hx', `${x.get()}px`);
+      stage.style.setProperty('--hy', `${y.get()}px`);
+      orbit.style.transform = `translate(${(x.get() - innerWidth / 2) * 0.025}px, ${(y.get() - innerHeight / 2) * 0.025}px)`;
+    };
+    x.on('change', place);
+    y.on('change', place);
+    stage.addEventListener('pointermove', (event) => {
+      const box = stage.getBoundingClientRect();
+      pointerX.set(event.clientX - box.left);
+      pointerY.set(event.clientY - box.top);
+    });
+  }
+
+  // Headings blur in word by word as they come into view.
+  for (const heading of $$('.split')) {
+    const pieces = splitWords(heading, 'w');
+    inView(
+      heading,
+      () => {
+        animate(
+          pieces,
+          { opacity: [0, 1], filter: ['blur(12px)', 'blur(0px)'], y: [22, 0] },
+          { duration: 0.8, delay: stagger(0.05), ease: smooth },
+        );
+      },
+      { amount: 0.4 },
+    );
+  }
+
+  // Download cards rise into view, one after another, on a spring.
+  inView(
+    '.platforms',
+    () => {
+      animate('.rise', { opacity: [0, 1], y: [48, 0] }, { type: 'spring', stiffness: 120, damping: 18, delay: stagger(0.08) });
     },
-    { threshold: 0.2 },
+    { amount: 0.2 },
   );
-  $$('.rise').forEach((element) => watcher.observe(element));
+
+  // Cards: a light follows the pointer, and they tilt a little toward it.
+  for (const card of $$('.glow')) {
+    card.addEventListener('pointermove', (event) => {
+      const box = card.getBoundingClientRect();
+      const px = event.clientX - box.left;
+      const py = event.clientY - box.top;
+      card.style.setProperty('--mx', `${px}px`);
+      card.style.setProperty('--my', `${py}px`);
+      if (!fine || card.closest('.proofs')) return;
+      animate(
+        card,
+        { rotateX: (0.5 - py / box.height) * 7, rotateY: (px / box.width - 0.5) * 9, y: -6 },
+        { type: 'spring', stiffness: 260, damping: 24 },
+      );
+    });
+    card.addEventListener('pointerleave', () => {
+      if (!fine || card.closest('.proofs')) return;
+      animate(card, { rotateX: 0, rotateY: 0, y: 0 }, { type: 'spring', stiffness: 200, damping: 20 });
+    });
+  }
+
+  // Main buttons lean toward the pointer.
+  if (fine) {
+    for (const button of $$('.magnet, .platform .button')) {
+      button.addEventListener('pointermove', (event) => {
+        const box = button.getBoundingClientRect();
+        const dx = event.clientX - (box.left + box.width / 2);
+        const dy = event.clientY - (box.top + box.height / 2);
+        animate(button, { x: dx * 0.25, y: dy * 0.35 }, { type: 'spring', stiffness: 300, damping: 18 });
+      });
+      button.addEventListener('pointerleave', () => {
+        animate(button, { x: 0, y: 0 }, { type: 'spring', stiffness: 300, damping: 15 });
+      });
+    }
+  }
 })();
