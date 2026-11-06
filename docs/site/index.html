@@ -7,47 +7,74 @@
   <meta name="referrer" content="no-referrer">
   <title>Radial Converter: free file converter that works offline</title>
   <meta name="description" content="Hold Shift while dragging a file and a round menu appears. Convert pictures, video, audio, PDFs and archives on your own device. Free and open source, on Mac, Windows, Android and the web.">
-  <meta name="theme-color" content="#101716">
+  <meta name="theme-color" content="#0b1110">
   <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="style.css">
   <script src="site.js" defer></script>
 </head>
 <body>
-<header>
+<div class="progress" aria-hidden="true"><span></span></div>
+<div class="ambient" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<header class="bar">
   <div class="wrap">
-    <a class="brand" href="./"><img src="icon.png" alt="" width="30" height="30">Radial Converter</a>
+    <a class="brand" href="./"><img src="icon.png" alt="" width="28" height="28">Radial Converter</a>
     <nav aria-label="Main">
-      <a class="wide" href="#features">Features</a>
+      <a class="wide" href="#how">How it works</a>
       <a class="wide" href="#privacy">Privacy</a>
-      <a href="#download">Download</a>
-      <a href="https://github.com/Navin-kumar0007/radial-converter">Source</a>
+      <a class="wide" href="https://github.com/Navin-kumar0007/radial-converter">Source</a>
+      <a class="pill" href="#download">Download</a>
     </nav>
   </div>
 </header>
 
 <main>
-  <div class="wrap hero">
-    <div>
-      <h1>Hold Shift, drag a file, drop it on a slice.</h1>
-      <p class="lead">A free file converter that works offline. Pictures, video, audio, PDFs and archives, right from where the file already is. <strong>Your files never leave your device.</strong></p>
-      <div class="actions">
-        <a class="button" id="get" href="#download">Download</a>
-        <a id="browser" href="app/">Open it in your browser</a>
+  <!-- 1. Opening -->
+  <section class="opening" data-scene>
+    <div class="stage">
+      <div class="wrap opening-inner">
+        <p class="eyebrow reveal">Free · Open source · Works offline</p>
+        <h1 class="title">
+          <span class="line"><span>Hold Shift.</span></span>
+          <span class="line"><span>Drag a file.</span></span>
+          <span class="line accent"><span>Drop it on a slice.</span></span>
+        </h1>
+        <p class="lead reveal">A file converter that lives where your files already are. Pictures, video, audio, PDFs and archives. <strong>Nothing ever leaves your device.</strong></p>
+        <div class="actions reveal">
+          <a class="button" id="get" href="#download">Download</a>
+          <a class="ghost" id="browser" href="app/">Open it in your browser</a>
+        </div>
       </div>
-      <p class="beta">Free and open source. In beta, so please tell us what breaks.</p>
+      <a class="cue" href="#how" aria-label="Scroll to see how it works"><span></span></a>
     </div>
-    <div>
-      <svg class="scene" viewBox="0 0 640 500" role="img" aria-label="A file is dragged with Shift held. A round menu appears at the cursor, the file is dropped on the WhatsApp slice, and the result is dragged on into a new message.">
-        <defs>
+  </section>
+
+  <!-- 2. The drag, scrubbed by scroll -->
+  <section id="how" class="scene drag" data-scene data-length="4">
+    <div class="stage">
+      <div class="wrap drag-inner">
+        <div class="drag-copy">
+          <p class="eyebrow">How it works</p>
+          <ol class="steps">
+            <li data-step="0"><span class="num">1</span><span><b>Start dragging</b> any file, from anywhere.</span></li>
+            <li data-step="1"><span class="num">2</span><span><b>Hold <kbd>Shift</kbd></b> and a round menu opens at your cursor.</span></li>
+            <li data-step="2"><span class="num">3</span><span><b>Drop on a slice.</b> The result lands next to the original.</span></li>
+            <li data-step="3"><span class="num">4</span><span><b>Keep dragging</b> the result straight into an email or chat.</span></li>
+          </ol>
+        </div>
+        <svg class="demo" viewBox="0 0 640 500" role="img" aria-label="A photo is dragged with Shift held. A round menu opens at the cursor, the photo is dropped on the WhatsApp slice, and the result is dragged on into a new message.">
+          <defs>
+          <radialGradient id="glow"><stop offset="0" stop-color="#85d6c3" stop-opacity=".22"/><stop offset="1" stop-color="#85d6c3" stop-opacity="0"/></radialGradient>
           <path id="i-image" d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"/>
           <path id="i-chat" d="M4 4h16v12H5.17L4 17.17V4m0-2c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zm2 10h8v2H6v-2zm0-3h12v2H6V9zm0-3h12v2H6V6z"/>
           <path id="i-mail" d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
           <path id="i-more" d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
           <path id="cursor" d="M0 0v17l4.6-4.3 3 7 3-1.3-3-6.8h6.4z" fill="#fff" stroke="#101716" stroke-width="1.2"/>
         </defs>
+          <g transform="translate(320 250)"><circle class="halo" r="250"/></g>
+          <g transform="translate(320 250)">
+            <g class="wheel">
 
-        <g class="wheel-origin" transform="translate(320 250)">
-          <g class="wheel">
             <path d="M-34.4 -83.1L-85.7 -206.9A224 224 0 0 1 85.7 -206.9L34.4 -83.1A90 90 0 0 0 -34.4 -83.1Z" fill="#232a28" stroke="#3b4542"/>
             <use href="#i-image" fill="#e2e8e5" transform="translate(-12.0 -181.0)"/><text x="0.0" y="-140.0" text-anchor="middle" font-size="13" font-weight="500" fill="#e2e8e5">PNG</text>
             <path d="M34.4 -83.1L85.7 -206.9A224 224 0 0 1 206.9 -85.7L83.1 -34.4A90 90 0 0 0 34.4 -83.1Z" fill="#232a28" stroke="#3b4542"/>
@@ -65,138 +92,173 @@
             <path d="M-83.1 -34.4L-206.9 -85.7A224 224 0 0 1 -85.7 -206.9L-34.4 -83.1A90 90 0 0 0 -83.1 -34.4Z" fill="#232a28" stroke="#3b4542"/>
             <use href="#i-more" fill="#e2e8e5" transform="translate(-123.0 -135.0)"/><text x="-111.0" y="-94.0" text-anchor="middle" font-size="13" font-weight="500" fill="#e2e8e5">More</text>
             <g class="hit"><path d="M34.4 -83.1L85.7 -206.9A224 224 0 0 1 206.9 -85.7L83.1 -34.4A90 90 0 0 0 34.4 -83.1Z" fill="#85d6c3"/><use href="#i-chat" fill="#00382e" transform="translate(99.0 -135.0)"/><text x="111.0" y="-94.0" text-anchor="middle" font-size="13" font-weight="500" fill="#00382e">WhatsApp</text></g>
-            <text x="0" y="5" text-anchor="middle" class="small dim">Cancel</text>
+            
+              <text x="0" y="5" text-anchor="middle" class="small dim">Cancel</text>
+            </g>
           </g>
-        </g>
-
-        <g>
-          <rect class="key" x="10" y="10" width="76" height="36" rx="8" stroke="#36403d"/>
-          <text class="key-text small" x="48" y="33" text-anchor="middle">Shift</text>
-        </g>
-
-        <g class="inbox">
-          <rect x="410" y="400" width="222" height="92" rx="12" fill="#182120" stroke="#36403d"/>
-          <text x="426" y="426" class="small dim">New message</text>
-        </g>
-
-        <g class="tile">
-          <rect x="10" y="14" width="166" height="42" rx="10" fill="#232a28" stroke="#36403d"/>
-          <use href="#i-image" class="icon" transform="translate(20 23)"/>
-          <text x="52" y="40" class="small">holiday-photo.jpg</text>
-          <use href="#cursor"/>
-        </g>
-
-        <g class="result">
-          <rect x="-20" y="14" width="204" height="42" rx="21" fill="#85d6c3"/>
-          <text x="82" y="40" text-anchor="middle" font-size="12.5" font-weight="600" class="on-accent">holiday-photo (whatsapp).jpg</text>
-          <use href="#cursor"/>
-        </g>
-      </svg>
-      <ol class="steps">
-        <li>Start dragging</li>
-        <li>Hold <kbd>Shift</kbd></li>
-        <li>Drop on a slice</li>
-        <li>Drag the result on</li>
-      </ol>
+          <g class="key">
+            <rect x="10" y="10" width="76" height="36" rx="8"/>
+            <text x="48" y="33" text-anchor="middle" class="small">Shift</text>
+          </g>
+          <g class="inbox">
+            <rect x="410" y="400" width="222" height="92" rx="12"/>
+            <text x="426" y="426" class="small dim">New message</text>
+          </g>
+          <g class="tile">
+            <rect x="10" y="14" width="166" height="42" rx="10"/>
+            <use href="#i-image" class="icon" transform="translate(20 23)"/>
+            <text x="52" y="40" class="small">holiday-photo.jpg</text>
+            <use href="#cursor"/>
+          </g>
+          <g class="result">
+            <rect x="-20" y="14" width="204" height="42" rx="21"/>
+            <text x="82" y="40" text-anchor="middle" class="small strong">holiday-photo (whatsapp).jpg</text>
+            <use href="#cursor"/>
+          </g>
+        </svg>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <section id="features">
-    <div class="wrap">
-      <h2>Named for what you're trying to do</h2>
-      <div class="features">
-        <dl class="rows">
-          <div>
-            <dt>Make it fit</dt>
-            <dd>Slices like WhatsApp, Email and Under 100 KB. Say what the file is for, not which settings it needs.</dd>
-          </div>
-          <div>
-            <dt>Keep going</dt>
-            <dd>The result appears at your cursor, so you can drag it straight into Gmail, WhatsApp Web or an upload box. On a phone, share it.</dd>
-          </div>
-          <div>
-            <dt>Form photos</dt>
-            <dd>The exact pixels and KB an exam or job form asks for. Frame it yourself, then get a JPEG inside the limits. Limits stay editable, because forms change them.</dd>
-          </div>
-          <div>
-            <dt>History and undo</dt>
-            <dd>Originals are never touched. On a Mac or Windows PC, change your mind and the result goes to the Trash, where you can still get it back.</dd>
-          </div>
-          <div>
-            <dt>Crop, trim, merge</dt>
-            <dd>See the real frames while trimming a video. Merge, split, rotate and compress PDFs. Open locked PDFs and ZIPs with their password.</dd>
-          </div>
-          <div>
-            <dt>Whole folders</dt>
-            <dd>Drop a folder of up to 200 files. A damaged file gets its own error, and the rest still finish.</dd>
-          </div>
+  <!-- 3. Make it fit -->
+  <section class="scene fit" data-scene data-length="2.5">
+    <div class="stage">
+      <div class="wrap fit-inner">
+        <p class="eyebrow">Make it fit</p>
+        <h2>Say what it's for,<br>not which settings it needs.</h2>
+        <div class="meter">
+          <div class="meter-file"><span class="meter-name">holiday-photo.jpg</span><span class="meter-size" data-size>4.8 MB</span></div>
+          <div class="meter-track"><span class="meter-fill"></span></div>
+          <ul class="targets">
+            <li data-under="1048576">Under 1 MB</li>
+            <li data-under="512000">Under 500 KB</li>
+            <li data-under="102400">Under 100 KB</li>
+          </ul>
+        </div>
+        <p class="note">Slices like WhatsApp, Email and Under 100 KB find the best quality that still fits. An example; real sizes depend on the photo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Everything else, as a sideways reel -->
+  <section class="scene reel" data-scene data-length="3">
+    <div class="stage">
+      <div class="reel-head wrap">
+        <p class="eyebrow">And it keeps going</p>
+        <h2>Small things that save an afternoon.</h2>
+      </div>
+      <div class="track">
+        <article class="card">
+          <span class="card-num">01</span>
+          <h3>Form photos</h3>
+          <p>The exact pixels and KB an exam or job form asks for. Frame it yourself, then get a JPEG inside the limits. Limits stay editable, because forms change them.</p>
+        </article>
+        <article class="card">
+          <span class="card-num">02</span>
+          <h3>History and undo</h3>
+          <p>Originals are never touched. Change your mind on a Mac or Windows PC and the result goes to the Trash, where you can still get it back.</p>
+        </article>
+        <article class="card">
+          <span class="card-num">03</span>
+          <h3>Crop, trim, merge</h3>
+          <p>See the real frames while trimming a video. Merge, split, rotate and compress PDFs. Turn a PDF into an editable Word file.</p>
+        </article>
+        <article class="card">
+          <span class="card-num">04</span>
+          <h3>Locked files</h3>
+          <p>Open password-protected PDFs and ZIPs, remove a PDF's password, or lock a ZIP with one. Passwords are never stored.</p>
+        </article>
+        <article class="card">
+          <span class="card-num">05</span>
+          <h3>Whole folders</h3>
+          <p>Drop a folder of up to 200 files. A damaged file gets its own error, and the rest still finish.</p>
+        </article>
+        <article class="card">
+          <span class="card-num">06</span>
+          <h3>English and हिन्दी</h3>
+          <p>The app follows your device's language, down to the reason a file couldn't be converted.</p>
+        </article>
+        <article class="card shot">
+          <img src="window.webp" alt="The app window showing holiday-photo.jpg and the round menu with slices for PNG, WhatsApp, WebP, Email, GIF, Form photo, TIFF and More." width="640" height="951">
+          <p>No Shift-drag on your device? The same menu works in the window.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Formats -->
+  <section class="scene formats" data-scene data-length="1.6">
+    <div class="stage">
+      <div class="wrap formats-head">
+        <p class="eyebrow">What it converts</p>
+        <h2>One menu. Most of what you have.</h2>
+      </div>
+      <div class="rows" aria-hidden="true">
+        <div class="row" data-dir="1"><span>JPG</span><span>PNG</span><span>WebP</span><span>HEIC</span><span>GIF</span><span>TIFF</span><span>BMP</span><span>ICO</span><span>PDF</span><span>JPG</span><span>PNG</span><span>WebP</span></div>
+        <div class="row" data-dir="-1"><span>MP4</span><span>MOV</span><span>MKV</span><span>WebM</span><span>MP3</span><span>M4A</span><span>WAV</span><span>Opus</span><span>GIF</span><span>MP4</span><span>MOV</span><span>WebM</span></div>
+        <div class="row" data-dir="1"><span>ZIP</span><span>7z</span><span>RAR</span><span>TAR.GZ</span><span>DOCX</span><span>SRT</span><span>VTT</span><span>PDF</span><span>ZIP</span><span>7z</span><span>RAR</span><span>DOCX</span></div>
+      </div>
+      <div class="wrap">
+        <dl class="kinds">
+          <div><dt>Pictures</dt><dd>JPG, PNG, WebP, GIF, BMP, TIFF, ICO and HEIC, to JPG, PNG, WebP, GIF, TIFF, ICO or PDF.</dd></div>
+          <div><dt>Video and audio</dt><dd>MP4, MOV, MKV, WebM, MP3, M4A, WAV and Opus. Fewer outputs on Android.</dd></div>
+          <div><dt>PDF</dt><dd>To JPG, PNG or Word. Merge, split, rotate, compress.</dd></div>
+          <div><dt>Archives</dt><dd>ZIP, TAR, GZ, 7z and RAR, to ZIP or TAR.GZ, or the files inside.</dd></div>
         </dl>
-        <figure>
-          <img src="window.webp" alt="The app window showing holiday-photo.jpg and a round menu with slices for PNG, WhatsApp, WebP, Email, GIF, Form photo, TIFF and More." width="640" height="951">
-          <figcaption>No Shift-drag on your device? The same menu works in the window.</figcaption>
-        </figure>
       </div>
     </div>
   </section>
 
-  <section>
-    <div class="wrap">
-      <h2>What it converts</h2>
-      <div class="table-box">
-        <table>
-          <thead><tr><th scope="col">Kind</th><th scope="col">From</th><th scope="col">To</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Pictures</th><td data-label="From">JPG, PNG, WebP, GIF, BMP, TIFF, ICO, HEIC</td><td data-label="To">JPG, PNG, WebP, GIF, TIFF, ICO, PDF</td></tr>
-            <tr><th scope="row">Video</th><td data-label="From">MP4, MOV, MKV, WebM, and others on a desktop</td><td data-label="To">MP4, MOV, WebM, GIF, MP3 and M4A on a desktop. MP4 and M4A on Android.</td></tr>
-            <tr><th scope="row">Audio</th><td data-label="From">MP3, M4A, WAV, Opus, and others on a desktop</td><td data-label="To">MP3, M4A, WAV and Opus on a desktop. M4A on Android.</td></tr>
-            <tr><th scope="row">PDF</th><td data-label="From">PDF</td><td data-label="To">JPG, PNG, Word (DOCX)</td></tr>
-            <tr><th scope="row">Archives</th><td data-label="From">ZIP, TAR, TAR.GZ, GZ, 7z, RAR</td><td data-label="To">ZIP, TAR.GZ, or the files inside</td></tr>
-            <tr><th scope="row">Subtitles</th><td data-label="From">SRT, VTT</td><td data-label="To">SRT, VTT</td></tr>
-          </tbody>
-        </table>
+  <!-- 6. Privacy -->
+  <section id="privacy" class="scene privacy" data-scene data-length="2.4">
+    <div class="stage">
+      <div class="wrap privacy-inner">
+        <svg class="vault" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="vault-ring" cx="100" cy="100" r="88"/>
+          <circle class="vault-ring two" cx="100" cy="100" r="66"/>
+          <rect class="vault-file" x="80" y="78" width="40" height="50" rx="6"/>
+          <path class="vault-lock" d="M88 78v-8a12 12 0 0 1 24 0v8"/>
+        </svg>
+        <p class="eyebrow">Privacy</p>
+        <p class="words" data-words>Nothing is uploaded, because there's nowhere to upload it to. No account. No ads. No tracking.</p>
+        <ul class="proofs">
+          <li><h3>Android can't reach a network</h3><p>The app doesn't ask for the permission, so Android itself stops it. Our builds fail if that ever changes.</p></li>
+          <li><h3>The web app can't either</h3><p>Its page carries a security policy that lets it connect only to itself.</p></li>
+          <li><h3>This page loads nothing else</h3><p>No fonts, scripts or counters from other companies. Open your browser's network tab and look.</p></li>
+          <li><h3>All the code is public</h3><p>Read the <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/privacy.md">privacy policy</a>, or the <a href="https://github.com/Navin-kumar0007/radial-converter">source</a>.</p></li>
+        </ul>
       </div>
-      <p class="note">What's offered depends on the file and the device, and the menu only shows what will work. The <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/user-guide.md">user guide</a> has the details.</p>
     </div>
   </section>
 
-  <section id="privacy" class="privacy">
+  <!-- 7. Download -->
+  <section id="download" class="download">
     <div class="wrap">
-      <h2>Your files stay yours</h2>
-      <p class="big">Nothing is uploaded, because there's nowhere to upload it to. No account, no ads, no tracking.</p>
-      <ul class="proofs">
-        <li><h3>Android can't reach a network</h3><p>The app doesn't ask for the permission, so Android itself stops it. Our builds fail if that ever changes.</p></li>
-        <li><h3>The web app can't either</h3><p>Its page carries a security policy that lets it connect only to itself. It runs in your browser and works offline after the first visit.</p></li>
-        <li><h3>This page loads nothing else</h3><p>No fonts, scripts or counters from other companies. Open your browser's network tab and look.</p></li>
-        <li><h3>All the code is public</h3><p>Anyone can read it or build it. Read the <a href="https://github.com/Navin-kumar0007/radial-converter/blob/main/docs/privacy.md">privacy policy</a>, or the <a href="https://github.com/Navin-kumar0007/radial-converter">source</a>.</p></li>
-      </ul>
-    </div>
-  </section>
-
-  <section id="download">
-    <div class="wrap">
-      <h2>Download</h2>
+      <p class="eyebrow">Download</p>
+      <h2>Get it on everything you use.</h2>
+      <p class="beta">In beta: please tell us what breaks.</p>
       <div class="platforms">
-        <div class="platform" id="mac">
+        <div class="platform rise" id="mac">
           <h3>Mac</h3>
           <p class="needs">macOS 12 or newer, Apple Silicon or Intel</p>
           <a class="button" data-main="Download for Mac" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-mac.dmg">Download</a>
           <p class="first">First time: macOS warns the app isn't from an identified developer. Go to System Settings, Privacy &amp; Security, and choose Open Anyway.</p>
         </div>
-        <div class="platform" id="windows">
+        <div class="platform rise" id="windows">
           <h3>Windows</h3>
           <p class="needs">Windows 10 or newer, 64-bit</p>
           <a class="button" data-main="Download for Windows" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-windows-setup.exe">Installer</a>
           <p class="other">Or the <a href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-windows-portable.zip">portable zip</a>.</p>
           <p class="first">First time: if Windows doesn't recognise the app, choose More info, then Run anyway. The newest and least tried of the four.</p>
         </div>
-        <div class="platform" id="android">
+        <div class="platform rise" id="android">
           <h3>Android</h3>
           <p class="needs">Android 7 or newer</p>
           <a class="button" data-main="Download for Android" href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-android-arm64.apk">For most phones</a>
           <p class="other">Older phone? The <a href="https://github.com/Navin-kumar0007/radial-converter/releases/latest/download/Radial-Converter-android.apk">larger APK</a> runs on all.</p>
           <p class="first">First time: Android asks you to allow installing from your browser. Then share any file to the app.</p>
         </div>
-        <div class="platform" id="iphone">
+        <div class="platform rise" id="iphone">
           <h3>iPhone, iPad, browsers</h3>
           <p class="needs">Nothing to install</p>
           <a class="button" data-main="Open the web app" href="app/">Open the web app</a>
@@ -207,7 +269,7 @@
     </div>
   </section>
 
-  <section>
+  <section class="questions">
     <div class="wrap">
       <h2>Questions</h2>
       <details>
