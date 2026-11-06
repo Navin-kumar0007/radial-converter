@@ -277,7 +277,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       await widget.trashResult(path, item.bytesAfter);
     } on EngineFailed catch (error) {
-      _sayOnTop(error.message);
+      _sayOnTop(failureText(_words, error));
       return false;
     } catch (error) {
       debugPrint('Undo failed: $error');
@@ -302,7 +302,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       await widget.revealResult(path);
     } on EngineFailed catch (error) {
-      _sayOnTop(error.message);
+      _sayOnTop(failureText(_words, error));
     } catch (error) {
       debugPrint('Showing a file failed: $error');
       _sayOnTop(_words.showFailed);
@@ -588,7 +588,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       } on JobCancelled {
         rethrow;
       } on EngineFailed catch (error) {
-        failed.add(failure(files[i], error.message));
+        failed.add(failure(files[i], failureText(deviceWords, error)));
       } catch (_) {
         failed.add(failure(files[i], deviceWords.convertFailed));
       }
@@ -761,7 +761,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       setState(() {
         job
           ..state = FileChipState.failed
-          ..message = error.message;
+          ..message = failureText(_words, error);
       });
     } catch (error) {
       if (saveBeside) showAppWindow();
@@ -845,7 +845,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         });
       }
     } on EngineFailed catch (error) {
-      if (mounted) _say(error.message);
+      if (mounted) _say(failureText(_words, error));
     } catch (_) {
       if (mounted) _say(_words.saveAllFailed);
     } finally {
@@ -1015,7 +1015,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       await handOver(output);
     } on EngineFailed catch (error) {
-      if (mounted) _say(error.message);
+      if (mounted) _say(failureText(_words, error));
     } catch (error) {
       debugPrint('Handing over failed: $error');
       if (mounted) _say(_words.handOverFailed);

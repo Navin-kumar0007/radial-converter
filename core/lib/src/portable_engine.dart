@@ -12,6 +12,7 @@ import 'pdf_writer.dart';
 import 'portable_archive.dart';
 import 'size_target.dart';
 import 'subtitles.dart';
+import 'failures.dart';
 
 /// A file in memory.
 class PortableFile {
@@ -81,12 +82,12 @@ Future<List<PortableFile>> runPortable(
   void Function(double progress)? onProgress,
 }) async {
   if (files.length < action.minFiles) {
-    throw EngineFailed('"${action.label}" needs at least ${action.minFiles} files.');
+    throw Fail.needsFiles(action.label, action.minFiles);
   }
   final kinds = [for (final file in files) detectKind(_head(file.bytes), fileName: file.name)];
   for (var i = 0; i < files.length; i++) {
     if (!canRunPortably(action, kinds[i])) {
-      throw EngineFailed('"${action.label}" can\'t use ${files[i].name}.');
+      throw Fail.cantUse(action.label, files[i].name);
     }
   }
 
@@ -140,12 +141,12 @@ String _outputName(RadialAction action, String input, FileKind kind) {
 /// The text of a subtitle action. Shared with the desktop runner.
 String convertSubtitles(String actionId, String source, FileKind kind, Duration? shift) {
   final cues = parseSubtitles(source);
-  if (cues.isEmpty) throw const EngineFailed('This file has no subtitles in it.');
+  if (cues.isEmpty) throw Fail.noSubtitles;
   return switch (actionId) {
     'subtitle-to-srt' => toSrt(cues),
     'subtitle-to-vtt' => toVtt(cues),
     'subtitle-to-text' => toPlainText(cues),
-    _ when shift == null => throw const EngineFailed('"Shift timing" needs how far to shift.'),
+    _ when shift == null => throw Fail.shiftNeeded,
     _ when kind == FileKind.vtt => toVtt(shiftCues(cues, shift)),
     _ => toSrt(shiftCues(cues, shift)),
   };
@@ -163,7 +164,7 @@ Future<void> _yield() => Future<void>.delayed(Duration.zero);
 /// Decodes the first frame, upright and with all metadata gone except the colour profile:
 /// EXIF holds GPS, so it never reaches an output.
 img.Image _decode(PortableFile file, {required bool keepsAnimationFormat}) {
-  final unreadable = EngineFailed('${file.name} could not be read as a picture.');
+  final unreadable = Fail.notAPicture(file.name);
   final decoder = img.findDecoderForData(file.bytes);
   if (decoder == null) throw unreadable;
   final img.DecodeInfo? info;
@@ -174,10 +175,10 @@ img.Image _decode(PortableFile file, {required bool keepsAnimationFormat}) {
   }
   if (info == null) throw unreadable;
   if (info.width * info.height > maxPortablePixels) {
-    throw EngineFailed('${file.name} is too large to open here.');
+    throw Fail.tooLargeHere(file.name);
   }
   if (keepsAnimationFormat && info.numFrames > 1) {
-    throw EngineFailed('Animated pictures can\'t be changed here yet: ${file.name}.');
+    throw Fail.animated(file.name);
   }
 
   final img.Image? decoded;
@@ -186,7 +187,7 @@ img.Image _decode(PortableFile file, {required bool keepsAnimationFormat}) {
   } catch (_) {
     // A very large picture usually fails because the device ran out of memory.
     if (info.width * info.height > 50 * 1000 * 1000) {
-      throw EngineFailed('${file.name} is too large to open on this device.');
+      throw Fail.tooLargeForDevice(file.name);
     }
     throw unreadable;
   }
@@ -298,7 +299,7 @@ Future<Uint8List> _image(
     case 'image-rotate':
       final degrees = options.degrees ?? 90;
       if (degrees != 90 && degrees != 180 && degrees != 270) {
-        throw EngineFailed('Pictures rotate by 90, 180 or 270, not $degrees.');
+        throw Fail.pictureRotate(degrees);
       }
       return _encode(img.copyRotate(image, angle: degrees), output);
     case 'image-flip':
@@ -308,7 +309,7 @@ Future<Uint8List> _image(
       return _encode(img.copyFlip(image, direction: direction), output);
     case 'image-crop':
       final crop = options.crop;
-      if (crop == null) throw const EngineFailed('"Crop" needs a crop area.');
+      if (crop == null) throw Fail.cropNeeded;
       return _encode(_cropped(image, crop), output);
     case 'image-form':
       return _forForm(image, options, step);
@@ -324,7 +325,7 @@ img.Image _cropped(img.Image image, ({int left, int top, int width, int height})
       crop.height > 0 &&
       crop.left + crop.width <= image.width &&
       crop.top + crop.height <= image.height;
-  if (!fits) throw const EngineFailed('That edit does not fit this picture.');
+  if (!fits) throw Fail.editDoesntFit;
   return img.copyCrop(image, x: crop.left, y: crop.top, width: crop.width, height: crop.height);
 }
 
@@ -338,16 +339,16 @@ Future<Uint8List> _forForm(
   void Function(double) step,
 ) async {
   final form = options.form;
-  if (form == null) throw const EngineFailed('"Form photo" needs to know what the form wants.');
+  if (form == null) throw Fail.formNeeded;
   final width = form.width;
   final height = form.height;
   if ((width == null) != (height == null)) {
-    throw const EngineFailed('Give both a width and a height, or neither.');
+    throw Fail.widthAndHeight;
   }
   final minBytes = form.minBytes ?? 0;
   final maxBytes = form.maxBytes;
   if (maxBytes != null && minBytes > maxBytes) {
-    throw const EngineFailed('The smallest size allowed is more than the largest.');
+    throw Fail.smallestOverLargest;
   }
 
   final crop = options.crop;
@@ -362,7 +363,7 @@ Future<Uint8List> _forForm(
   } else if (exact) {
     best = await _highestQualityUnder(image, maxBytes, step);
   } else {
-    best = await _underBytes(image, FileKind.jpg, maxBytes, 'that size', step);
+    best = await _underBytes(image, FileKind.jpg, maxBytes, Fail.pictureTooBigForForm, step);
   }
   return _paddedTo(best, minBytes);
 }
@@ -391,10 +392,7 @@ Future<Uint8List> _highestQualityUnder(
     }
   }
   if (fitting == null) {
-    throw EngineFailed(
-      'This picture has too much detail to fit ${maxBytes ~/ 1000} KB at '
-      '${image.width} x ${image.height}.',
-    );
+    throw Fail.tooMuchDetail(maxBytes ~/ 1000, image.width, image.height);
   }
   return fitting;
 }
@@ -430,14 +428,14 @@ Future<Uint8List> _underSize(
   FileKind output,
   void Function(double) step,
 ) {
-  return _underBytes(image, output, action.maxBytes!, '"${action.label}"', step);
+  return _underBytes(image, output, action.maxBytes!, Fail.pictureTooBig(action.label), step);
 }
 
 Future<Uint8List> _underBytes(
   img.Image image,
   FileKind output,
   int maxBytes,
-  String target,
+  EngineFailed tooBig,
   void Function(double) step,
 ) async {
   final hasQuality = output == FileKind.jpg || output == FileKind.webp;
@@ -463,7 +461,7 @@ Future<Uint8List> _underBytes(
   );
   final result = fitting;
   if (best == null || result == null) {
-    throw EngineFailed('This picture could not be made small enough for $target.');
+    throw tooBig;
   }
   return result;
 }

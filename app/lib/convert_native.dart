@@ -76,7 +76,7 @@ Future<Uint8List> decodeHeicWith(EngineTools tools, String path) async {
   );
   final png = result.stdout as List<int>;
   if (result.exitCode != 0 || png.isEmpty) {
-    throw const EngineFailed('This photo could not be read. It may be damaged.');
+    throw Fail.photoDamaged;
   }
   return Uint8List.fromList(png);
 }
@@ -84,28 +84,28 @@ Future<Uint8List> decodeHeicWith(EngineTools tools, String path) async {
 /// Reads a HEIC photo as a PNG, so the picture engine can take it from there.
 Future<Uint8List> decodeHeic(PickedFile file) async {
   final path = file.path;
-  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  if (path == null) throw Fail.cantRead(file.name);
   return Platform.isAndroid ? decodeHeicOnPhone(path) : decodeHeicWith(_appEngines(), path);
 }
 
 /// A 7z or RAR unpacked into a ZIP, so the archive engine can take it from there.
 Future<Uint8List> unpackArchive(PickedFile file) async {
   final path = file.path;
-  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  if (path == null) throw Fail.cantRead(file.name);
   return Platform.isAndroid ? unpackOnPhone(path) : unpackToZip(path);
 }
 
 /// What is inside a video or audio file, read without changing it.
 Future<MediaInfo> probeMedia(PickedFile file) async {
   final path = file.path;
-  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  if (path == null) throw Fail.cantRead(file.name);
   return Platform.isAndroid ? probeOnPhone(path) : ActionRunner(_appEngines()).probe(path);
 }
 
 /// One frame of a video, to show before trimming.
 Future<Uint8List> videoFrame(PickedFile file, double seconds) async {
   final path = file.path;
-  if (path == null) throw EngineFailed('${file.name} could not be read.');
+  if (path == null) throw Fail.cantRead(file.name);
   return Platform.isAndroid
       ? videoFrameOnPhone(path, seconds)
       : ActionRunner(_appEngines()).frameAt(path, seconds);
@@ -127,7 +127,7 @@ Future<List<ConvertedFile>> convertMedia(
   final paths = <String>[];
   for (final file in files) {
     final path = file.path;
-    if (path == null) throw EngineFailed('${file.name} could not be read.');
+    if (path == null) throw Fail.cantRead(file.name);
     paths.add(path);
   }
 

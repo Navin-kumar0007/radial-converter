@@ -23,6 +23,6 @@ self.onmessage = async ({ data }) => {
     self.postMessage({ png }, [png.buffer]);
   } catch (error) {
     console.warn('Could not decode a HEIC photo', error);
-    self.postMessage({ failure: 'This photo could not be read. It may be damaged.' });
+    self.postMessage({ failure: 'This photo could not be read. It may be damaged.', key: 'photoDamaged' });
   }
 };

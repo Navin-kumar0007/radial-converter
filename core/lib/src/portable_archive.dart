@@ -7,6 +7,7 @@ import 'actions.dart';
 import 'file_kind.dart';
 import 'naming.dart';
 import 'portable_engine.dart';
+import 'failures.dart';
 
 const _readable = {FileKind.zip, FileKind.tar, FileKind.gz};
 const _runs = {'archive-to-zip', 'archive-to-targz', 'archive-extract', 'archive-add-password'};
@@ -45,7 +46,7 @@ List<PortableFile> runArchive(
   if (action.id == 'archive-extract') return _extract(file, entries);
   final locking = action.id == 'archive-add-password';
   if (locking && (newPassword == null || newPassword.isEmpty)) {
-    throw const EngineFailed('"Add password" needs a password.');
+    throw Fail.addPasswordNeedsOne;
   }
 
   final archive = Archive();
@@ -94,11 +95,11 @@ List<ArchiveFile> _open(PortableFile file, FileKind kind, int limit, String? pas
   } on ArchivePasswordException {
     throw PasswordNeeded(file.name);
   } on ArchiveLimitException {
-    throw EngineFailed('${file.name} is too large to open here.');
+    throw Fail.tooLargeHere(file.name);
   } on EngineFailed {
     rethrow;
   } catch (_) {
-    throw EngineFailed('${file.name} could not be read. It may be damaged.');
+    throw Fail.damaged(file.name);
   }
 }
 
@@ -121,9 +122,7 @@ List<ArchiveFile> _entries(PortableFile file, Archive archive, int limit) {
     final name = entry.name.startsWith('./') ? entry.name.substring(2) : entry.name;
     if (name.isEmpty) continue;
     if (_leavesItsFolder(name)) {
-      throw EngineFailed(
-        '${file.name} has a file that points outside its folder, so it won\'t be opened.',
-      );
+      throw Fail.pointsOutside(file.name);
     }
     final ArchiveFile copy;
     if (entry.isSymbolicLink) {
@@ -188,12 +187,9 @@ List<PortableFile> _extract(PortableFile file, List<ArchiveFile> entries) {
     for (final entry in entries)
       if (entry.isFile && !entry.isSymbolicLink && !_isMacClutter(entry.name)) entry,
   ];
-  if (files.isEmpty) throw EngineFailed('${file.name} has no files in it.');
+  if (files.isEmpty) throw Fail.emptyArchive(file.name);
   if (files.length > maxExtractedFiles) {
-    throw EngineFailed(
-      '${file.name} has ${files.length} files, too many to save one at a time. '
-      'The limit is $maxExtractedFiles.',
-    );
+    throw Fail.tooManyToSave(file.name, files.length, maxExtractedFiles);
   }
   final used = <String>{};
   return [

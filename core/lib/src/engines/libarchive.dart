@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 
 import '../action_options.dart';
 import '../portable_archive.dart';
+import '../failures.dart';
 
 // libarchive's C functions. https://github.com/libarchive/libarchive/wiki/ManualPages
 typedef _NewC = Pointer<Void> Function();
@@ -66,10 +67,10 @@ Future<Uint8List> unpackToZip(String path, {int limit = maxOpenedBytes, String? 
 Uint8List _unpack(String path, int limit, String? libraryPath) {
   final name = p.basename(path);
   final library = _library(libraryPath);
-  if (library == null) throw EngineFailed('$name can\'t be opened on this computer.');
+  if (library == null) throw Fail.cantOpenOnComputer(name);
   final archive = _Reader(library);
   final handle = archive.create();
-  if (handle == nullptr) throw EngineFailed('$name could not be read.');
+  if (handle == nullptr) throw Fail.cantRead(name);
   final entryOut = malloc<Pointer<Void>>();
   const bufferSize = 1 << 20;
   final buffer = malloc<Uint8>(bufferSize);
@@ -91,7 +92,7 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
       final entry = entryOut.value;
       if (archive.isEncrypted(entry)) throw _locked(name);
       if (archive.fileType(entry) != _regularFile || archive.isHardLink(entry)) continue;
-      if (++files > _mostFiles) throw EngineFailed('$name holds too many files to open here.');
+      if (++files > _mostFiles) throw Fail.tooManyInArchive(name);
 
       final declared = archive.declaredSize(entry);
       final bytes = BytesBuilder(copy: true);
@@ -102,7 +103,7 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
         if (count < 0 && count != _warn) throw _failure(name, archive.error(handle));
         if (count < 0) continue;
         total += count;
-        if (total > limit) throw EngineFailed('$name is too large to open here.');
+        if (total > limit) throw Fail.tooLargeHere(name);
         bytes.add(buffer.asTypedList(count));
       }
       // Some builds treat a cut-off file as simply ending. A short file must not pass for a whole one.
@@ -116,7 +117,7 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
         )..compression = CompressionType.none,
       );
     }
-    if (zip.isEmpty) throw EngineFailed('$name has no files in it.');
+    if (zip.isEmpty) throw Fail.emptyArchive(name);
     return Uint8List.fromList(ZipEncoder().encodeBytes(zip));
   } finally {
     archive.free(handle);
@@ -128,7 +129,7 @@ Uint8List _unpack(String path, int limit, String? libraryPath) {
 }
 
 EngineFailed _locked(String name) {
-  return EngineFailed('$name has a password. Locked 7z and RAR files can\'t be opened yet.');
+  return Fail.lockedArchive(name);
 }
 
 EngineFailed _failure(String name, String reason) {
@@ -136,7 +137,7 @@ EngineFailed _failure(String name, String reason) {
   if (lower.contains('encrypt') || lower.contains('passphrase') || lower.contains('password')) {
     return _locked(name);
   }
-  return EngineFailed('$name could not be read. It may be damaged, or one part of several.');
+  return Fail.damagedOrPart(name);
 }
 
 class _Reader {

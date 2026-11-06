@@ -17,6 +17,7 @@ import '../size_target.dart';
 import 'ffmpeg_plan.dart';
 import 'process.dart';
 import 'tools.dart';
+import '../failures.dart';
 
 /// Actions waiting on an engine we have not wired up yet: PDFium for PDF pages to images,
 /// and the built-in and add-on document converters.
@@ -44,7 +45,7 @@ class ActionRunner {
   /// What ffprobe finds in the file at [path].
   Future<MediaInfo> probe(String path) async {
     final result = await Process.run(tools.ffprobe, _probeArguments(path));
-    if (result.exitCode != 0) throw EngineFailed('${p.basename(path)} could not be read.');
+    if (result.exitCode != 0) throw Fail.cantRead(p.basename(path));
     return _readProbe(result.stdout as String);
   }
 
@@ -91,7 +92,7 @@ class ActionRunner {
       }
       if (frame.isEmpty) frame = await grab(0);
     }
-    if (frame.isEmpty) throw EngineFailed('${p.basename(path)} has no picture to show here.');
+    if (frame.isEmpty) throw Fail.noPictureToShow(p.basename(path));
     return frame;
   }
 
@@ -105,16 +106,16 @@ class ActionRunner {
     String? outputFolder,
   }) async {
     if (!isActionWired(action)) {
-      throw EngineFailed('"${action.label}" is not available yet.');
+      throw Fail.notYet(action.label);
     }
     if (inputs.length < action.minFiles) {
-      throw EngineFailed('"${action.label}" needs at least ${action.minFiles} files.');
+      throw Fail.needsFiles(action.label, action.minFiles);
     }
     final kinds = <FileKind>[];
     for (final input in inputs) {
       final kind = await _kindOf(input);
       if (!action.accepts.contains(kind)) {
-        throw EngineFailed('"${action.label}" can\'t use ${p.basename(input)}.');
+        throw Fail.cantUse(action.label, p.basename(input));
       }
       kinds.add(kind);
     }
@@ -131,7 +132,7 @@ class ActionRunner {
   Future<FileKind> _kindOf(String path) async {
     if (await FileSystemEntity.isDirectory(path)) return FileKind.folder;
     final file = File(path);
-    if (!await file.exists()) throw EngineFailed('${p.basename(path)} could not be found.');
+    if (!await file.exists()) throw Fail.notFound(p.basename(path));
     final head = await file
         .openRead(0, detectHeadBytes)
         .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
@@ -172,7 +173,7 @@ class ActionRunner {
   String _publish(String temp, String input, String extension, String suffix, String folder) {
     final isFolder = FileSystemEntity.isDirectorySync(temp);
     if (!isFolder && (!File(temp).existsSync() || File(temp).lengthSync() == 0)) {
-      throw const EngineFailed('The engine finished without making a file.');
+      throw Fail.noFileMade;
     }
     final name = freeOutputName(
       inputName: p.basename(input),
@@ -246,7 +247,7 @@ class _Job {
         await _subtitles();
       case Engine.pdfium:
       case Engine.document:
-        throw EngineFailed('"${action.label}" is not available yet.');
+        throw Fail.notYet(action.label);
     }
     return _temp;
   }
@@ -296,7 +297,7 @@ class _Job {
     return _vipsSave(input, _temp);
   }
 
-  String get _unreadableImage => '${p.basename(input)} could not be read as an image.';
+  EngineFailed get _unreadableImage => Fail.notAPicture(p.basename(input));
 
   /// libvips reads a trailing `[...]` in a path as options, so such names go through a copy.
   String _vipsPath(String path) {
@@ -345,7 +346,7 @@ class _Job {
     ], failure: _unreadableImage);
   }
 
-  Future<void> _vipsRun(List<String> arguments, {required String failure}) {
+  Future<void> _vipsRun(List<String> arguments, {required EngineFailed failure}) {
     return runTool(tools.vips, arguments, context, failure: failure);
   }
 
@@ -370,7 +371,7 @@ class _Job {
       upright,
       edited,
       ...operation.skip(1),
-    ], failure: 'That edit does not fit this picture.');
+    ], failure: Fail.editDoesntFit);
     await _vipsRun(['copy', edited, _vipsTarget(_temp, null)], failure: _unreadableImage);
   }
 
@@ -396,7 +397,7 @@ class _Job {
       },
     );
     if (best == null) {
-      throw EngineFailed('This picture could not be made small enough for "${action.label}".');
+      throw Fail.pictureTooBig(action.label);
     }
     await encode(best.quality, best.scale, _temp);
   }
@@ -504,7 +505,7 @@ class _Job {
       FileKind.wav => ['-c:a', 'pcm_s16le'],
       FileKind.flac => ['-c:a', 'flac'],
       FileKind.ogg || FileKind.opus => ['-c:a', 'libopus', '-b:a', '${kbps ?? 128}k'],
-      _ => throw EngineFailed('This audio format can\'t be written: ${kind.extension}.'),
+      _ => throw Fail.audioFormat(kind.extension),
     };
   }
 
@@ -514,7 +515,7 @@ class _Job {
       tools.ffmpeg,
       [...arguments, '-progress', 'pipe:1', '-nostats', _temp],
       context,
-      failure: '${p.basename(input)} could not be read. Try MP4 or MOV.',
+      failure: Fail.tryMp4(p.basename(input)),
       onLine: (line) {
         if (seconds == null || seconds <= 0 || !line.startsWith('out_time_us=')) return;
         final micros = int.tryParse(line.substring('out_time_us='.length));
@@ -528,7 +529,7 @@ class _Job {
       tools.ffprobe,
       _probeArguments(path),
       context,
-      failure: '${p.basename(path)} could not be read.',
+      failure: Fail.cantRead(p.basename(path)),
     );
     return _readProbe(output);
   }
@@ -556,16 +557,16 @@ class _Job {
       if (limit == null || await File(_temp).length() <= limit) return;
       await File(_temp).delete();
     }
-    throw EngineFailed('This video could not be made small enough for "${action.label}".');
+    throw Fail.videoTooBig(action.label);
   }
 
   /// A trim's input flags, and how long the result will be.
   (List<String>, double?) _trim(double? seconds) {
     final start = options.startSeconds;
     final end = options.endSeconds;
-    if (start == null && end == null) throw const EngineFailed('Choose where to trim.');
+    if (start == null && end == null) throw Fail.chooseTrim;
     final length = seconds == null ? null : (end ?? seconds) - (start ?? 0);
-    if (length != null && length <= 0) throw const EngineFailed('The trim leaves nothing.');
+    if (length != null && length <= 0) throw Fail.trimLeavesNothing;
     return (
       [
         if (start != null) ...['-ss', '$start'],
@@ -591,10 +592,10 @@ class _Job {
           'fps=12,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse',
         ], media.seconds);
       case 'video-to-mp3':
-        if (!media.hasAudio) throw const EngineFailed('This video has no sound.');
+        if (!media.hasAudio) throw Fail.noSound;
         return _ffmpeg([...open, ...clean, '-vn', ..._audioCodec(_outputKind)], media.seconds);
     }
-    throw EngineFailed('"${action.label}" can\'t use this file.');
+    throw Fail.cantUseFile(action.label);
   }
 
   /// Fits every clip into the first clip's frame. Clips without sound get silence.
@@ -603,7 +604,7 @@ class _Job {
     final first = clips.first;
     final width = first.width;
     final height = first.height;
-    if (width == null || height == null) throw const EngineFailed('A video could not be read.');
+    if (width == null || height == null) throw Fail.aVideoUnreadable;
     final withAudio = clips.any((clip) => clip.hasAudio);
     final total = clips.fold<double>(0, (sum, clip) => sum + clip.seconds);
 
@@ -664,7 +665,7 @@ class _Job {
         return _ffmpeg([...open, ...clean, '-af', 'loudnorm', ..._audioCodec(kind)], seconds);
       case 'audio-bitrate':
         if (kind == FileKind.wav || kind == FileKind.flac) {
-          throw const EngineFailed('WAV and FLAC have no bitrate setting. Try MP3 or M4A.');
+          throw Fail.noBitrate;
         }
         final kbps = _need(options.audioKbps, 'a bitrate');
         return _ffmpeg([...open, ...clean, ..._audioCodec(kind, kbps: kbps)], seconds);
@@ -704,7 +705,7 @@ class _Job {
       context,
       stdinText: stdinText,
       workingDirectory: workingDirectory,
-      failure: '${p.basename(input)} could not be read. It may be damaged or have a password.',
+      failure: Fail.damagedOrLocked(p.basename(input)),
     );
   }
 
@@ -730,7 +731,7 @@ class _Job {
       case 'pdf-extract-pages':
         final pages = _need(options.pages, 'which pages');
         if (!RegExp(r'^[0-9zr,\-]+$').hasMatch(pages)) {
-          throw const EngineFailed('Pages look like 1-3,7.');
+          throw Fail.pagesFormat;
         }
         await _qpdf([input, '--pages', '.', pages, '--', _temp]);
       case 'pdf-rotate':
@@ -741,7 +742,7 @@ class _Job {
       case 'pdf-add-password':
         final secret = _need(password, 'a password');
         if (secret.isEmpty || secret.contains('\n')) {
-          throw const EngineFailed('That password can\'t be used.');
+          throw Fail.passwordUnusable;
         }
         await _qpdf(
           [input, '@-', _temp],
@@ -758,10 +759,7 @@ class _Job {
         final limit = action.maxBytes!;
         final size = await File(_temp).length();
         if (size > limit) {
-          throw EngineFailed(
-            'This PDF only shrinks to ${(size / 1024).ceil()} KB, '
-            'above the ${(limit / 1024).ceil()} KB limit.',
-          );
+          throw Fail.pdfShrinksTo((size / 1024).ceil(), (limit / 1024).ceil());
         }
     }
     return _temp;
@@ -783,7 +781,7 @@ class _Job {
         tools.bsdtar,
         ['-xf', input, '-C', folder],
         context,
-        failure: '${p.basename(input)} could not be opened. It may be damaged.',
+        failure: Fail.damaged(p.basename(input)),
       );
     } on EngineFailed {
       if (kinds.first != FileKind.gz) rethrow;

@@ -62,6 +62,6 @@ Exactly what's offered depends on the file and the device. The menu only shows w
 
 **Limits.** Pictures, PDFs and archives work in memory, up to 1 GB across a job, and folders open up to 200 files. Very large videos work, as they're read piece by piece.
 
-**Language.** The app follows your device's language, in English or Hindi. On Android 13 or newer and on a Mac you can also choose a language for this app alone, in the system settings. Messages from inside a conversion are still in English.
+**Language.** The app follows your device's language, in English or Hindi. On Android 13 or newer and on a Mac you can also choose a language for this app alone, in the system settings.
 
 **Something wrong?** Please tell us in the project's [issues](https://github.com/Navin-kumar0007/radial-converter/issues).

@@ -6,6 +6,8 @@ import 'package:image/image.dart' as img;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:radial_core/radial_core.dart';
 
+import 'words.dart';
+
 const _pdfActions = {
   'pdf-to-jpg',
   'pdf-to-png',
@@ -35,7 +37,8 @@ class PdfResult {
 }
 
 /// Pages become pictures to shrink a PDF, which is the only way to shrink a scan.
-const _picturesNote = 'Pages are now pictures, so text can\'t be selected.';
+/// In the device's language, as notes are shown as they are.
+String get _picturesNote => deviceWords.notePictures;
 
 /// Pixels per inch for pages saved as pictures.
 const _pictureDpi = 150.0;
@@ -87,7 +90,7 @@ Future<PdfDocument> _open(PortableFile file, String? password) async {
   } on PdfPasswordException {
     throw PasswordNeeded(file.name);
   } catch (_) {
-    throw EngineFailed('${file.name} could not be read. It may be damaged.');
+    throw Fail.damaged(file.name);
   }
 }
 
@@ -99,7 +102,7 @@ Future<List<PdfResult>> convertPdf(
   ActionOptions options = const ActionOptions(),
 }) async {
   if (files.length < action.minFiles) {
-    throw EngineFailed('"${action.label}" needs at least ${action.minFiles} files.');
+    throw Fail.needsFiles(action.label, action.minFiles);
   }
   await pdfrxFlutterInitialize();
   if (action.id == 'pdf-merge') return [await _merge(action, files, options.password)];
@@ -149,7 +152,7 @@ Future<PdfResult> _one(
         90 => PdfPageRotation.clockwise90,
         180 => PdfPageRotation.clockwise180,
         270 => PdfPageRotation.clockwise270,
-        _ => throw EngineFailed('PDFs rotate by 90, 180 or 270, not $degrees.'),
+        _ => throw Fail.pdfRotate(degrees),
       };
       document.pages = [for (final page in document.pages) page.rotatedBy(by)];
       final bytes = await document.encodePdf();
@@ -157,7 +160,7 @@ Future<PdfResult> _one(
     case 'pdf-compress':
       return _compress(action, file, document, step);
     case 'pdf-remove-password':
-      if (!isPdfLocked(file.bytes)) throw EngineFailed('${file.name} has no password to remove.');
+      if (!isPdfLocked(file.bytes)) throw Fail.noPasswordToRemove(file.name);
       final bytes = await document.encodePdf(removeSecurity: true);
       return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes));
   }
@@ -181,7 +184,7 @@ Future<PdfResult> _compress(
       return PdfResult(PortableFile(_name(action, file.name, 'pdf'), bytes), note: _picturesNote);
     }
   }
-  throw const EngineFailed('This PDF is already as small as it can usefully get.');
+  throw Fail.pdfAsSmall;
 }
 
 /// Keeps the PDF as it is if it already fits. Otherwise shrinks it, going straight to the first
@@ -205,10 +208,7 @@ Future<PdfResult> _fit(
     final bytes = await _asPictures(file, document, dpi, quality, step);
     if (bytes.length <= limit) return PdfResult(PortableFile(name, bytes), note: _picturesNote);
   }
-  throw EngineFailed(
-    '${total == 1 ? 'This page has' : 'These $total pages have'} too much in them to fit '
-    '"${action.label}" and still be readable. Try a larger limit, or Compress.',
-  );
+  throw Fail.pagesTooFull(total, action.label);
 }
 
 /// Roughly how big the whole PDF would be, from pages spread through it.
@@ -281,7 +281,7 @@ Future<Uint8List> _asPictures(
     for (var i = 0; i < total; i++) {
       final page = document.pages[i];
       final picture = await _draw(page, dpi);
-      if (picture == null) throw EngineFailed('Page ${i + 1} of ${file.name} could not be drawn.');
+      if (picture == null) throw Fail.pageNotDrawn(i + 1, file.name);
       await _breathe();
       pages.add(
         await PdfDocument.createFromJpegData(
@@ -293,7 +293,7 @@ Future<Uint8List> _asPictures(
       );
       step((i + 1) / total);
     }
-    if (pages.isEmpty) throw EngineFailed('${file.name} has no pages.');
+    if (pages.isEmpty) throw Fail.noPages(file.name);
     final result = await PdfDocument.createNew(sourceName: _sourceName('shrunk'));
     try {
       result.pages = [for (final page in pages) page.pages.first];
@@ -318,11 +318,11 @@ Future<PdfResult> _toPictures(
   final extension = jpeg ? 'jpg' : 'png';
   final stem = splitFileName(file.name).stem;
   final total = document.pages.length;
-  if (total == 0) throw EngineFailed('${file.name} has no pages.');
+  if (total == 0) throw Fail.noPages(file.name);
   final pictures = <String, Uint8List>{};
   for (var i = 0; i < total; i++) {
     final picture = await _draw(document.pages[i], _pictureDpi, shrinking: false);
-    if (picture == null) throw EngineFailed('Page ${i + 1} of ${file.name} could not be drawn.');
+    if (picture == null) throw Fail.pageNotDrawn(i + 1, file.name);
     await _breathe();
     pictures['$stem page ${i + 1}.$extension'] = jpeg
         ? img.encodeJpg(picture, quality: 90)
@@ -372,7 +372,7 @@ Future<PdfResult> _toDocx(
   void Function(double) step,
 ) async {
   final total = document.pages.length;
-  if (total == 0) throw EngineFailed('${file.name} has no pages.');
+  if (total == 0) throw Fail.noPages(file.name);
   final blocks = <DocxBlock>[];
   var scanned = 0;
   for (var i = 0; i < total; i++) {
@@ -394,7 +394,7 @@ Future<PdfResult> _toDocx(
       );
     } else {
       final picture = await _draw(page, _pictureDpi);
-      if (picture == null) throw EngineFailed('Page ${i + 1} of ${file.name} could not be drawn.');
+      if (picture == null) throw Fail.pageNotDrawn(i + 1, file.name);
       scanned++;
       blocks.add(
         DocxPicture(
@@ -410,13 +410,11 @@ Future<PdfResult> _toDocx(
   }
   final String note;
   if (scanned == total) {
-    note = 'This PDF is scanned, so its pages came in as pictures and can\'t be edited as text.';
+    note = deviceWords.noteScanned;
   } else if (scanned > 0) {
-    note =
-        '$scanned of $total pages are mostly pictures, so they came in that way. On the others, '
-        'pictures, tables and exact layout aren\'t kept.';
+    note = deviceWords.noteSomePictures(scanned, total);
   } else {
-    note = 'The text can be edited. Pictures, tables and exact layout aren\'t kept.';
+    note = deviceWords.noteTextEditable;
   }
   return PdfResult(PortableFile(_name(action, file.name, 'docx'), buildDocx(blocks)), note: note);
 }
@@ -429,7 +427,7 @@ Future<PdfResult> _split(
 ) async {
   final total = document.pages.length;
   if (total < 2) {
-    throw EngineFailed('${file.name} has only one page, so there is nothing to split.');
+    throw Fail.onePage(file.name);
   }
   final stem = splitFileName(file.name).stem;
   final pages = <String, Uint8List>{};

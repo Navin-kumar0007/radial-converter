@@ -81,12 +81,19 @@ class ActionOptions {
 }
 
 /// An engine could not do the job. [message] is written for the user; [details] is what
-/// the engine said, for the Copy details button.
+/// the engine said, for the Copy details button. [key] and [args] say which message it is, from
+/// `Fail`, so it can be translated; [message] is the English.
 class EngineFailed implements Exception {
-  const EngineFailed(this.message, {this.details = ''});
+  const EngineFailed(this.message, {this.details = '', this.key, this.args = const {}});
 
   final String message;
   final String details;
+  final String? key;
+  final Map<String, String> args;
+
+  /// The same failure, with what the engine said.
+  EngineFailed withDetails(String details) =>
+      EngineFailed(message, details: details, key: key, args: args);
 
   @override
   String toString() => details.isEmpty ? message : '$message\n$details';
@@ -95,7 +102,12 @@ class EngineFailed implements Exception {
 /// A file is locked and no password given opens it, so the app can ask. A wrong password and none
 /// at all look the same from here.
 class PasswordNeeded extends EngineFailed {
-  PasswordNeeded(this.fileName) : super('$fileName has a password, so it wasn\'t opened.');
+  PasswordNeeded(this.fileName)
+    : super(
+        '$fileName has a password, so it wasn\'t opened.',
+        key: 'passwordNeeded',
+        args: {'name': fileName},
+      );
 
   final String fileName;
 }

@@ -56,8 +56,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 601 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 297 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 605 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 309 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -185,8 +185,12 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - Languages: English and Hindi, following the device (`app/lib/l10n/app_*.arb`, `flutter gen-l10n` writes `words*.dart`,
   checked in). `context.words` on screen, `deviceWords` where there's no screen, such as the Shift-drag menu. Action
   labels stay English in `core/` and in history, and `actionLabel` translates them by their English text; a test fails
-  if a catalogue label with words has no translation. Format and product names stay as they are. Engine failure
-  messages are still English. Android 13+ and macOS can pick a language per app.
+  if a catalogue label with words has no translation. Format and product names stay as they are. Android 13+ and macOS
+  can pick a language per app.
+- Failures: every one comes from `Fail` in `core/lib/src/failures.dart`, with a key and its blanks beside the English.
+  The app shows `failureText`, which translates by key and falls back to the English. Workers (`*_worker.js`,
+  `convert_worker.dart`) and `MediaEngine.kt` (`Said`) send the key and blanks too. Add a new failure to `Fail` and to
+  both ARB files as `fail<Key>`: a test fails if Hindi lacks any key in `failures.dart`.
 - Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. `app/tool/build_site.sh`
   puts the web app under `/app/`. Not hosted yet, as that needs the owner's account. Download links need a published release.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
@@ -252,8 +256,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: estimated size on hover, outer ring. Hindi for engine messages (`EngineFailed` text from `core/` and the
-   engines), which needs codes rather than English sentences. A native speaker should review `app_hi.arb`.
+6. Menu: estimated size on hover, outer ring. A native speaker should review `app_hi.arb`.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

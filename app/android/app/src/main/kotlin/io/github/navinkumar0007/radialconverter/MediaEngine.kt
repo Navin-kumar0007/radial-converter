@@ -58,6 +58,15 @@ private const val UNPACK_BUFFER = 1L shl 20
 private const val UNPACK_MOST_FILES = 100000
 
 /**
+ * A failure for the app. [key] and [args] name the message in core/lib/src/failures.dart, so the app
+ * can show it in its own language; [english] is used if it can't.
+ */
+private class Said(val key: String, val english: String, val args: Map<String, String> = emptyMap())
+
+private fun MethodChannel.Result.fail(said: Said, details: String? = null) =
+    error("failed", said.english, mapOf("key" to said.key, "args" to said.args, "details" to details))
+
+/**
  * Carries out the plans in `core/lib/src/media_plan.dart` with Media3 Transformer, which uses the
  * phone's own encoders. Results wait in the app's cache until the user saves them. Originals are
  * only read.
@@ -127,7 +136,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     /** Writes a HEIC photo out as a PNG, upright, for the picture engine to read. */
     private fun decodePhoto(path: String, result: MethodChannel.Result) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            result.error("failed", "HEIC photos need Android 9 or newer.", null)
+            result.fail(Said("heicNeedsAndroid9", "HEIC photos need Android 9 or newer."))
             return
         }
         thread {
@@ -150,7 +159,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             }
             main.post {
                 if (png == null) {
-                    result.error("failed", "This photo could not be read. It may be damaged.", null)
+                    result.fail(Said("photoDamaged", "This photo could not be read. It may be damaged."))
                 } else {
                     result.success(mapOf("path" to png))
                 }
@@ -162,14 +171,14 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     private fun shareFile(call: MethodCall, result: MethodChannel.Result) {
         val file = File(call.argument<String>("path")!!)
         if (!file.exists()) {
-            result.error("failed", "${file.name} is no longer here to share.", null)
+            result.fail(Said("goneBeforeSharing", "${file.name} is no longer here to share.", mapOf("name" to file.name)))
             return
         }
         val uri = try {
             FileProvider.getUriForFile(activity, "${activity.packageName}.results", file)
         } catch (error: IllegalArgumentException) {
             Log.w(TAG, "Could not share a file", error)
-            result.error("failed", "${file.name} could not be shared.", null)
+            result.fail(Said("cantShare", "${file.name} could not be shared.", mapOf("name" to file.name)))
             return
         }
         if (call.argument<Boolean>("dryRun") == true) {
@@ -187,11 +196,11 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             result.success(uri.toString())
         } catch (error: ActivityNotFoundException) {
             Log.w(TAG, "Nothing can take a shared file", error)
-            result.error("failed", "No app here can take this file.", null)
+            result.fail(Said("noAppTakesIt", "No app here can take this file."))
         }
     }
 
-    private class UnpackFailed(message: String) : Exception(message)
+    private class UnpackFailed(val said: Said) : Exception(said.english)
 
     /**
      * Unpacks a 7z or RAR into a ZIP in the cache, for the archive engine to take from there. Only
@@ -202,22 +211,22 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
         thread {
             val name = File(path).name
             val zip = File(File(outputs, "archive-${System.nanoTime()}").apply { mkdirs() }, "unpacked.zip")
-            var failure: String? = null
+            var failure: Said? = null
             try {
                 writeUnpacked(path, name, zip, limit)
             } catch (error: UnpackFailed) {
-                failure = error.message
+                failure = error.said
             } catch (error: ArchiveException) {
                 Log.w(TAG, "Could not read an archive", error)
                 failure = describeFailure(name, error.message)
             } catch (error: IOException) {
                 Log.w(TAG, "Could not unpack an archive", error)
-                failure = "$name could not be read."
+                failure = Said("cantRead", "$name could not be read.", mapOf("name" to name))
             }
             if (failure != null) zip.parentFile?.deleteRecursively()
             main.post {
                 if (failure != null) {
-                    result.error("failed", failure, null)
+                    result.fail(failure)
                 } else {
                     result.success(mapOf("path" to zip.path))
                 }
@@ -226,14 +235,18 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     }
 
     private fun lockedMessage(name: String) =
-        "$name has a password. Locked 7z and RAR files can't be opened yet."
+        Said("lockedArchive", "$name has a password. Locked 7z and RAR files can't be opened yet.", mapOf("name" to name))
 
-    private fun describeFailure(name: String, reason: String?): String {
+    private fun describeFailure(name: String, reason: String?): Said {
         val lower = reason.orEmpty().lowercase()
         if (lower.contains("encrypt") || lower.contains("passphrase") || lower.contains("password")) {
             return lockedMessage(name)
         }
-        return "$name could not be read. It may be damaged, or one part of several."
+        return Said(
+            "damagedOrPart",
+            "$name could not be read. It may be damaged, or one part of several.",
+            mapOf("name" to name),
+        )
     }
 
     private fun writeUnpacked(path: String, name: String, zip: File, limit: Long) {
@@ -260,7 +273,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     if (ArchiveEntry.isEncrypted(entry)) throw UnpackFailed(lockedMessage(name))
                     if (ArchiveEntry.filetype(entry) != ArchiveEntry.AE_IFREG) continue
                     if (ArchiveEntry.hardlink(entry) != null) continue
-                    if (++files > UNPACK_MOST_FILES) throw UnpackFailed("$name holds too many files to open here.")
+                    if (++files > UNPACK_MOST_FILES) throw UnpackFailed(Said("tooManyInArchive", "$name holds too many files to open here.", mapOf("name" to name)))
                     // A name that can't be read mustn't lose the file.
                     val entryName = ArchiveEntry.pathnameUtf8(entry).takeUnless { it.isNullOrEmpty() }
                         ?: ArchiveEntry.pathname(entry)?.toString(Charsets.UTF_8).takeUnless { it.isNullOrEmpty() }
@@ -279,7 +292,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                         val count = buffer.remaining()
                         if (count == 0) break
                         total += count
-                        if (total > limit) throw UnpackFailed("$name is too large to open here.")
+                        if (total > limit) throw UnpackFailed(Said("tooLargeHere", "$name is too large to open here.", mapOf("name" to name)))
                         buffer.get(bytes, 0, count)
                         out.write(bytes, 0, count)
                         written += count
@@ -292,7 +305,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     out.closeEntry()
                 }
             }
-            if (files == 0) throw UnpackFailed("$name has no files in it.")
+            if (files == 0) throw UnpackFailed(Said("emptyArchive", "$name has no files in it.", mapOf("name" to name)))
         } finally {
             Archive.readFree(archive)
         }
@@ -312,7 +325,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             }
             main.post {
                 if (jpeg == null) {
-                    result.error("failed", "This video has no picture to show here.", null)
+                    result.fail(Said("videoNoPicture", "This video has no picture to show here."))
                 } else {
                     result.success(jpeg)
                 }
@@ -349,7 +362,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             }
             main.post {
                 if (info == null) {
-                    result.error("failed", "This file could not be read. It may be damaged.", null)
+                    result.fail(Said("fileDamaged", "This file could not be read. It may be damaged."))
                 } else {
                     result.success(info)
                 }
@@ -433,7 +446,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             Log.w(TAG, "Could not start", error)
             finish(id)
             folder.deleteRecursively()
-            result.error("failed", "This file could not be converted.", null)
+            result.fail(Said("notConverted", "This file could not be converted."))
         }
     }
 
@@ -487,7 +500,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                     if (finish(id) == null) return
                     Log.w(TAG, exportException.errorCodeName, exportException)
                     folder.deleteRecursively()
-                    result.error("failed", plainMessage(exportException), exportException.errorCodeName)
+                    result.fail(plainMessage(exportException), exportException.errorCodeName)
                 }
             })
             .build()
@@ -527,18 +540,18 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             .build()
     }
 
-    private fun plainMessage(error: ExportException): String {
+    private fun plainMessage(error: ExportException): Said {
         return when (error.errorCode) {
             ExportException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
             ExportException.ERROR_CODE_DECODER_INIT_FAILED ->
-                "This phone can't read the video or sound in this file."
+                Said("phoneCantRead", "This phone can't read the video or sound in this file.")
             ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED,
             ExportException.ERROR_CODE_ENCODER_INIT_FAILED ->
-                "This phone can't make this kind of file at this size."
+                Said("phoneCantMake", "This phone can't make this kind of file at this size.")
             ExportException.ERROR_CODE_IO_FILE_NOT_FOUND,
             ExportException.ERROR_CODE_IO_NO_PERMISSION ->
-                "This file could not be read. It may have moved."
-            else -> "This file could not be converted."
+                Said("fileMoved", "This file could not be read. It may have moved.")
+            else -> Said("notConverted", "This file could not be converted.")
         }
     }
 
@@ -563,7 +576,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     /** Lets the user choose where a result goes, then copies it there piece by piece. */
     private fun save(call: MethodCall, result: MethodChannel.Result) {
         if (pendingSave != null) {
-            result.error("failed", "Finish saving the other file first.", null)
+            result.fail(Said("finishSavingFirst", "Finish saving the other file first."))
             return
         }
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
@@ -575,7 +588,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             activity.startActivityForResult(intent, SAVE_REQUEST)
         } catch (_: ActivityNotFoundException) {
             pendingSave = null
-            result.error("failed", "This phone has no way to choose where to save.", null)
+            result.fail(Said("noSaveChooser", "This phone has no way to choose where to save."))
         }
     }
 
@@ -608,7 +621,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 if (saved) {
                     pending.result.success(true)
                 } else {
-                    pending.result.error("failed", "This file could not be saved.", null)
+                    pending.result.fail(Said("notSaved", "This file could not be saved."))
                 }
             }
         }

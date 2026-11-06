@@ -49,12 +49,18 @@ extension type WorkerReply._(JSObject _) implements JSObject {
     JSNumber? progress,
     JSArray<WorkerFile>? files,
     JSString? failure,
+    JSString? key,
+    JSObject? args,
     JSString? passwordNeeded,
   });
 
   external JSNumber? get progress;
   external JSArray<WorkerFile>? get files;
   external JSString? get failure;
+
+  /// Which message from `Fail` [failure] is, and what fills its blanks, so it can be translated.
+  external JSString? get key;
+  external JSObject? get args;
 
   /// The name of a locked file that no password given opens.
   external JSString? get passwordNeeded;

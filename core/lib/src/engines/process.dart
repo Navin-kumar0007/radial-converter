@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../action_options.dart';
 import '../job_queue.dart';
+import '../failures.dart';
 
 /// How much of an engine's error output is kept.
 const _maxDetails = 8 * 1024;
@@ -19,7 +20,7 @@ Future<String> runTool(
   String? stdinText,
   String? workingDirectory,
   void Function(String line)? onLine,
-  String failure = 'This file could not be converted.',
+  EngineFailed failure = Fail.notConverted,
 }) async {
   context.throwIfCancelled();
   final process = await Process.start(executable, arguments, workingDirectory: workingDirectory);
@@ -44,6 +45,6 @@ Future<String> runTool(
   await Future.wait(done);
 
   context.throwIfCancelled();
-  if (exitCode != 0) throw EngineFailed(failure, details: errors.toString().trim());
+  if (exitCode != 0) throw failure.withDetails(errors.toString().trim());
   return output.toString();
 }

@@ -4,6 +4,7 @@ import 'action_options.dart';
 import 'actions.dart';
 import 'file_kind.dart';
 import 'size_target.dart';
+import 'failures.dart';
 
 /// What an engine found out about a video or audio file.
 class MediaInfo {
@@ -176,11 +177,11 @@ List<MediaPlan> planMedia(
   ActionOptions options = const ActionOptions(),
 }) {
   if (!canPlanMedia(action, kind)) {
-    throw EngineFailed('"${action.label}" can\'t use this file.');
+    throw Fail.cantUseFile(action.label);
   }
   final output = action.outputFor(kind);
   final audioOnly = _audioOutputs.contains(output);
-  if (audioOnly && !info.hasAudio) throw const EngineFailed('This video has no sound.');
+  if (audioOnly && !info.hasAudio) throw Fail.noSound;
 
   final videoCodec = output == FileKind.webm ? 'vp9' : 'avc';
   final audioCodec = switch (output) {
@@ -238,16 +239,16 @@ List<MediaPlan> planMedia(
     case 'video-rotate':
       final degrees = options.degrees ?? 90;
       if (degrees != 90 && degrees != 180 && degrees != 270) {
-        throw EngineFailed('Videos rotate by 90, 180 or 270, not $degrees.');
+        throw Fail.videoRotate(degrees);
       }
       return [encode(degrees: degrees)];
     case 'video-trim':
     case 'audio-trim':
       final start = options.startSeconds;
       final end = options.endSeconds;
-      if (start == null && end == null) throw const EngineFailed('Choose where to trim.');
+      if (start == null && end == null) throw Fail.chooseTrim;
       if ((end ?? info.seconds) <= (start ?? 0)) {
-        throw const EngineFailed('The trim leaves nothing.');
+        throw Fail.trimLeavesNothing;
       }
       return [
         MediaPlan(
@@ -266,7 +267,7 @@ List<MediaPlan> planMedia(
     case 'fit-email-video':
       return _toSize(options.targetMb ?? action.maxBytes! / (1024 * 1024), info, encode, null);
   }
-  throw EngineFailed('"${action.label}" is not available yet.');
+  throw Fail.notYet(action.label);
 }
 
 List<MediaPlan> _toSize(
@@ -275,7 +276,7 @@ List<MediaPlan> _toSize(
   MediaPlan Function({int? kbps, int? width, int? height, int? degrees}) encode,
   ({int width, int height})? size,
 ) {
-  if (info.seconds <= 0) throw const EngineFailed('This video\'s length could not be read.');
+  if (info.seconds <= 0) throw Fail.lengthUnknown;
   final plans = <MediaPlan>[];
   for (final margin in _sizeMargins) {
     final kbps = videoKbpsForTarget(
@@ -288,7 +289,7 @@ List<MediaPlan> _toSize(
     }
   }
   if (plans.isEmpty) {
-    throw EngineFailed('This video is too long to fit under ${targetMb.toStringAsFixed(0)} MB.');
+    throw Fail.tooLongToFit(targetMb.toStringAsFixed(0));
   }
   return plans;
 }

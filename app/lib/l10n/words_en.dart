@@ -531,4 +531,347 @@ class WordsEn extends Words {
 
   @override
   String get actionCompressFolder => 'Compress folder';
+
+  @override
+  String get failAVideoUnreadable => 'A video could not be read.';
+
+  @override
+  String get failAddPasswordNeedsOne => '\"Add password\" needs a password.';
+
+  @override
+  String failAnimated(Object name) {
+    return 'Animated pictures can\'t be changed here yet: $name.';
+  }
+
+  @override
+  String get failArchiveCantStart => '7z and RAR files could not start in this browser.';
+
+  @override
+  String failAudioFormat(Object format) {
+    return 'This audio format can\'t be written: $format.';
+  }
+
+  @override
+  String get failBrowserCantMake => 'This browser can\'t convert this file to that format.';
+
+  @override
+  String get failBrowserCantRead =>
+      'This file could not be converted. It may use a format this browser can\'t read.';
+
+  @override
+  String failCantOpenOnComputer(Object name) {
+    return '$name can\'t be opened on this computer.';
+  }
+
+  @override
+  String failCantRead(Object name) {
+    return '$name could not be read.';
+  }
+
+  @override
+  String failCantSaveBeside(Object name) {
+    return '$name could not be saved beside the original.';
+  }
+
+  @override
+  String failCantShare(Object name) {
+    return '$name could not be shared.';
+  }
+
+  @override
+  String failCantUse(Object action, Object name) {
+    return '\"$action\" can\'t use $name.';
+  }
+
+  @override
+  String failCantUseFile(Object action) {
+    return '\"$action\" can\'t use this file.';
+  }
+
+  @override
+  String get failChooseTrim => 'Choose where to trim.';
+
+  @override
+  String get failCropNeeded => '\"Crop\" needs a crop area.';
+
+  @override
+  String failDamaged(Object name) {
+    return '$name could not be read. It may be damaged.';
+  }
+
+  @override
+  String failDamagedOrLocked(Object name) {
+    return '$name could not be read. It may be damaged or have a password.';
+  }
+
+  @override
+  String failDamagedOrPart(Object name) {
+    return '$name could not be read. It may be damaged, or one part of several.';
+  }
+
+  @override
+  String failDamagedOrTooLarge(Object name) {
+    return '$name could not be read. It may be damaged, or too large.';
+  }
+
+  @override
+  String get failEditDoesntFit => 'That edit does not fit this picture.';
+
+  @override
+  String failEmptyArchive(Object name) {
+    return '$name has no files in it.';
+  }
+
+  @override
+  String get failFileDamaged => 'This file could not be read. It may be damaged.';
+
+  @override
+  String get failFileMoved => 'This file could not be read. It may have moved.';
+
+  @override
+  String get failFileUnreadable => 'This file could not be read.';
+
+  @override
+  String get failFinishSavingFirst => 'Finish saving the other file first.';
+
+  @override
+  String get failFormNeeded => '\"Form photo\" needs to know what the form wants.';
+
+  @override
+  String get failFormatNotYet => 'This format can\'t be written yet.';
+
+  @override
+  String failGoneBeforeSharing(Object name) {
+    return '$name is no longer here to share.';
+  }
+
+  @override
+  String get failHeicCantStart => 'HEIC photos could not start in this browser.';
+
+  @override
+  String get failHeicNeedsAndroid9 => 'HEIC photos need Android 9 or newer.';
+
+  @override
+  String get failLengthUnknown => 'This video\'s length could not be read.';
+
+  @override
+  String failLockedArchive(Object name) {
+    return '$name has a password. Locked 7z and RAR files can\'t be opened yet.';
+  }
+
+  @override
+  String failNeedsFiles(Object action, Object count) {
+    return '\"$action\" needs at least $count files.';
+  }
+
+  @override
+  String get failNoAppTakesIt => 'No app here can take this file.';
+
+  @override
+  String get failNoBitrate => 'WAV and FLAC have no bitrate setting. Try MP3 or M4A.';
+
+  @override
+  String get failNoFileMade => 'The engine finished without making a file.';
+
+  @override
+  String failNoPages(Object name) {
+    return '$name has no pages.';
+  }
+
+  @override
+  String failNoPasswordToRemove(Object name) {
+    return '$name has no password to remove.';
+  }
+
+  @override
+  String failNoPictureToShow(Object name) {
+    return '$name has no picture to show here.';
+  }
+
+  @override
+  String get failNoSaveChooser => 'This phone has no way to choose where to save.';
+
+  @override
+  String get failNoSound => 'This video has no sound.';
+
+  @override
+  String get failNoSubtitles => 'This file has no subtitles in it.';
+
+  @override
+  String failNotAPicture(Object name) {
+    return '$name could not be read as a picture.';
+  }
+
+  @override
+  String get failNotConverted => 'This file could not be converted.';
+
+  @override
+  String failNotFound(Object name) {
+    return '$name could not be found.';
+  }
+
+  @override
+  String get failNotSaved => 'This file could not be saved.';
+
+  @override
+  String failNotYet(Object action) {
+    return '\"$action\" is not available yet.';
+  }
+
+  @override
+  String failOnePage(Object name) {
+    return '$name has only one page, so there is nothing to split.';
+  }
+
+  @override
+  String failPageNotDrawn(Object page, Object name) {
+    return 'Page $page of $name could not be drawn.';
+  }
+
+  @override
+  String get failPagesFormat => 'Pages look like 1-3,7.';
+
+  @override
+  String failPagesTooFull(int count, Object action) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'These $count pages have too much in them to fit \"$action\" and still be readable. Try a larger limit, or Compress.',
+      one:
+          'This page has too much in it to fit \"$action\" and still be readable. Try a larger limit, or Compress.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String failPasswordNeeded(Object name) {
+    return '$name has a password, so it wasn\'t opened.';
+  }
+
+  @override
+  String get failPasswordUnusable => 'That password can\'t be used.';
+
+  @override
+  String get failPdfAsSmall => 'This PDF is already as small as it can usefully get.';
+
+  @override
+  String failPdfRotate(Object degrees) {
+    return 'PDFs rotate by 90, 180 or 270, not $degrees.';
+  }
+
+  @override
+  String failPdfShrinksTo(Object kb, Object limit) {
+    return 'This PDF only shrinks to $kb KB, above the $limit KB limit.';
+  }
+
+  @override
+  String get failPhoneCantMake => 'This phone can\'t make this kind of file at this size.';
+
+  @override
+  String get failPhoneCantRead => 'This phone can\'t read the video or sound in this file.';
+
+  @override
+  String get failPhotoDamaged => 'This photo could not be read. It may be damaged.';
+
+  @override
+  String failPictureRotate(Object degrees) {
+    return 'Pictures rotate by 90, 180 or 270, not $degrees.';
+  }
+
+  @override
+  String failPictureTooBig(Object action) {
+    return 'This picture could not be made small enough for \"$action\".';
+  }
+
+  @override
+  String get failPictureTooBigForForm =>
+      'This picture could not be made small enough for that size.';
+
+  @override
+  String failPointsOutside(Object name) {
+    return '$name has a file that points outside its folder, so it won\'t be opened.';
+  }
+
+  @override
+  String get failShiftNeeded => '\"Shift timing\" needs how far to shift.';
+
+  @override
+  String get failSmallestOverLargest => 'The smallest size allowed is more than the largest.';
+
+  @override
+  String get failSomethingWrong => 'Something went wrong. This file could not be converted.';
+
+  @override
+  String failTooLargeForDevice(Object name) {
+    return '$name is too large to open on this device.';
+  }
+
+  @override
+  String failTooLargeHere(Object name) {
+    return '$name is too large to open here.';
+  }
+
+  @override
+  String failTooLongToFit(Object size) {
+    return 'This video is too long to fit under $size MB.';
+  }
+
+  @override
+  String failTooManyInArchive(Object name) {
+    return '$name holds too many files to open here.';
+  }
+
+  @override
+  String failTooManyToSave(Object name, Object count, Object limit) {
+    return '$name has $count files, too many to save one at a time. The limit is $limit.';
+  }
+
+  @override
+  String failTooMuchDetail(Object kb, Object width, Object height) {
+    return 'This picture has too much detail to fit $kb KB at $width x $height.';
+  }
+
+  @override
+  String get failTrimLeavesNothing => 'The trim leaves nothing.';
+
+  @override
+  String failTryMp4(Object name) {
+    return '$name could not be read. Try MP4 or MOV.';
+  }
+
+  @override
+  String get failVideoCantStart => 'Video could not start in this browser.';
+
+  @override
+  String get failVideoNoPicture => 'This video has no picture to show here.';
+
+  @override
+  String failVideoRotate(Object degrees) {
+    return 'Videos rotate by 90, 180 or 270, not $degrees.';
+  }
+
+  @override
+  String failVideoTooBig(Object action) {
+    return 'This video could not be made small enough for \"$action\".';
+  }
+
+  @override
+  String get failWidthAndHeight => 'Give both a width and a height, or neither.';
+
+  @override
+  String get notePictures => 'Pages are now pictures, so text can\'t be selected.';
+
+  @override
+  String get noteScanned =>
+      'This PDF is scanned, so its pages came in as pictures and can\'t be edited as text.';
+
+  @override
+  String noteSomePictures(Object count, Object total) {
+    return '$count of $total pages are mostly pictures, so they came in that way. On the others, pictures, tables and exact layout aren\'t kept.';
+  }
+
+  @override
+  String get noteTextEditable =>
+      'The text can be edited. Pictures, tables and exact layout aren\'t kept.';
 }

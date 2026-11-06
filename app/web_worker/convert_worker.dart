@@ -66,8 +66,16 @@ Future<void> _handle(WorkerRequest request) async {
   } on PasswordNeeded catch (needed) {
     reply(WorkerReply(passwordNeeded: needed.fileName.toJS));
   } on EngineFailed catch (error) {
-    reply(WorkerReply(failure: error.message.toJS));
+    reply(
+      WorkerReply(
+        failure: error.message.toJS,
+        key: error.key?.toJS,
+        args: error.args.jsify() as JSObject?,
+      ),
+    );
   } catch (_) {
-    reply(WorkerReply(failure: 'Something went wrong. This file could not be converted.'.toJS));
+    reply(
+      WorkerReply(failure: Fail.somethingWrong.message.toJS, key: Fail.somethingWrong.key?.toJS),
+    );
   }
 }

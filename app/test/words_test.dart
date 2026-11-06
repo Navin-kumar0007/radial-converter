@@ -52,7 +52,72 @@ void main() {
     expect(actionLabel(wordsFor(const Locale('en')), 'Under 100 KB'), 'Under 100 KB');
   });
 
+  group('failures', failures);
+
   test('a language with no translation gets English', () {
     expect(wordsFor(const Locale('fr')).chooseFiles, 'Choose files');
+  });
+}
+
+void failures() {
+  final english = wordsFor(const Locale('en'));
+  final hindi = wordsFor(const Locale('hi'));
+  final catalogue = File('../core/lib/src/failures.dart').readAsStringSync();
+  final keys = {
+    for (final match in RegExp(r"(?:_say\(\s*|key: )'(\w+)'").allMatches(catalogue))
+      match.group(1)!,
+    'passwordNeeded',
+  };
+  const blanks = {
+    'name': 'a.zip',
+    'count': '3',
+    'limit': '50',
+    'action': 'Compress',
+    'degrees': '45',
+    'kb': '120',
+    'width': '600',
+    'height': '800',
+    'size': '16',
+    'page': '2',
+    'format': 'opus',
+  };
+
+  test('there are failures to check', () => expect(keys.length, greaterThan(70)));
+
+  test('every failure in core is said in Hindi', () {
+    for (final key in keys) {
+      final failure = EngineFailed('English', key: key, args: blanks);
+      final said = failureText(hindi, failure);
+      expect(said, isNot('English'), reason: key);
+      expect(said, isNot(contains('{')), reason: key);
+    }
+  });
+
+  test('the English says what core says', () {
+    for (final failure in [
+      Fail.cantRead('a.zip'),
+      Fail.tooManyToSave('a.zip', 80, 50),
+      Fail.pdfShrinksTo(300, 200),
+      Fail.needsFiles('Merge', 2),
+      Fail.tooLongToFit('16'),
+      Fail.noSound,
+      PasswordNeeded('a.pdf'),
+      Fail.pagesTooFull(3, 'Under 100 KB'),
+    ]) {
+      expect(failureText(english, failure), failure.message, reason: failure.key);
+    }
+  });
+
+  test('a page that is too full is one page, not "them"', () {
+    expect(failureText(english, Fail.pagesTooFull(1, 'Email')), startsWith('This page has'));
+  });
+
+  test('an action named in a failure is translated too', () {
+    expect(failureText(hindi, Fail.needsFiles('Merge', 2)), contains('"जोड़ें"'));
+  });
+
+  test('anything without a key stays as written', () {
+    expect(failureText(hindi, const EngineFailed('Already said.')), 'Already said.');
+    expect(failureText(hindi, const EngineFailed('Unknown.', key: 'nothing')), 'Unknown.');
   });
 }

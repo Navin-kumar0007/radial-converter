@@ -72,8 +72,25 @@ Future<T> _call<T>(String method, Map<String, Object?> arguments) async {
     return (await mediaChannel.invokeMethod<T>(method, arguments)) as T;
   } on PlatformException catch (error) {
     if (error.code == 'cancelled') throw const JobCancelled();
-    throw EngineFailed(error.message ?? 'This file could not be converted.');
+    throw failedOnPhone(error);
   }
+}
+
+/// What the phone said went wrong. MediaEngine.kt names which message from `Fail` it is, and what
+/// fills its blanks, so it can be shown in the app's language.
+EngineFailed failedOnPhone(PlatformException error) {
+  final said = error.details;
+  final english = error.message ?? Fail.notConverted.message;
+  if (said is! Map) return error.message == null ? Fail.notConverted : EngineFailed(english);
+  return EngineFailed(
+    english,
+    key: said['key'] as String?,
+    args: {
+      for (final MapEntry(:key, :value) in ((said['args'] as Map?) ?? const {}).entries)
+        '$key': '$value',
+    },
+    details: (said['details'] as String?) ?? '',
+  );
 }
 
 Future<void> _removeResult(String path) async {
@@ -108,7 +125,7 @@ Future<List<ConvertedFile>> convertMediaOnPhone(
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       final path = file.path;
-      if (path == null) throw EngineFailed('${file.name} could not be read.');
+      if (path == null) throw Fail.cantRead(file.name);
 
       final info = await probeOnPhone(path);
       final plans = planMedia(action, kinds[i], info, options: options);
@@ -161,7 +178,7 @@ Future<List<ConvertedFile>> convertMediaOnPhone(
         );
       }
       if (done == null) {
-        throw EngineFailed('This video could not be made small enough for "${action.label}".');
+        throw Fail.videoTooBig(action.label);
       }
       results.add(done);
     }

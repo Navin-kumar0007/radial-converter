@@ -38,7 +38,7 @@ Future<List<PortableFile>> convert(
       if (!done.isCompleted) done.completeError(PasswordNeeded(locked.toDart));
     } else if (failure != null) {
       worker.terminate();
-      if (!done.isCompleted) done.completeError(EngineFailed(failure.toDart));
+      if (!done.isCompleted) done.completeError(_failed(failure, reply.key, reply.args));
     } else if (outputs != null) {
       worker.terminate();
       if (!done.isCompleted) {
@@ -82,11 +82,24 @@ Future<List<PortableFile>> convert(
 extension type _PhotoReply._(JSObject _) implements JSObject {
   external JSUint8Array? get png;
   external JSString? get failure;
+  external JSString? get key;
+  external JSObject? get args;
+}
+
+/// What a worker said went wrong. Workers name which message from `Fail` it is, and what fills its
+/// blanks, so it can be shown in the app's language.
+EngineFailed _failed(JSString failure, JSString? key, JSObject? args) {
+  final blanks = (args?.dartify() as Map?) ?? const {};
+  return EngineFailed(
+    failure.toDart,
+    key: key?.toDart,
+    args: {for (final MapEntry(:key, :value) in blanks.entries) '$key': '$value'},
+  );
 }
 
 /// Reads a HEIC photo as a PNG, so the picture engine can take it from there.
 Future<Uint8List> decodeHeic(PickedFile file) async {
-  const cannotStart = EngineFailed('HEIC photos could not start in this browser.');
+  const cannotStart = Fail.heicCantStart;
   final done = Completer<Uint8List>();
   final web.Worker worker;
   try {
@@ -100,7 +113,10 @@ Future<Uint8List> decodeHeic(PickedFile file) async {
     if (png != null) {
       done.complete(png.toDart);
     } else {
-      done.completeError(EngineFailed(reply.failure?.toDart ?? 'This photo could not be read.'));
+      final failure = reply.failure;
+      done.completeError(
+        failure == null ? Fail.photoDamaged : _failed(failure, reply.key, reply.args),
+      );
     }
   }).toJS;
   worker.onerror = ((web.Event event) {
@@ -123,6 +139,8 @@ extension type _MediaReply._(JSObject _) implements JSObject {
   external web.Blob? get file;
   external JSNumber? get size;
   external JSString? get failure;
+  external JSString? get key;
+  external JSObject? get args;
   external JSBoolean? get cleaned;
 }
 
@@ -145,11 +163,9 @@ class _VideoWorker {
     }).toJS;
     _worker.onerror = ((web.Event event) {
       event.preventDefault();
-      _settle((pending) => pending.completeError(const EngineFailed(_cannotStart)));
+      _settle((pending) => pending.completeError(Fail.videoCantStart));
     }).toJS;
   }
-
-  static const _cannotStart = 'Video could not start in this browser.';
 
   final web.Worker _worker;
   Completer<_MediaReply>? _pending;
@@ -167,7 +183,7 @@ class _VideoWorker {
     _worker.postMessage(message.jsify());
     final reply = await pending.future;
     final failure = reply.failure;
-    if (failure != null) throw EngineFailed(failure.toDart);
+    if (failure != null) throw _failed(failure, reply.key, reply.args);
     return reply;
   }
 
@@ -202,6 +218,8 @@ void _download(web.Blob file, String name) {
 extension type _ArchiveReply._(JSObject _) implements JSObject {
   external JSArray<_ArchiveFile>? get files;
   external JSString? get failure;
+  external JSString? get key;
+  external JSObject? get args;
 }
 
 extension type _ArchiveFile._(JSObject _) implements JSObject {
@@ -211,9 +229,9 @@ extension type _ArchiveFile._(JSObject _) implements JSObject {
 
 /// A 7z or RAR unpacked into a ZIP, so the archive engine can take it from there.
 Future<Uint8List> unpackArchive(PickedFile file) async {
-  const cannotStart = EngineFailed('7z and RAR files could not start in this browser.');
+  const cannotStart = Fail.archiveCantStart;
   final url = file.webUrl;
-  if (url == null) throw const EngineFailed('This file could not be read.');
+  if (url == null) throw Fail.fileUnreadable;
   final done = Completer<Uint8List>();
   final web.Worker worker;
   try {
@@ -230,7 +248,10 @@ Future<Uint8List> unpackArchive(PickedFile file) async {
       ]);
       done.complete(zip.bytes);
     } else {
-      done.completeError(EngineFailed(reply.failure?.toDart ?? 'This file could not be read.'));
+      final failure = reply.failure;
+      done.completeError(
+        failure == null ? Fail.fileUnreadable : _failed(failure, reply.key, reply.args),
+      );
     }
   }).toJS;
   worker.onerror = ((web.Event event) {
@@ -248,7 +269,7 @@ Future<Uint8List> unpackArchive(PickedFile file) async {
 /// What is inside a video or audio file, read without changing it.
 Future<MediaInfo> probeMedia(PickedFile file) async {
   final url = file.webUrl;
-  if (url == null) throw const EngineFailed('This file could not be read.');
+  if (url == null) throw Fail.fileUnreadable;
   final worker = _VideoWorker();
   try {
     return _readInfo((await worker.send({'command': 'probe', 'url': url})).info!);
@@ -260,7 +281,7 @@ Future<MediaInfo> probeMedia(PickedFile file) async {
 /// One frame of a video, to show before trimming.
 Future<Uint8List> videoFrame(PickedFile file, double seconds) async {
   final url = file.webUrl;
-  if (url == null) throw const EngineFailed('This file could not be read.');
+  if (url == null) throw Fail.fileUnreadable;
   final worker = _VideoWorker();
   try {
     final reply = await worker.send({'command': 'frame', 'url': url, 'seconds': seconds});
@@ -287,7 +308,7 @@ Future<List<ConvertedFile>> convertMedia(
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       final url = file.webUrl;
-      if (url == null) throw const EngineFailed('This file could not be read.');
+      if (url == null) throw Fail.fileUnreadable;
 
       final probe = await worker.send({'command': 'probe', 'url': url});
       final info = _readInfo(probe.info!);
@@ -315,7 +336,7 @@ Future<List<ConvertedFile>> convertMedia(
         debugPrint('Attempt ${attempt + 1} came to $size bytes, over $limit. Aiming lower.');
       }
       if (done == null) {
-        throw EngineFailed('This video could not be made small enough for "${action.label}".');
+        throw Fail.videoTooBig(action.label);
       }
 
       final name = freeOutputName(

@@ -531,4 +531,346 @@ class WordsHi extends Words {
 
   @override
   String get actionCompressFolder => 'फ़ोल्डर का ZIP बनाएँ';
+
+  @override
+  String get failAVideoUnreadable => 'एक वीडियो पढ़ा नहीं जा सका।';
+
+  @override
+  String get failAddPasswordNeedsOne => '\"पासवर्ड लगाएँ\" के लिए पासवर्ड चाहिए।';
+
+  @override
+  String failAnimated(Object name) {
+    return 'चलती तस्वीरें अभी यहाँ नहीं बदली जा सकतीं: $name।';
+  }
+
+  @override
+  String get failArchiveCantStart => 'इस ब्राउज़र में 7z और RAR फ़ाइलें शुरू नहीं हो सकीं।';
+
+  @override
+  String failAudioFormat(Object format) {
+    return 'यह ऑडियो फ़ॉर्मैट नहीं बनाया जा सकता: $format।';
+  }
+
+  @override
+  String get failBrowserCantMake => 'यह ब्राउज़र इस फ़ाइल को उस फ़ॉर्मैट में नहीं बदल सकता।';
+
+  @override
+  String get failBrowserCantRead =>
+      'यह फ़ाइल बदली नहीं जा सकी। शायद इसका फ़ॉर्मैट यह ब्राउज़र नहीं पढ़ सकता।';
+
+  @override
+  String failCantOpenOnComputer(Object name) {
+    return '$name इस कंप्यूटर पर नहीं खुल सकती।';
+  }
+
+  @override
+  String failCantRead(Object name) {
+    return '$name पढ़ी नहीं जा सकी।';
+  }
+
+  @override
+  String failCantSaveBeside(Object name) {
+    return '$name को मूल फ़ाइल के पास सहेजा नहीं जा सका।';
+  }
+
+  @override
+  String failCantShare(Object name) {
+    return '$name शेयर नहीं की जा सकी।';
+  }
+
+  @override
+  String failCantUse(Object action, Object name) {
+    return '\"$action\" $name के साथ काम नहीं कर सकता।';
+  }
+
+  @override
+  String failCantUseFile(Object action) {
+    return '\"$action\" इस फ़ाइल के साथ काम नहीं कर सकता।';
+  }
+
+  @override
+  String get failChooseTrim => 'चुनें कि कहाँ से ट्रिम करना है।';
+
+  @override
+  String get failCropNeeded => '\"क्रॉप करें\" के लिए क्रॉप का हिस्सा चुनना होगा।';
+
+  @override
+  String failDamaged(Object name) {
+    return '$name पढ़ी नहीं जा सकी। शायद यह ख़राब है।';
+  }
+
+  @override
+  String failDamagedOrLocked(Object name) {
+    return '$name पढ़ी नहीं जा सकी। शायद यह ख़राब है या इस पर पासवर्ड है।';
+  }
+
+  @override
+  String failDamagedOrPart(Object name) {
+    return '$name पढ़ी नहीं जा सकी। शायद यह ख़राब है, या कई हिस्सों में से एक है।';
+  }
+
+  @override
+  String failDamagedOrTooLarge(Object name) {
+    return '$name पढ़ी नहीं जा सकी। शायद यह ख़राब है, या बहुत बड़ी है।';
+  }
+
+  @override
+  String get failEditDoesntFit => 'यह बदलाव इस तस्वीर पर नहीं बैठता।';
+
+  @override
+  String failEmptyArchive(Object name) {
+    return '$name में कोई फ़ाइल नहीं है।';
+  }
+
+  @override
+  String get failFileDamaged => 'यह फ़ाइल पढ़ी नहीं जा सकी। शायद यह ख़राब है।';
+
+  @override
+  String get failFileMoved => 'यह फ़ाइल पढ़ी नहीं जा सकी। शायद यह कहीं और चली गई है।';
+
+  @override
+  String get failFileUnreadable => 'यह फ़ाइल पढ़ी नहीं जा सकी।';
+
+  @override
+  String get failFinishSavingFirst => 'पहले दूसरी फ़ाइल को सहेजना पूरा करें।';
+
+  @override
+  String get failFormNeeded => '\"फ़ॉर्म फ़ोटो\" के लिए जानना ज़रूरी है कि फ़ॉर्म क्या माँगता है।';
+
+  @override
+  String get failFormatNotYet => 'यह फ़ॉर्मैट अभी नहीं बनाया जा सकता।';
+
+  @override
+  String failGoneBeforeSharing(Object name) {
+    return '$name अब शेयर करने के लिए यहाँ नहीं है।';
+  }
+
+  @override
+  String get failHeicCantStart => 'इस ब्राउज़र में HEIC फ़ोटो शुरू नहीं हो सकीं।';
+
+  @override
+  String get failHeicNeedsAndroid9 => 'HEIC फ़ोटो के लिए Android 9 या उससे नया चाहिए।';
+
+  @override
+  String get failLengthUnknown => 'इस वीडियो की लंबाई पढ़ी नहीं जा सकी।';
+
+  @override
+  String failLockedArchive(Object name) {
+    return '$name पर पासवर्ड है। लॉक की हुई 7z और RAR फ़ाइलें अभी नहीं खुल सकतीं।';
+  }
+
+  @override
+  String failNeedsFiles(Object action, Object count) {
+    return '\"$action\" के लिए कम से कम $count फ़ाइलें चाहिए।';
+  }
+
+  @override
+  String get failNoAppTakesIt => 'यहाँ कोई ऐप यह फ़ाइल नहीं ले सकता।';
+
+  @override
+  String get failNoBitrate => 'WAV और FLAC में बिटरेट की सेटिंग नहीं होती। MP3 या M4A आज़माएँ।';
+
+  @override
+  String get failNoFileMade => 'इंजन ने कोई फ़ाइल नहीं बनाई।';
+
+  @override
+  String failNoPages(Object name) {
+    return '$name में कोई पेज नहीं है।';
+  }
+
+  @override
+  String failNoPasswordToRemove(Object name) {
+    return '$name पर हटाने के लिए कोई पासवर्ड नहीं है।';
+  }
+
+  @override
+  String failNoPictureToShow(Object name) {
+    return '$name में यहाँ दिखाने के लिए कोई तस्वीर नहीं है।';
+  }
+
+  @override
+  String get failNoSaveChooser => 'इस फ़ोन में यह चुनने का कोई तरीका नहीं है कि फ़ाइल कहाँ सहेजें।';
+
+  @override
+  String get failNoSound => 'इस वीडियो में आवाज़ नहीं है।';
+
+  @override
+  String get failNoSubtitles => 'इस फ़ाइल में कोई सबटाइटल नहीं है।';
+
+  @override
+  String failNotAPicture(Object name) {
+    return '$name को तस्वीर की तरह पढ़ा नहीं जा सका।';
+  }
+
+  @override
+  String get failNotConverted => 'यह फ़ाइल बदली नहीं जा सकी।';
+
+  @override
+  String failNotFound(Object name) {
+    return '$name नहीं मिली।';
+  }
+
+  @override
+  String get failNotSaved => 'यह फ़ाइल सहेजी नहीं जा सकी।';
+
+  @override
+  String failNotYet(Object action) {
+    return '\"$action\" अभी उपलब्ध नहीं है।';
+  }
+
+  @override
+  String failOnePage(Object name) {
+    return '$name में सिर्फ़ एक पेज है, इसलिए अलग करने को कुछ नहीं है।';
+  }
+
+  @override
+  String failPageNotDrawn(Object page, Object name) {
+    return '$name का पेज $page बनाया नहीं जा सका।';
+  }
+
+  @override
+  String get failPagesFormat => 'पेज ऐसे लिखें: 1-3,7';
+
+  @override
+  String failPagesTooFull(int count, Object action) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'इन $count पेजों में इतना कुछ है कि ये पढ़ने लायक़ रहते हुए \"$action\" में नहीं आ सकते। बड़ी सीमा या \"छोटा करें\" आज़माएँ।',
+      one:
+          'इस पेज में इतना कुछ है कि यह पढ़ने लायक़ रहते हुए \"$action\" में नहीं आ सकता। बड़ी सीमा या \"छोटा करें\" आज़माएँ।',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String failPasswordNeeded(Object name) {
+    return '$name पर पासवर्ड है, इसलिए यह नहीं खोली गई।';
+  }
+
+  @override
+  String get failPasswordUnusable => 'यह पासवर्ड इस्तेमाल नहीं किया जा सकता।';
+
+  @override
+  String get failPdfAsSmall => 'यह PDF पहले से जितनी हो सकती है, उतनी छोटी है।';
+
+  @override
+  String failPdfRotate(Object degrees) {
+    return 'PDF 90, 180 या 270 डिग्री घूमती हैं, $degrees नहीं।';
+  }
+
+  @override
+  String failPdfShrinksTo(Object kb, Object limit) {
+    return 'यह PDF सिर्फ़ $kb KB तक छोटी होती है, जो $limit KB की सीमा से ज़्यादा है।';
+  }
+
+  @override
+  String get failPhoneCantMake => 'यह फ़ोन इस साइज़ पर इस तरह की फ़ाइल नहीं बना सकता।';
+
+  @override
+  String get failPhoneCantRead => 'यह फ़ोन इस फ़ाइल का वीडियो या आवाज़ नहीं पढ़ सकता।';
+
+  @override
+  String get failPhotoDamaged => 'यह फ़ोटो पढ़ी नहीं जा सकी। शायद यह ख़राब है।';
+
+  @override
+  String failPictureRotate(Object degrees) {
+    return 'तस्वीरें 90, 180 या 270 डिग्री घूमती हैं, $degrees नहीं।';
+  }
+
+  @override
+  String failPictureTooBig(Object action) {
+    return 'यह तस्वीर \"$action\" के लिए इतनी छोटी नहीं हो सकी।';
+  }
+
+  @override
+  String get failPictureTooBigForForm => 'यह तस्वीर उस साइज़ के लिए इतनी छोटी नहीं हो सकी।';
+
+  @override
+  String failPointsOutside(Object name) {
+    return '$name की एक फ़ाइल अपने फ़ोल्डर से बाहर की जगह बताती है, इसलिए इसे नहीं खोला जाएगा।';
+  }
+
+  @override
+  String get failShiftNeeded => '\"समय खिसकाएँ\" के लिए बताना होगा कि कितना खिसकाना है।';
+
+  @override
+  String get failSmallestOverLargest => 'सबसे छोटा साइज़, सबसे बड़े से ज़्यादा है।';
+
+  @override
+  String get failSomethingWrong => 'कुछ गड़बड़ हो गई। यह फ़ाइल बदली नहीं जा सकी।';
+
+  @override
+  String failTooLargeForDevice(Object name) {
+    return '$name इस डिवाइस पर खोलने के लिए बहुत बड़ी है।';
+  }
+
+  @override
+  String failTooLargeHere(Object name) {
+    return '$name यहाँ खोलने के लिए बहुत बड़ी है।';
+  }
+
+  @override
+  String failTooLongToFit(Object size) {
+    return 'यह वीडियो $size MB से कम में आने के लिए बहुत लंबा है।';
+  }
+
+  @override
+  String failTooManyInArchive(Object name) {
+    return '$name में यहाँ खोलने के लिए बहुत ज़्यादा फ़ाइलें हैं।';
+  }
+
+  @override
+  String failTooManyToSave(Object name, Object count, Object limit) {
+    return '$name में $count फ़ाइलें हैं, एक-एक करके सहेजने के लिए बहुत ज़्यादा। सीमा $limit है।';
+  }
+
+  @override
+  String failTooMuchDetail(Object kb, Object width, Object height) {
+    return 'इस तस्वीर में इतनी बारीकी है कि यह $width x $height पर $kb KB में नहीं आ सकती।';
+  }
+
+  @override
+  String get failTrimLeavesNothing => 'इस ट्रिम के बाद कुछ नहीं बचता।';
+
+  @override
+  String failTryMp4(Object name) {
+    return '$name पढ़ी नहीं जा सकी। MP4 या MOV आज़माएँ।';
+  }
+
+  @override
+  String get failVideoCantStart => 'इस ब्राउज़र में वीडियो शुरू नहीं हो सका।';
+
+  @override
+  String get failVideoNoPicture => 'इस वीडियो में यहाँ दिखाने के लिए कोई तस्वीर नहीं है।';
+
+  @override
+  String failVideoRotate(Object degrees) {
+    return 'वीडियो 90, 180 या 270 डिग्री घूमते हैं, $degrees नहीं।';
+  }
+
+  @override
+  String failVideoTooBig(Object action) {
+    return 'यह वीडियो \"$action\" के लिए इतना छोटा नहीं हो सका।';
+  }
+
+  @override
+  String get failWidthAndHeight => 'चौड़ाई और ऊँचाई दोनों दें, या कोई नहीं।';
+
+  @override
+  String get notePictures => 'पेज अब तस्वीरें हैं, इसलिए टेक्स्ट चुना नहीं जा सकता।';
+
+  @override
+  String get noteScanned =>
+      'यह PDF स्कैन की हुई है, इसलिए इसके पेज तस्वीरों के रूप में आए हैं और टेक्स्ट की तरह बदले नहीं जा सकते।';
+
+  @override
+  String noteSomePictures(Object count, Object total) {
+    return '$total में से $count पेज ज़्यादातर तस्वीरें हैं, इसलिए वे तस्वीरों के रूप में आए। बाक़ी पेजों पर तस्वीरें, टेबल और सटीक लेआउट नहीं रखे गए।';
+  }
+
+  @override
+  String get noteTextEditable =>
+      'टेक्स्ट बदला जा सकता है। तस्वीरें, टेबल और सटीक लेआउट नहीं रखे गए।';
 }

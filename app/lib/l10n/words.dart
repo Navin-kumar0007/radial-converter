@@ -1004,6 +1004,504 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Compress folder'**
   String get actionCompressFolder;
+
+  /// No description provided for @failAVideoUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'A video could not be read.'**
+  String get failAVideoUnreadable;
+
+  /// No description provided for @failAddPasswordNeedsOne.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Add password\" needs a password.'**
+  String get failAddPasswordNeedsOne;
+
+  /// No description provided for @failAnimated.
+  ///
+  /// In en, this message translates to:
+  /// **'Animated pictures can\'t be changed here yet: {name}.'**
+  String failAnimated(Object name);
+
+  /// No description provided for @failArchiveCantStart.
+  ///
+  /// In en, this message translates to:
+  /// **'7z and RAR files could not start in this browser.'**
+  String get failArchiveCantStart;
+
+  /// No description provided for @failAudioFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'This audio format can\'t be written: {format}.'**
+  String failAudioFormat(Object format);
+
+  /// No description provided for @failBrowserCantMake.
+  ///
+  /// In en, this message translates to:
+  /// **'This browser can\'t convert this file to that format.'**
+  String get failBrowserCantMake;
+
+  /// No description provided for @failBrowserCantRead.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be converted. It may use a format this browser can\'t read.'**
+  String get failBrowserCantRead;
+
+  /// No description provided for @failCantOpenOnComputer.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} can\'t be opened on this computer.'**
+  String failCantOpenOnComputer(Object name);
+
+  /// No description provided for @failCantRead.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read.'**
+  String failCantRead(Object name);
+
+  /// No description provided for @failCantSaveBeside.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be saved beside the original.'**
+  String failCantSaveBeside(Object name);
+
+  /// No description provided for @failCantShare.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be shared.'**
+  String failCantShare(Object name);
+
+  /// No description provided for @failCantUse.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{action}\" can\'t use {name}.'**
+  String failCantUse(Object action, Object name);
+
+  /// No description provided for @failCantUseFile.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{action}\" can\'t use this file.'**
+  String failCantUseFile(Object action);
+
+  /// No description provided for @failChooseTrim.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where to trim.'**
+  String get failChooseTrim;
+
+  /// No description provided for @failCropNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Crop\" needs a crop area.'**
+  String get failCropNeeded;
+
+  /// No description provided for @failDamaged.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read. It may be damaged.'**
+  String failDamaged(Object name);
+
+  /// No description provided for @failDamagedOrLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read. It may be damaged or have a password.'**
+  String failDamagedOrLocked(Object name);
+
+  /// No description provided for @failDamagedOrPart.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read. It may be damaged, or one part of several.'**
+  String failDamagedOrPart(Object name);
+
+  /// No description provided for @failDamagedOrTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read. It may be damaged, or too large.'**
+  String failDamagedOrTooLarge(Object name);
+
+  /// No description provided for @failEditDoesntFit.
+  ///
+  /// In en, this message translates to:
+  /// **'That edit does not fit this picture.'**
+  String get failEditDoesntFit;
+
+  /// No description provided for @failEmptyArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no files in it.'**
+  String failEmptyArchive(Object name);
+
+  /// No description provided for @failFileDamaged.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read. It may be damaged.'**
+  String get failFileDamaged;
+
+  /// No description provided for @failFileMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read. It may have moved.'**
+  String get failFileMoved;
+
+  /// No description provided for @failFileUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read.'**
+  String get failFileUnreadable;
+
+  /// No description provided for @failFinishSavingFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish saving the other file first.'**
+  String get failFinishSavingFirst;
+
+  /// No description provided for @failFormNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Form photo\" needs to know what the form wants.'**
+  String get failFormNeeded;
+
+  /// No description provided for @failFormatNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'This format can\'t be written yet.'**
+  String get failFormatNotYet;
+
+  /// No description provided for @failGoneBeforeSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is no longer here to share.'**
+  String failGoneBeforeSharing(Object name);
+
+  /// No description provided for @failHeicCantStart.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIC photos could not start in this browser.'**
+  String get failHeicCantStart;
+
+  /// No description provided for @failHeicNeedsAndroid9.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIC photos need Android 9 or newer.'**
+  String get failHeicNeedsAndroid9;
+
+  /// No description provided for @failLengthUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'This video\'s length could not be read.'**
+  String get failLengthUnknown;
+
+  /// No description provided for @failLockedArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has a password. Locked 7z and RAR files can\'t be opened yet.'**
+  String failLockedArchive(Object name);
+
+  /// No description provided for @failNeedsFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{action}\" needs at least {count} files.'**
+  String failNeedsFiles(Object action, Object count);
+
+  /// No description provided for @failNoAppTakesIt.
+  ///
+  /// In en, this message translates to:
+  /// **'No app here can take this file.'**
+  String get failNoAppTakesIt;
+
+  /// No description provided for @failNoBitrate.
+  ///
+  /// In en, this message translates to:
+  /// **'WAV and FLAC have no bitrate setting. Try MP3 or M4A.'**
+  String get failNoBitrate;
+
+  /// No description provided for @failNoFileMade.
+  ///
+  /// In en, this message translates to:
+  /// **'The engine finished without making a file.'**
+  String get failNoFileMade;
+
+  /// No description provided for @failNoPages.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no pages.'**
+  String failNoPages(Object name);
+
+  /// No description provided for @failNoPasswordToRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no password to remove.'**
+  String failNoPasswordToRemove(Object name);
+
+  /// No description provided for @failNoPictureToShow.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no picture to show here.'**
+  String failNoPictureToShow(Object name);
+
+  /// No description provided for @failNoSaveChooser.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no way to choose where to save.'**
+  String get failNoSaveChooser;
+
+  /// No description provided for @failNoSound.
+  ///
+  /// In en, this message translates to:
+  /// **'This video has no sound.'**
+  String get failNoSound;
+
+  /// No description provided for @failNoSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'This file has no subtitles in it.'**
+  String get failNoSubtitles;
+
+  /// No description provided for @failNotAPicture.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read as a picture.'**
+  String failNotAPicture(Object name);
+
+  /// No description provided for @failNotConverted.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be converted.'**
+  String get failNotConverted;
+
+  /// No description provided for @failNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be found.'**
+  String failNotFound(Object name);
+
+  /// No description provided for @failNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be saved.'**
+  String get failNotSaved;
+
+  /// No description provided for @failNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{action}\" is not available yet.'**
+  String failNotYet(Object action);
+
+  /// No description provided for @failOnePage.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has only one page, so there is nothing to split.'**
+  String failOnePage(Object name);
+
+  /// No description provided for @failPageNotDrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page} of {name} could not be drawn.'**
+  String failPageNotDrawn(Object page, Object name);
+
+  /// No description provided for @failPagesFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages look like 1-3,7.'**
+  String get failPagesFormat;
+
+  /// No description provided for @failPagesTooFull.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{This page has too much in it to fit \"{action}\" and still be readable. Try a larger limit, or Compress.} other{These {count} pages have too much in them to fit \"{action}\" and still be readable. Try a larger limit, or Compress.}}'**
+  String failPagesTooFull(int count, Object action);
+
+  /// No description provided for @failPasswordNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has a password, so it wasn\'t opened.'**
+  String failPasswordNeeded(Object name);
+
+  /// No description provided for @failPasswordUnusable.
+  ///
+  /// In en, this message translates to:
+  /// **'That password can\'t be used.'**
+  String get failPasswordUnusable;
+
+  /// No description provided for @failPdfAsSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF is already as small as it can usefully get.'**
+  String get failPdfAsSmall;
+
+  /// No description provided for @failPdfRotate.
+  ///
+  /// In en, this message translates to:
+  /// **'PDFs rotate by 90, 180 or 270, not {degrees}.'**
+  String failPdfRotate(Object degrees);
+
+  /// No description provided for @failPdfShrinksTo.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF only shrinks to {kb} KB, above the {limit} KB limit.'**
+  String failPdfShrinksTo(Object kb, Object limit);
+
+  /// No description provided for @failPhoneCantMake.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone can\'t make this kind of file at this size.'**
+  String get failPhoneCantMake;
+
+  /// No description provided for @failPhoneCantRead.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone can\'t read the video or sound in this file.'**
+  String get failPhoneCantRead;
+
+  /// No description provided for @failPhotoDamaged.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo could not be read. It may be damaged.'**
+  String get failPhotoDamaged;
+
+  /// No description provided for @failPictureRotate.
+  ///
+  /// In en, this message translates to:
+  /// **'Pictures rotate by 90, 180 or 270, not {degrees}.'**
+  String failPictureRotate(Object degrees);
+
+  /// No description provided for @failPictureTooBig.
+  ///
+  /// In en, this message translates to:
+  /// **'This picture could not be made small enough for \"{action}\".'**
+  String failPictureTooBig(Object action);
+
+  /// No description provided for @failPictureTooBigForForm.
+  ///
+  /// In en, this message translates to:
+  /// **'This picture could not be made small enough for that size.'**
+  String get failPictureTooBigForForm;
+
+  /// No description provided for @failPointsOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has a file that points outside its folder, so it won\'t be opened.'**
+  String failPointsOutside(Object name);
+
+  /// No description provided for @failShiftNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Shift timing\" needs how far to shift.'**
+  String get failShiftNeeded;
+
+  /// No description provided for @failSmallestOverLargest.
+  ///
+  /// In en, this message translates to:
+  /// **'The smallest size allowed is more than the largest.'**
+  String get failSmallestOverLargest;
+
+  /// No description provided for @failSomethingWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. This file could not be converted.'**
+  String get failSomethingWrong;
+
+  /// No description provided for @failTooLargeForDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is too large to open on this device.'**
+  String failTooLargeForDevice(Object name);
+
+  /// No description provided for @failTooLargeHere.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is too large to open here.'**
+  String failTooLargeHere(Object name);
+
+  /// No description provided for @failTooLongToFit.
+  ///
+  /// In en, this message translates to:
+  /// **'This video is too long to fit under {size} MB.'**
+  String failTooLongToFit(Object size);
+
+  /// No description provided for @failTooManyInArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} holds too many files to open here.'**
+  String failTooManyInArchive(Object name);
+
+  /// No description provided for @failTooManyToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has {count} files, too many to save one at a time. The limit is {limit}.'**
+  String failTooManyToSave(Object name, Object count, Object limit);
+
+  /// No description provided for @failTooMuchDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'This picture has too much detail to fit {kb} KB at {width} x {height}.'**
+  String failTooMuchDetail(Object kb, Object width, Object height);
+
+  /// No description provided for @failTrimLeavesNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'The trim leaves nothing.'**
+  String get failTrimLeavesNothing;
+
+  /// No description provided for @failTryMp4.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} could not be read. Try MP4 or MOV.'**
+  String failTryMp4(Object name);
+
+  /// No description provided for @failVideoCantStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Video could not start in this browser.'**
+  String get failVideoCantStart;
+
+  /// No description provided for @failVideoNoPicture.
+  ///
+  /// In en, this message translates to:
+  /// **'This video has no picture to show here.'**
+  String get failVideoNoPicture;
+
+  /// No description provided for @failVideoRotate.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos rotate by 90, 180 or 270, not {degrees}.'**
+  String failVideoRotate(Object degrees);
+
+  /// No description provided for @failVideoTooBig.
+  ///
+  /// In en, this message translates to:
+  /// **'This video could not be made small enough for \"{action}\".'**
+  String failVideoTooBig(Object action);
+
+  /// No description provided for @failWidthAndHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Give both a width and a height, or neither.'**
+  String get failWidthAndHeight;
+
+  /// No description provided for @notePictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages are now pictures, so text can\'t be selected.'**
+  String get notePictures;
+
+  /// No description provided for @noteScanned.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF is scanned, so its pages came in as pictures and can\'t be edited as text.'**
+  String get noteScanned;
+
+  /// No description provided for @noteSomePictures.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} pages are mostly pictures, so they came in that way. On the others, pictures, tables and exact layout aren\'t kept.'**
+  String noteSomePictures(Object count, Object total);
+
+  /// No description provided for @noteTextEditable.
+  ///
+  /// In en, this message translates to:
+  /// **'The text can be edited. Pictures, tables and exact layout aren\'t kept.'**
+  String get noteTextEditable;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -55,7 +55,7 @@ Future<String> saveBesideOriginal(String originalPath, PortableFile file) async 
     await part.rename(path);
   } on FileSystemException {
     if (part.existsSync()) part.deleteSync();
-    throw EngineFailed('$name could not be saved beside the original.');
+    throw Fail.cantSaveBeside(name);
   }
   return path;
 }

@@ -22,7 +22,15 @@ import {
 
 const prefix = 'radial-';
 
-class Plain extends Error {}
+// A failure written for the user. key and args name the message in core/lib/src/failures.dart, so
+// the app can show it in its own language.
+class Plain extends Error {
+  constructor(message, key, args = {}) {
+    super(message);
+    this.key = key;
+    this.args = args;
+  }
+}
 
 async function storage() {
   return navigator.storage.getDirectory();
@@ -56,12 +64,12 @@ async function frameAt(url, seconds) {
   try {
     const track = await input.getPrimaryVideoTrack();
     if (track === null || !(await track.canDecode())) {
-      throw new Plain('This video has no picture to show here.');
+      throw new Plain('This video has no picture to show here.', 'videoNoPicture');
     }
     const sink = new CanvasSink(track, { width: Math.min(480, track.displayWidth), poolSize: 1 });
     // Before the first frame there is none, so the first one stands in.
     const found = (await sink.getCanvas(seconds)) ?? (await sink.getCanvas(await track.getFirstTimestamp()));
-    if (found === null) throw new Plain('This video has no picture to show here.');
+    if (found === null) throw new Plain('This video has no picture to show here.', 'videoNoPicture');
     const blob = await found.canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
     return new Uint8Array(await blob.arrayBuffer());
   } finally {
@@ -85,7 +93,7 @@ function formatFor(extension) {
     case 'wav':
       return new WavOutputFormat();
     default:
-      throw new Plain('This format can\'t be written yet.');
+      throw new Plain('This format can\'t be written yet.', 'formatNotYet');
   }
 }
 
@@ -165,7 +173,7 @@ async function convert(url, plan) {
     const conversion = await Conversion.init(options);
     if (!conversion.isValid) {
       console.error('Discarded tracks', conversion.discardedTracks);
-      throw new Plain('This browser can\'t convert this file to that format.');
+      throw new Plain('This browser can\'t convert this file to that format.', 'browserCantMake');
     }
     conversion.onProgress = (progress) => self.postMessage({ progress });
     await conversion.execute();
@@ -205,10 +213,13 @@ self.onmessage = async ({ data }) => {
     }
   } catch (error) {
     console.error(error);
-    self.postMessage({
-      failure: error instanceof Plain
-        ? error.message
-        : 'This file could not be converted. It may use a format this browser can\'t read.',
-    });
+    self.postMessage(
+      error instanceof Plain
+        ? { failure: error.message, key: error.key, args: error.args }
+        : {
+            failure: 'This file could not be converted. It may use a format this browser can\'t read.',
+            key: 'browserCantRead',
+          },
+    );
   }
 };
