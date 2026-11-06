@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/shared_files.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +96,7 @@ void main() {
     Future<void> pump(WidgetTester tester) {
       return tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => const [],
             saveFile: (file) async => const SavedAs(),

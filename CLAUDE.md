@@ -182,6 +182,11 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   zip, APKs, the web app, the LGPL source and checksums. See `docs/RELEASING.md`. The installer and disk image are also made
   and tried on every push. APKs say `TEST-KEY` until the owner sets up a signing key. `--no-shrink` is deliberate: R8 can't see
   what native code calls.
+- Languages: English and Hindi, following the device (`app/lib/l10n/app_*.arb`, `flutter gen-l10n` writes `words*.dart`,
+  checked in). `context.words` on screen, `deviceWords` where there's no screen, such as the Shift-drag menu. Action
+  labels stay English in `core/` and in history, and `actionLabel` translates them by their English text; a test fails
+  if a catalogue label with words has no translation. Format and product names stay as they are. Engine failure
+  messages are still English. Android 13+ and macOS can pick a language per app.
 - Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. `app/tool/build_site.sh`
   puts the web app under `/app/`. Not hosted yet, as that needs the owner's account. Download links need a published release.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
@@ -247,7 +252,8 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: estimated size on hover, outer ring. Move text to ARB files with Hindi.
+6. Menu: estimated size on hover, outer ring. Hindi for engine messages (`EngineFailed` text from `core/` and the
+   engines), which needs codes rather than English sentences. A native speaker should review `app_hi.arb`.
 7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
    when the real name is chosen.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

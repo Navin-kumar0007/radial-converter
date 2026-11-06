@@ -6,6 +6,7 @@ import 'package:radial_core/radial_core.dart';
 import 'android_media.dart';
 import 'picked_file.dart';
 import 'shift_drag_native.dart';
+import 'words.dart';
 
 /// Whether a result can be dragged out to another app. Phones have no dragging between apps.
 bool get canDragOut => Platform.isMacOS || Platform.isWindows;
@@ -43,7 +44,7 @@ Future<String> _fileFor(ConvertedFile output, Future<String> Function() newFolde
   final existing = output.savedPath ?? output.cachedPath;
   if (existing != null) return existing;
   final inMemory = output.inMemory;
-  if (inMemory == null) throw EngineFailed('${output.name} can\'t be handed over.');
+  if (inMemory == null) throw EngineFailed(deviceWords.cantHandOver(output.name));
   // Its own folder, so it keeps its name even beside another of the same name.
   final path = p.join(await newFolder(), p.basename(output.name));
   await File(path).writeAsBytes(inMemory.bytes, flush: true);
@@ -82,25 +83,27 @@ void showChipAtCursor(List<String> paths) {
 bool get canUndoSaved => Platform.isMacOS || Platform.isWindows;
 
 /// What the place results go when undone is called here.
-String get trashName => Platform.isWindows ? 'the Recycle Bin' : 'the Trash';
+String trashName(Words words) => Platform.isWindows ? words.trashWindows : words.trashMac;
 
 /// Moves a result to the Trash, where it can still be got back. Never deletes anything itself. It
 /// refuses if the file isn't the size it was left at, as that means it isn't what was made any more.
 Future<void> moveResultToTrash(String path, int expectedSize) async {
   final file = File(path);
-  if (!file.existsSync()) throw EngineFailed('${p.basename(path)} is no longer there.');
+  if (!file.existsSync()) throw EngineFailed(deviceWords.noLongerThere(p.basename(path)));
   if (file.lengthSync() != expectedSize) {
-    throw EngineFailed('${p.basename(path)} has changed since, so it was left alone.');
+    throw EngineFailed(deviceWords.changedSince(p.basename(path)));
   }
   final moved = await shiftDragChannel.invokeMethod<bool>('moveToTrash', {
     'paths': [path],
   });
-  if (moved != true) throw EngineFailed('${p.basename(path)} could not be moved to $trashName.');
+  if (moved != true) {
+    throw EngineFailed(deviceWords.couldNotMove(p.basename(path), trashName(deviceWords)));
+  }
 }
 
 /// Opens the folder holding a result, with it selected.
 Future<void> showResultInFolder(String path) async {
-  if (!File(path).existsSync()) throw EngineFailed('${p.basename(path)} is no longer there.');
+  if (!File(path).existsSync()) throw EngineFailed(deviceWords.noLongerThere(p.basename(path)));
   await shiftDragChannel.invokeMethod<void>('showInFolder', {
     'paths': [path],
   });

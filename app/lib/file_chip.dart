@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import 'words.dart';
+
 enum FileChipState { working, done, failed }
 
 /// The chip shown under the cursor after a drop: a progress ring, then the result with its
@@ -96,6 +98,7 @@ class _FileChipState extends State<FileChip> {
 
   @override
   Widget build(BuildContext context) {
+    final words = context.words;
     final colours = Theme.of(context).colorScheme;
     final instant = MediaQuery.disableAnimationsOf(context);
     return AnimatedOpacity(
@@ -119,16 +122,17 @@ class _FileChipState extends State<FileChip> {
                 Flexible(child: _buildText(context)),
                 if (widget.state == FileChipState.working && widget.onCancel != null) ...[
                   const SizedBox(width: 6),
-                  _action(Icons.close, 'Cancel', widget.onCancel),
+                  _action(Icons.close, words.cancel, widget.onCancel),
                 ],
                 if (widget.state == FileChipState.done) ...[
                   const SizedBox(width: 6),
-                  if (widget.onSave != null) _action(Icons.save_alt, 'Save', widget.onSave),
-                  if (widget.onShare != null) _action(Icons.ios_share, 'Share', widget.onShare),
-                  if (widget.onCopy != null) _action(Icons.copy_outlined, 'Copy', widget.onCopy),
+                  if (widget.onSave != null) _action(Icons.save_alt, words.save, widget.onSave),
+                  if (widget.onShare != null) _action(Icons.ios_share, words.share, widget.onShare),
+                  if (widget.onCopy != null)
+                    _action(Icons.copy_outlined, words.copy, widget.onCopy),
                   if (widget.onShowInFolder != null)
-                    _action(Icons.folder_open_outlined, 'Show in folder', widget.onShowInFolder),
-                  if (widget.onUndo != null) _action(Icons.undo, 'Undo', widget.onUndo),
+                    _action(Icons.folder_open_outlined, words.showInFolder, widget.onShowInFolder),
+                  if (widget.onUndo != null) _action(Icons.undo, words.undo, widget.onUndo),
                 ],
               ],
             ),
@@ -167,21 +171,21 @@ class _FileChipState extends State<FileChip> {
         child: CircularProgressIndicator(
           value: widget.indeterminate ? null : widget.progress,
           strokeWidth: 3,
-          semanticsLabel: 'Converting',
+          semanticsLabel: context.words.converting,
           semanticsValue: widget.indeterminate ? null : '${(widget.progress * 100).round()}%',
         ),
       ),
       FileChipState.done => Semantics(
-        label: 'Done',
+        label: context.words.done,
         child: widget.onDragOut == null
             ? Icon(Icons.check_circle_outline, color: colours.primary)
             : Tooltip(
-                message: 'Drag to another app',
+                message: context.words.dragToApp,
                 child: Icon(Icons.drag_indicator, color: colours.primary),
               ),
       ),
       FileChipState.failed => Semantics(
-        label: 'Failed',
+        label: context.words.failed,
         child: Icon(Icons.error_outline, color: colours.error),
       ),
     };

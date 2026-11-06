@@ -13,3 +13,4 @@ First version people can try.
 - Whole folders can be dropped or Shift-dragged.
 - Drag results out to other apps on a desktop, or share them on a phone.
 - History, with undo that moves a result to the Trash.
+- English and Hindi, following the device's language.

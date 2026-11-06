@@ -10,6 +10,7 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/drop_files.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   group('reading dropped files', () {
@@ -140,6 +141,7 @@ void main() {
     Future<void> pump(WidgetTester tester, DropReader reader, {bool? acceptsDrops = true}) {
       return tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => const [],
             saveFile: (file) async => const SavedAs(),

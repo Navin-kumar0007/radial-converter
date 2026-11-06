@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radialconverter/file_chip.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   Widget host(FileChip chip) => MaterialApp(
+    localizationsDelegates: Words.localizationsDelegates,
     home: Scaffold(body: Center(child: chip)),
   );
 
@@ -127,6 +129,7 @@ void main() {
   testWidgets('a long Hindi name does not overflow', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: Scaffold(
           body: Center(
             child: SizedBox(
@@ -147,6 +150,7 @@ void main() {
     Future<void> pump(WidgetTester tester, FileChip chip) {
       return tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: Scaffold(body: Center(child: chip)),
         ),
       );

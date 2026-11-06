@@ -5,6 +5,7 @@ import 'package:radial_core/radial_core.dart';
 import 'package:web/web.dart' as web;
 
 import 'picked_file.dart';
+import 'words.dart';
 
 /// A page can't start a drag other apps would understand on the canvas Flutter draws.
 bool get canDragOut => false;
@@ -32,7 +33,7 @@ void showChipAtCursor(List<String> paths) {}
 /// Opens the system's share sheet for [output].
 Future<void> shareOut(ConvertedFile output) async {
   final inMemory = output.inMemory;
-  if (inMemory == null) throw EngineFailed('${output.name} can\'t be shared here.');
+  if (inMemory == null) throw EngineFailed(deviceWords.cantShareHere(output.name));
   try {
     final data = web.ShareData(files: [_fileOf(output.name, inMemory.bytes)].toJS);
     await web.window.navigator.share(data).toDart;
@@ -44,7 +45,7 @@ Future<void> shareOut(ConvertedFile output) async {
 
 bool get canUndoSaved => false;
 
-String get trashName => 'the Trash';
+String trashName(Words words) => words.trashMac;
 
 Future<void> moveResultToTrash(String path, int expectedSize) async {}
 

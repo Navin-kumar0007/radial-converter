@@ -9,7 +9,8 @@
     <application
         android:label="Radial Converter"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:localeConfig="@xml/locales_config">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.results"

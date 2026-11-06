@@ -8,6 +8,7 @@ import 'package:radial_core/radial_core.dart';
 
 import 'action_icons.dart';
 import 'radial_geometry.dart';
+import 'words.dart';
 
 const _openDuration = Duration(milliseconds: 120);
 
@@ -224,7 +225,8 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
     );
     const width = 76.0;
     const height = 54.0;
-    final label = isMore ? 'More' : action!.label;
+    final words = context.words;
+    final label = isMore ? words.more : actionLabel(words, action!.label);
     return Positioned(
       left: centre.dx - width / 2,
       top: centre.dy - height / 2,
@@ -233,7 +235,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
       child: Semantics(
         button: true,
         selected: isOn,
-        label: isMore ? 'More actions' : label,
+        label: isMore ? words.moreActions : label,
         onTap: () => _apply(slice),
         child: ExcludeSemantics(
           child: IgnorePointer(
@@ -264,10 +266,11 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   }
 
   Widget _buildHub(ColorScheme colours) {
+    final words = context.words;
     final empty = widget.actions.isEmpty;
     return Semantics(
       button: true,
-      label: widget.fileCount > 1 ? 'Cancel, ${widget.fileCount} files' : 'Cancel',
+      label: widget.fileCount > 1 ? words.cancelFiles(widget.fileCount) : words.cancel,
       onTap: widget.onCancelled,
       child: ExcludeSemantics(
         child: IgnorePointer(
@@ -290,7 +293,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
                     ),
                   ),
                 Text(
-                  empty ? 'Nothing fits' : 'Cancel',
+                  empty ? words.nothingFits : words.cancel,
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11, color: colours.onSurfaceVariant),
                 ),

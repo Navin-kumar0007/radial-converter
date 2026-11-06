@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/shift_drag.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   late Directory folder;
@@ -78,6 +79,7 @@ void main() {
       stopped = false;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => const [],
             saveFile: (file) async => throw StateError('Nothing should ask to save'),

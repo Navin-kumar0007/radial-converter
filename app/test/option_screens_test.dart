@@ -10,6 +10,7 @@ import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/option_screens.dart';
 import 'package:radialconverter/presets.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   group('keeping the frame\'s shape', () {
@@ -144,6 +145,7 @@ void main() {
       FormTarget? chosen;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
@@ -284,6 +286,7 @@ void main() {
     List<ActionOptions> received = [];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => [
             PickedFile(name: 'me.jpg', size: bytes.length, head: bytes, read: () async => bytes),
@@ -371,6 +374,7 @@ void main() {
     ActionOptions? chosen;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async {
@@ -720,6 +724,7 @@ void main() {
       final framed = <String>[];
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
@@ -748,6 +753,7 @@ void main() {
       ActionOptions? received;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
@@ -773,6 +779,7 @@ void main() {
       var ran = false;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [
               PickedFile(name: 'clip.mp4', size: mp4.length, head: mp4, read: () async => mp4),
@@ -925,6 +932,7 @@ void main() {
 
 Widget _formHost(Future<List<Preset>> Function() load, void Function(FormTarget?) onChosen) {
   return MaterialApp(
+    localizationsDelegates: Words.localizationsDelegates,
     home: Builder(
       builder: (context) => TextButton(
         onPressed: () async {
@@ -943,6 +951,7 @@ Widget _formHost(Future<List<Preset>> Function() load, void Function(FormTarget?
 
 Widget _host(void Function(ActionOptions?) onChosen, Widget dialog) {
   return MaterialApp(
+    localizationsDelegates: Words.localizationsDelegates,
     home: Builder(
       builder: (context) => TextButton(
         onPressed: () async {

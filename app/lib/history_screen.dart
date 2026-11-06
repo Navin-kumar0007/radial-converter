@@ -2,32 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:radial_core/radial_core.dart';
 
 import 'conversion.dart';
+import 'words.dart';
 
 /// How long ago, as people say it.
-String formatWhen(DateTime at, DateTime now) {
+String formatWhen(Words words, DateTime at, DateTime now) {
   final local = at.toLocal();
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(local.year, local.month, local.day);
   final days = today.difference(day).inDays;
   String two(int value) => value.toString().padLeft(2, '0');
   final time = '${two(local.hour)}:${two(local.minute)}';
-  if (days == 0) return 'Today $time';
-  if (days == 1) return 'Yesterday $time';
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${local.day} ${months[local.month - 1]}, $time';
+  if (days == 0) return words.today(time);
+  if (days == 1) return words.yesterday(time);
+  return '${local.day} ${words.months.split(',')[local.month - 1]}, $time';
 }
 
 /// What has been saved on this device. Undo and showing a file only appear where the app can reach
@@ -59,16 +46,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear history?'),
-        content: const Text('This only clears the list. Your files stay where they are.'),
+        title: Text(context.words.clearHistoryTitle),
+        content: Text(context.words.clearHistoryBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.words.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
+            child: Text(context.words.clear),
           ),
         ],
       ),
@@ -81,7 +68,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _sizes(HistoryItem item) {
     final before = item.bytesBefore;
     final after = formatBytes(item.bytesAfter);
-    return before == null ? after : '${formatBytes(before)} to $after';
+    return before == null ? after : context.words.sizeChange(formatBytes(before), after);
   }
 
   Widget _buildItem(HistoryItem item, DateTime now) {
@@ -89,14 +76,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final undone = item.undoneAt != null;
     final onUndo = widget.onUndo;
     final onShow = widget.onShow;
-    final when = formatWhen(item.finishedAt, now);
+    final words = context.words;
+    final when = formatWhen(words, item.finishedAt, now);
+    final action = actionLabel(words, item.actionLabel);
     return ListTile(
       title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        undone
-            ? 'Undone · ${item.actionLabel} · $when'
-            : '${item.actionLabel} · ${_sizes(item)} · $when',
-      ),
+      subtitle: Text(undone ? words.undoneLine(action, when) : '$action · ${_sizes(item)} · $when'),
       trailing: path == null || undone
           ? null
           : Row(
@@ -104,13 +89,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 if (onShow != null)
                   IconButton(
-                    tooltip: 'Show in folder',
+                    tooltip: words.showInFolder,
                     icon: const Icon(Icons.folder_open_outlined),
                     onPressed: () => onShow(item),
                   ),
                 if (onUndo != null)
                   IconButton(
-                    tooltip: 'Undo',
+                    tooltip: words.undo,
                     icon: const Icon(Icons.undo),
                     onPressed: () async {
                       await onUndo(item);
@@ -128,17 +113,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final now = widget.now ?? DateTime.now();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
-        actions: [if (items.isNotEmpty) TextButton(onPressed: _clear, child: const Text('Clear'))],
+        title: Text(context.words.history),
+        actions: [
+          if (items.isNotEmpty) TextButton(onPressed: _clear, child: Text(context.words.clear)),
+        ],
       ),
       body: items.isEmpty
-          ? const Center(
+          ? Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'What you save will be listed here for 30 days. It stays on this device.',
-                  textAlign: TextAlign.center,
-                ),
+                padding: const EdgeInsets.all(24),
+                child: Text(context.words.historyEmpty, textAlign: TextAlign.center),
               ),
             )
           : ListView.builder(

@@ -17,6 +17,7 @@ import 'presets.dart';
 import 'radial_menu.dart';
 import 'shared_files.dart';
 import 'shift_drag.dart';
+import 'words.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
 typedef DropReader = Future<DroppedFiles> Function(List<DropItem> items);
@@ -280,7 +281,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       return false;
     } catch (error) {
       debugPrint('Undo failed: $error');
-      _sayOnTop('This could not be undone.');
+      _sayOnTop(_words.undoFailed);
       return false;
     }
     _history.markUndone(item.id, DateTime.now());
@@ -291,7 +292,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         if (job.historyId == item.id) job.undone = true;
       }
     });
-    _sayOnTop('Moved to $trashName.');
+    _sayOnTop(_words.movedTo(trashName(_words)));
     return true;
   }
 
@@ -304,7 +305,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _sayOnTop(error.message);
     } catch (error) {
       debugPrint('Showing a file failed: $error');
-      _sayOnTop('This could not be shown.');
+      _sayOnTop(_words.showFailed);
     }
   }
 
@@ -361,7 +362,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       files = (await _readDrop([for (final path in paths) DropItemFile(path)])).files;
     } catch (_) {
       showAppWindow();
-      if (mounted) _say('These files could not be opened. Try again.');
+      if (mounted) _say(_words.openFailed);
       return;
     }
     if (!mounted) return;
@@ -401,13 +402,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (shared.receiving) return;
     _open(shared.files);
     if (shared.failed > 0) {
-      _say(
-        shared.files.isEmpty
-            ? 'What was shared could not be opened. Only files can be converted.'
-            : 'Some of what was shared could not be opened.',
-      );
+      _say(shared.files.isEmpty ? _words.sharedNothing : _words.sharedSome);
     }
   }
+
+  Words get _words => context.words;
 
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -419,7 +418,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       files = await widget.pickFiles();
     } catch (error) {
       debugPrint('Choosing files failed: $error');
-      if (mounted) _say('These files could not be opened. Try again.');
+      if (mounted) _say(_words.openFailed);
       return;
     }
     if (mounted) _open(files);
@@ -458,21 +457,19 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       read = await _readDrop(items);
     } catch (_) {
-      if (mounted) _say('These files could not be opened. Try again.');
+      if (mounted) _say(_words.openFailed);
       return;
     }
     if (!mounted) return;
     if (read.files.isEmpty) {
-      if (read.dropped.folders > 0) _say('Nothing in that folder can be converted.');
+      if (read.dropped.folders > 0) _say(_words.folderNothing);
       return;
     }
     _open(read.files);
     if (read.dropped.tooMany) {
-      _say('Only the first $maxFolderFiles files in that folder were looked at.');
-    } else if (read.leftOut == 1) {
-      _say('1 other file in that folder was left out.');
-    } else if (read.leftOut > 1) {
-      _say('${read.leftOut} other files in that folder were left out.');
+      _say(_words.folderTooMany(maxFolderFiles));
+    } else if (read.leftOut > 0) {
+      _say(_words.folderLeftOut(read.leftOut));
     }
   }
 
@@ -492,14 +489,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
     var total = 0;
     for (final file in _files) {
       if (file.size > maxInMemoryBytes) {
-        return '${file.name} is too large to convert here (limit '
-            '${formatBytes(maxInMemoryBytes)}).';
+        return _words.fileTooLarge(file.name, formatBytes(maxInMemoryBytes));
       }
       total += file.size;
     }
     if (total <= maxInMemoryBytes) return null;
-    return 'These files are too large to convert together (limit '
-        '${formatBytes(maxInMemoryBytes)}). Try fewer at a time.';
+    return _words.filesTooLarge(formatBytes(maxInMemoryBytes));
   }
 
   void _stopRunningJob() {
@@ -595,7 +590,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       } on EngineFailed catch (error) {
         failed.add(failure(files[i], error.message));
       } catch (_) {
-        failed.add(failure(files[i], 'Something went wrong. This file could not be converted.'));
+        failed.add(failure(files[i], deviceWords.convertFailed));
       }
     }
     return results;
@@ -639,7 +634,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     } on EngineFailed {
       rethrow;
     } catch (_) {
-      throw const EngineFailed('This file could not be read. It may have moved or be too large.');
+      throw EngineFailed(deviceWords.readFailed);
     }
     if (isPdf) {
       final results = await widget.pdfConverter(action, inputs, onProgress, options);
@@ -774,14 +769,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
       setState(() {
         job
           ..state = FileChipState.failed
-          ..message = 'Something went wrong. This file could not be converted.';
+          ..message = _words.convertFailed;
       });
     }
   }
 
   String _workingName() {
     final first = _files.first.name;
-    return _files.length == 1 ? first : '$first and ${_files.length - 1} more';
+    return _files.length == 1 ? first : _words.andMore(first, _files.length - 1);
   }
 
   Future<void> _save(_Job job) async {
@@ -797,7 +792,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       }
     } catch (error) {
       debugPrint('Saving failed: $error');
-      if (mounted) _say('This file could not be saved. Try again.');
+      if (mounted) _say(_words.saveFailed);
       return;
     }
     if (!mounted || saved == null) return;
@@ -852,7 +847,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     } on EngineFailed catch (error) {
       if (mounted) _say(error.message);
     } catch (_) {
-      if (mounted) _say('These files could not be saved. Try again.');
+      if (mounted) _say(_words.saveAllFailed);
     } finally {
       if (mounted) setState(() => _savingAll = false);
     }
@@ -861,17 +856,22 @@ class _ConverterScreenState extends State<ConverterScreen> {
   @override
   Widget build(BuildContext context) {
     final styles = Theme.of(context).textTheme;
+    final words = context.words;
     final screen = Scaffold(
       appBar: AppBar(
         toolbarHeight: 44,
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            tooltip: 'About',
+            tooltip: words.about,
             icon: const Icon(Icons.info_outline),
             onPressed: () => showAbout(context),
           ),
-          IconButton(tooltip: 'History', icon: const Icon(Icons.history), onPressed: _openHistory),
+          IconButton(
+            tooltip: words.history,
+            icon: const Icon(Icons.history),
+            onPressed: _openHistory,
+          ),
         ],
       ),
       body: SafeArea(
@@ -884,36 +884,24 @@ class _ConverterScreenState extends State<ConverterScreen> {
               children: [
                 Text('Radial Converter', style: styles.headlineSmall, textAlign: TextAlign.center),
                 const SizedBox(height: 4),
-                Text(
-                  'Your files stay on this device.',
-                  style: styles.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
+                Text(words.tagline, style: styles.bodyMedium, textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 Center(
                   child: FilledButton.icon(
                     onPressed: _pick,
                     icon: const Icon(Icons.upload_file),
-                    label: Text(_files.isEmpty ? 'Choose files' : 'Choose other files'),
+                    label: Text(_files.isEmpty ? words.chooseFiles : words.chooseOtherFiles),
                   ),
                 ),
                 if (_receiving) ...[
                   const SizedBox(height: 24),
                   const Center(child: CircularProgressIndicator()),
                   const SizedBox(height: 12),
-                  Text(
-                    'Getting what you shared...',
-                    style: styles.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(words.receiving, style: styles.bodyMedium, textAlign: TextAlign.center),
                 ],
                 if (_files.isEmpty && _acceptsDrops) ...[
                   const SizedBox(height: 12),
-                  Text(
-                    'or drop them anywhere here',
-                    style: styles.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(words.dropAnywhere, style: styles.bodyMedium, textAlign: TextAlign.center),
                 ],
                 if (_files.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -933,9 +921,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     child: FilledButton.tonalIcon(
                       onPressed: _savingAll ? null : _saveAll,
                       icon: const Icon(Icons.save_alt),
-                      label: Text(
-                        _savesBeside ? 'Save all beside the originals' : 'Save all as one ZIP',
-                      ),
+                      label: Text(_savesBeside ? words.saveAllBeside : words.saveAllZip),
                     ),
                   ),
                 if (_files.isNotEmpty && !_menuOpen)
@@ -943,7 +929,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     child: TextButton.icon(
                       onPressed: () => setState(() => _menuOpen = true),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Open the menu again'),
+                      label: Text(words.openMenuAgain),
                     ),
                   ),
               ],
@@ -969,22 +955,22 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return IgnorePointer(
       child: ColoredBox(
         color: colours.surface.withValues(alpha: 0.92),
-        child: Center(child: Text('Drop to convert', style: styles.headlineSmall)),
+        child: Center(child: Text(_words.dropToConvert, style: styles.headlineSmall)),
       ),
     );
   }
 
   String _summary() {
     final total = _files.fold<int>(0, (sum, file) => sum + file.size);
-    final names = _files.length == 1 ? _files.first.name : '${_files.length} files';
+    final names = _files.length == 1 ? _files.first.name : _words.fileCount(_files.length);
     return '$names · ${formatBytes(total)}';
   }
 
   Widget _buildModeSwitch() {
     return SegmentedButton<ActionMode>(
-      segments: const [
-        ButtonSegment(value: ActionMode.convert, label: Text('Convert')),
-        ButtonSegment(value: ActionMode.tools, label: Text('Tools')),
+      segments: [
+        ButtonSegment(value: ActionMode.convert, label: Text(_words.modeConvert)),
+        ButtonSegment(value: ActionMode.tools, label: Text(_words.modeTools)),
       ],
       selected: {_mode},
       onSelectionChanged: (selection) {
@@ -1015,7 +1001,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         if (actions.isEmpty) ...[
           const SizedBox(height: 12),
           Text(
-            notAvailableMessage(_kinds, _mode),
+            notAvailableMessage(_words, _kinds, _mode),
             textAlign: TextAlign.center,
             style: styles.bodyMedium,
           ),
@@ -1032,7 +1018,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (mounted) _say(error.message);
     } catch (error) {
       debugPrint('Handing over failed: $error');
-      if (mounted) _say('This file could not be handed over. Try saving it instead.');
+      if (mounted) _say(_words.handOverFailed);
     }
   }
 
@@ -1048,7 +1034,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final before = job.bytesBefore;
     final sizes = output == null
         ? null
-        : '${before == null ? '' : '${formatBytes(before)} to '}${formatBytes(output.size)}'
+        : '${before == null ? formatBytes(output.size) : _words.sizeChange(formatBytes(before), formatBytes(output.size))}'
               '${note == null ? '' : '\n$note'}';
     return FileChip(
       name: job.name,
@@ -1056,11 +1042,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
       progress: job.progress ?? 0,
       indeterminate: job.state == FileChipState.working && job.progress == null,
       detail: job.undone
-          ? 'Moved to $trashName.'
+          ? _words.movedTo(trashName(_words))
           : output?.savedPath != null
-          ? 'Saved beside the original. $sizes'
+          ? _words.savedBeside(sizes ?? '')
           : job.saved
-          ? 'Saved. $sizes'
+          ? _words.saved(sizes ?? '')
           : sizes,
       message: job.message,
       fadeAfter: null,

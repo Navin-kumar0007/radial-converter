@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'words.dart';
+
 /// Shown to people, and checked against `pubspec.yaml` by a test.
 const appName = 'Radial Converter';
 const appVersion = '0.9.0';
@@ -67,15 +69,12 @@ void showAbout(BuildContext context) {
       height: 56,
       excludeFromSemantics: true,
     ),
-    applicationLegalese: 'Free and open source, under the Mozilla Public License 2.0.',
-    children: const [
-      SizedBox(height: 16),
-      Text(
-        'Your files stay on this device. Nothing is uploaded, and there are no accounts, ads or '
-        'tracking.',
-      ),
-      SizedBox(height: 12),
-      SelectableText(projectAddress),
+    applicationLegalese: context.words.licence,
+    children: [
+      const SizedBox(height: 16),
+      Text(context.words.privacyPromise),
+      const SizedBox(height: 12),
+      const SelectableText(projectAddress),
     ],
   );
 }

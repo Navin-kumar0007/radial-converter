@@ -1,0 +1,303 @@
+{
+  "@@locale": "en",
+  "tagline": "Your files stay on this device.",
+  "about": "About",
+  "history": "History",
+  "chooseFiles": "Choose files",
+  "chooseOtherFiles": "Choose other files",
+  "receiving": "Getting what you shared...",
+  "dropAnywhere": "or drop them anywhere here",
+  "dropToConvert": "Drop to convert",
+  "saveAllBeside": "Save all beside the originals",
+  "saveAllZip": "Save all as one ZIP",
+  "openMenuAgain": "Open the menu again",
+  "modeConvert": "Convert",
+  "modeTools": "Tools",
+  "fileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@fileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "andMore": "{first} and {count} more",
+  "@andMore": {
+    "placeholders": {
+      "first": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "save": "Save",
+  "share": "Share",
+  "copy": "Copy",
+  "showInFolder": "Show in folder",
+  "undo": "Undo",
+  "converting": "Converting",
+  "done": "Done",
+  "failed": "Failed",
+  "dragToApp": "Drag to another app",
+  "more": "More",
+  "moreActions": "More actions",
+  "cancelFiles": "Cancel, {count} files",
+  "@cancelFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nothingFits": "Nothing fits",
+  "trashMac": "the Trash",
+  "trashWindows": "the Recycle Bin",
+  "movedTo": "Moved to {place}.",
+  "@movedTo": {
+    "placeholders": {
+      "place": {}
+    }
+  },
+  "couldNotMove": "{name} could not be moved to {place}.",
+  "@couldNotMove": {
+    "placeholders": {
+      "name": {},
+      "place": {}
+    }
+  },
+  "undoFailed": "This could not be undone.",
+  "showFailed": "This could not be shown.",
+  "openFailed": "These files could not be opened. Try again.",
+  "sharedNothing": "What was shared could not be opened. Only files can be converted.",
+  "sharedSome": "Some of what was shared could not be opened.",
+  "folderNothing": "Nothing in that folder can be converted.",
+  "folderTooMany": "Only the first {count} files in that folder were looked at.",
+  "@folderTooMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "folderLeftOut": "{count, plural, =1{1 other file in that folder was left out.} other{{count} other files in that folder were left out.}}",
+  "@folderLeftOut": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fileTooLarge": "{name} is too large to convert here (limit {limit}).",
+  "@fileTooLarge": {
+    "placeholders": {
+      "name": {},
+      "limit": {}
+    }
+  },
+  "filesTooLarge": "These files are too large to convert together (limit {limit}). Try fewer at a time.",
+  "@filesTooLarge": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "convertFailed": "Something went wrong. This file could not be converted.",
+  "readFailed": "This file could not be read. It may have moved or be too large.",
+  "saveFailed": "This file could not be saved. Try again.",
+  "saveAllFailed": "These files could not be saved. Try again.",
+  "handOverFailed": "This file could not be handed over. Try saving it instead.",
+  "sizeChange": "{before} to {after}",
+  "@sizeChange": {
+    "placeholders": {
+      "before": {},
+      "after": {}
+    }
+  },
+  "savedBeside": "Saved beside the original. {sizes}",
+  "@savedBeside": {
+    "placeholders": {
+      "sizes": {}
+    }
+  },
+  "saved": "Saved. {sizes}",
+  "@saved": {
+    "placeholders": {
+      "sizes": {}
+    }
+  },
+  "cantTogether": "These files can't be converted together in this build yet.",
+  "unsupportedType": "This type of file isn't supported yet.",
+  "cantConvert": "{kind} can't be converted in this build yet.",
+  "@cantConvert": {
+    "placeholders": {
+      "kind": {}
+    }
+  },
+  "kindPdf": "PDF files",
+  "kindVideo": "Videos on this device",
+  "kindAudio": "Audio on this device",
+  "kindDocument": "{format} documents",
+  "@kindDocument": {
+    "placeholders": {
+      "format": {}
+    }
+  },
+  "kindArchive": "{format} archives",
+  "@kindArchive": {
+    "placeholders": {
+      "format": {}
+    }
+  },
+  "kindFolder": "Folders",
+  "kindPicture": "{format} pictures",
+  "@kindPicture": {
+    "placeholders": {
+      "format": {}
+    }
+  },
+  "kindSubtitle": "Subtitles",
+  "kindUnknown": "This file",
+  "today": "Today {time}",
+  "@today": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "yesterday": "Yesterday {time}",
+  "@yesterday": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "clearHistoryTitle": "Clear history?",
+  "clearHistoryBody": "This only clears the list. Your files stay where they are.",
+  "clear": "Clear",
+  "undoneLine": "Undone · {action} · {when}",
+  "@undoneLine": {
+    "placeholders": {
+      "action": {},
+      "when": {}
+    }
+  },
+  "historyEmpty": "What you save will be listed here for 30 days. It stays on this device.",
+  "licence": "Free and open source, under the Mozilla Public License 2.0.",
+  "privacyPromise": "Your files stay on this device. Nothing is uploaded, and there are no accounts, ads or tracking.",
+  "formPhoto": "Form photo",
+  "fillInFrom": "Fill in from",
+  "myOwnSizes": "My own sizes",
+  "widthPixels": "Width (pixels)",
+  "heightPixels": "Height (pixels)",
+  "atLeastKb": "At least (KB)",
+  "atMostKb": "At most (KB)",
+  "checkNotice": "Rules change, so check these against your form's own notice.",
+  "next": "Next",
+  "giveBoth": "Give both, or neither.",
+  "theseAboveZero": "These must be above 0.",
+  "theseTooLarge": "These are too large.",
+  "smallestOverLargest": "The smallest can't be more than the largest.",
+  "thisAboveZero": "This must be above 0.",
+  "fileLocked": "This file is locked",
+  "password": "Password",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "wrongPassword": "That password didn't work. Try again.",
+  "typePassword": "Type the password.",
+  "open": "Open",
+  "addPassword": "Add password",
+  "addPasswordWarning": "Nobody can open the result without it, and a lost password can't be recovered.",
+  "samePasswordAgain": "The same password again",
+  "choosePassword": "Choose a password.",
+  "passwordsDiffer": "These don't match.",
+  "shiftTiming": "Shift timing",
+  "seconds": "Seconds",
+  "secondsHint": "Enter a number of seconds, like 1.5.",
+  "later": "Later",
+  "earlier": "Earlier",
+  "shift": "Shift",
+  "trim": "Trim",
+  "start": "Start",
+  "end": "End",
+  "emptyFromBeginning": "Empty means from the beginning",
+  "emptyToEnd": "Empty means to the end",
+  "useTime": "Use a time like 1:30.",
+  "chooseStartOrEnd": "Choose where to start or end.",
+  "onlyThisLong": "This is only {length} long.",
+  "@onlyThisLong": {
+    "placeholders": {
+      "length": {}
+    }
+  },
+  "afterStart": "This must be after the start.",
+  "videoAtStart": "The video at the start",
+  "videoAtEnd": "The video at the end",
+  "crop": "Crop",
+  "left": "Left",
+  "top": "Top",
+  "width": "Width",
+  "height": "Height",
+  "pictureNotShown": "This picture could not be shown.",
+  "actionRotate": "Rotate",
+  "actionMerge": "Merge",
+  "actionEmail": "Email",
+  "actionCompress": "Compress",
+  "actionUnder": "Under {size}",
+  "@actionUnder": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "actionTrim": "Trim",
+  "actionStripMetadata": "Strip metadata",
+  "actionResize": "Resize",
+  "actionCrop": "Crop",
+  "actionAddPassword": "Add password",
+  "actionRemovePassword": "Remove password",
+  "actionWebReady": "Web-ready",
+  "actionSplit": "Split",
+  "actionShiftTiming": "Shift timing",
+  "actionPlainText": "Plain text",
+  "actionOnePdf": "One PDF",
+  "actionNormaliseVolume": "Normalise volume",
+  "actionMute": "Mute",
+  "actionFormPhoto": "Form photo",
+  "actionFlip": "Flip",
+  "actionExtractPages": "Extract pages",
+  "actionExtract": "Extract",
+  "actionChangeBitrate": "Change bitrate",
+  "cantShareHere": "{name} can't be shared here.",
+  "@cantShareHere": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "cantHandOver": "{name} can't be handed over.",
+  "@cantHandOver": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "noLongerThere": "{name} is no longer there.",
+  "@noLongerThere": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "changedSince": "{name} has changed since, so it was left alone.",
+  "@changedSince": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "needsPassword": "{name} needs a password to open. It stays on this device.",
+  "@needsPassword": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "months": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+  "@months": {
+    "description": "Short month names, in order, separated by commas with no spaces."
+  },
+  "actionExtractAudio": "Extract audio",
+  "actionCompressFolder": "Compress folder"
+}

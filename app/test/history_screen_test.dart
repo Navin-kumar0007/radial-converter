@@ -6,6 +6,9 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/history_screen.dart';
+import 'package:radialconverter/words.dart';
+
+final english = wordsFor(const Locale('en'));
 
 void main() {
   final jpeg = Uint8List.fromList(img.encodeJpg(img.Image(width: 8, height: 8)));
@@ -14,9 +17,9 @@ void main() {
     final now = DateTime(2026, 11, 5, 15, 30);
 
     test('today, yesterday, then the date', () {
-      expect(formatWhen(DateTime(2026, 11, 5, 9, 5), now), 'Today 09:05');
-      expect(formatWhen(DateTime(2026, 11, 4, 23, 59), now), 'Yesterday 23:59');
-      expect(formatWhen(DateTime(2026, 10, 2, 7, 0), now), '2 Oct, 07:00');
+      expect(formatWhen(english, DateTime(2026, 11, 5, 9, 5), now), 'Today 09:05');
+      expect(formatWhen(english, DateTime(2026, 11, 4, 23, 59), now), 'Yesterday 23:59');
+      expect(formatWhen(english, DateTime(2026, 10, 2, 7, 0), now), '2 Oct, 07:00');
     });
   });
 
@@ -38,6 +41,7 @@ void main() {
     Future<void> pump(WidgetTester tester, {bool undo = true}) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [
               PickedFile(name: 'photo.jpg', size: jpeg.length, head: jpeg, read: () async => jpeg),
@@ -224,6 +228,7 @@ void main() {
     testWidgets('history that can\'t be read or written stops nothing', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [
               PickedFile(name: 'photo.jpg', size: jpeg.length, head: jpeg, read: () async => jpeg),

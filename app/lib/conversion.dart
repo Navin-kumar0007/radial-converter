@@ -1,6 +1,7 @@
 import 'package:radial_core/radial_core.dart';
 
 import 'pdf_engine.dart';
+import 'words.dart';
 
 export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
 export 'pdf_engine.dart' show PdfResult, canRunPdf, convertPdf;
@@ -41,25 +42,25 @@ List<RadialAction> availableActions(
 const maxInMemoryBytes = 1024 * 1024 * 1024;
 
 /// Says what the file is, so the user knows it was recognised and what is missing.
-String notAvailableMessage(List<FileKind> kinds, ActionMode mode) {
-  final names = {for (final kind in kinds) _kindName(kind)};
-  if (names.length != 1) return 'These files can\'t be converted together in this build yet.';
-  final name = names.single;
-  if (kinds.first == FileKind.unknown) return 'This type of file isn\'t supported yet.';
-  return '$name can\'t be converted in this build yet.';
+String notAvailableMessage(Words words, List<FileKind> kinds, ActionMode mode) {
+  final names = {for (final kind in kinds) _kindName(words, kind)};
+  if (names.length != 1) return words.cantTogether;
+  if (kinds.first == FileKind.unknown) return words.unsupportedType;
+  return words.cantConvert(names.single);
 }
 
-String _kindName(FileKind kind) {
+String _kindName(Words words, FileKind kind) {
+  final format = kind.extension.toUpperCase();
   return switch (kind.family) {
-    FileFamily.pdf => 'PDF files',
-    FileFamily.video => 'Videos on this device',
-    FileFamily.audio => 'Audio on this device',
-    FileFamily.document => '${kind.extension.toUpperCase()} documents',
-    FileFamily.archive => '${kind.extension.toUpperCase()} archives',
-    FileFamily.folder => 'Folders',
-    FileFamily.image => '${kind.extension.toUpperCase()} pictures',
-    FileFamily.subtitle => 'Subtitles',
-    FileFamily.unknown => 'This file',
+    FileFamily.pdf => words.kindPdf,
+    FileFamily.video => words.kindVideo,
+    FileFamily.audio => words.kindAudio,
+    FileFamily.document => words.kindDocument(format),
+    FileFamily.archive => words.kindArchive(format),
+    FileFamily.folder => words.kindFolder,
+    FileFamily.image => words.kindPicture(format),
+    FileFamily.subtitle => words.kindSubtitle,
+    FileFamily.unknown => words.kindUnknown,
   };
 }
 

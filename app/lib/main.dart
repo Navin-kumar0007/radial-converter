@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'about.dart';
 import 'converter_screen.dart';
 import 'platform_files.dart';
+import 'words.dart';
 
 void main() {
   registerBundledLicenses();
@@ -18,6 +19,8 @@ class RadialApp extends StatelessWidget {
     return MaterialApp(
       title: 'Radial Converter',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: Words.localizationsDelegates,
+      supportedLocales: Words.supportedLocales,
       theme: _theme(accent, Brightness.light),
       darkTheme: _theme(accent, Brightness.dark),
       home: const ConverterScreen(pickFiles: pickFilesFromDevice, saveFile: saveFileToDevice),

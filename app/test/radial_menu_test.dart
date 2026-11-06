@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/radial_geometry.dart';
 import 'package:radialconverter/radial_menu.dart';
+import 'package:radialconverter/words.dart';
 
 const diameter = 280.0;
 const hub = 56.0;
@@ -30,6 +31,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: MediaQuery(
           data: MediaQueryData(disableAnimations: reduceMotion),
           child: Scaffold(
@@ -256,6 +258,7 @@ void main() {
   testWidgets('it opens in 120 ms, and at once with Reduce motion', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: Scaffold(
           body: RadialMenu(actions: pdf, onSelected: selected.add, onCancelled: () {}),
         ),
@@ -271,6 +274,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: MediaQuery(
           data: const MediaQueryData(disableAnimations: true),
           child: Scaffold(

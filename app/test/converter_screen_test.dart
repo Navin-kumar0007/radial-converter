@@ -12,6 +12,7 @@ import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
 import 'package:radialconverter/radial_menu.dart';
+import 'package:radialconverter/words.dart';
 
 /// A picked file, counting how many times it is really read.
 PickedFile picked(String name, Uint8List bytes, {int? size, void Function()? onRead}) {
@@ -48,6 +49,8 @@ final _mp4 = Uint8List.fromList(const [
   0,
 ]);
 
+final english = wordsFor(const Locale('en'));
+
 void main() {
   late List<PickedFile> toPick;
   late List<PortableFile> saved;
@@ -59,9 +62,17 @@ void main() {
     saveWorks = true;
   });
 
-  Future<void> pump(WidgetTester tester, {Converter? converter, bool? savesBeside}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    Converter? converter,
+    bool? savesBeside,
+    Locale? locale,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
+        locale: locale,
+        localizationsDelegates: Words.localizationsDelegates,
+        supportedLocales: Words.supportedLocales,
         home: ConverterScreen(
           savesBeside: savesBeside,
           pickFiles: () async => toPick,
@@ -104,6 +115,25 @@ void main() {
     await pump(tester);
     expect(find.text('Choose files'), findsOneWidget);
     expect(find.byType(RadialMenu), findsNothing);
+  });
+
+  testWidgets('works in Hindi, from choosing to a result', (tester) async {
+    await pump(tester, locale: const Locale('hi'));
+    expect(find.text('फ़ाइलें चुनें'), findsOneWidget);
+    await tester.tap(find.text('फ़ाइलें चुनें'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('दूसरी फ़ाइलें चुनें'), findsOneWidget);
+    expect(find.text('बदलें'), findsOneWidget);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(find.byTooltip('सहेजें'), findsOneWidget);
+    expect(
+      find.textContaining(RegExp(r'\d+ K?B से \d+')),
+      findsOneWidget,
+      reason: 'sizes before and after',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('cancelling the file dialog changes nothing', (tester) async {
@@ -152,6 +182,7 @@ void main() {
   testWidgets('a failed save says so and keeps the result', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => toPick,
           saveFile: (file) async => throw StateError('disk full'),
@@ -395,6 +426,7 @@ void main() {
     }) {
       return tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => toPick,
             saveFile: (file) async => const SavedAs(),
@@ -460,6 +492,7 @@ void main() {
     Future<void> pumpWith(WidgetTester tester, ArchiveUnpacker unpacker) {
       return tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [picked('notes.rar', rar)],
             saveFile: (file) async {
@@ -649,6 +682,7 @@ void main() {
       final passwords = <String?>[];
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [picked('locked.pdf', pdf)],
             saveFile: (file) async => const SavedAs(),
@@ -802,6 +836,7 @@ void main() {
   testWidgets('a file dialog that fails says so instead of doing nothing', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => throw StateError('no access'),
           saveFile: (file) async => null,
@@ -843,6 +878,7 @@ void main() {
     toPick = [picked('form.pdf', pdfBytes)];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => toPick,
           saveFile: (file) async => const SavedAs(),
@@ -1031,17 +1067,16 @@ void main() {
   });
 
   test('every character the app writes is in a font we ship', () {
-    // Anything else makes Flutter fetch a font from Google in a browser.
+    // Anything else makes Flutter fetch a font from Google in a browser. Comments are never drawn.
     for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
-      final odd = file.readAsStringSync().runes.where(
-        (c) => c > 0xFF && !(c >= 0x900 && c <= 0x97F),
-      );
+      final drawn = file.readAsLinesSync().where((line) => !line.trimLeft().startsWith('//'));
+      final odd = drawn.join('\n').runes.where((c) => c > 0xFF && !(c >= 0x900 && c <= 0x97F));
       expect(odd, isEmpty, reason: file.path);
     }
   });
 
   group('notAvailableMessage names what it found', () {
-    String say(List<FileKind> kinds) => notAvailableMessage(kinds, ActionMode.convert);
+    String say(List<FileKind> kinds) => notAvailableMessage(english, kinds, ActionMode.convert);
 
     test('PDF', () => expect(say(const [FileKind.pdf]), contains('PDF files')));
     test('HEIC', () => expect(say(const [FileKind.heic]), contains('HEIC pictures')));

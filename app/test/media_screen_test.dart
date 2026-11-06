@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
 import 'package:radialconverter/conversion.dart';
 import 'package:radialconverter/converter_screen.dart';
+import 'package:radialconverter/words.dart';
 
 final _mp4 = Uint8List.fromList(const [
   0,
@@ -53,6 +54,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => files,
           saveFile: (file) async => const SavedAs(),
@@ -241,6 +243,7 @@ void main() {
     }) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
           home: ConverterScreen(
             pickFiles: () async => [photo()],
             saveFile: (file) async => const SavedAs(),
@@ -299,6 +302,7 @@ void main() {
     final file = PickedFile(name: 'box.zip', size: 5000, head: zip, read: () async => zip);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => [file],
           saveFile: (file) async => const SavedAs(),

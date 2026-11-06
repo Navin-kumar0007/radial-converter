@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
 
+import 'words.dart';
+
 /// `MainFlutterWindow.swift` or `shift_drag.cpp` on the other side.
 const shiftDragChannel = MethodChannel('radial/shift_drag');
 
@@ -19,7 +21,8 @@ void Function() listenForShiftDrag({
     final paths = (arguments['paths'] as List).cast<String>();
     if (call.method == 'menuFor') {
       return [
-        for (final action in await menuFor(paths)) {'id': action.id, 'label': action.label},
+        for (final action in await menuFor(paths))
+          {'id': action.id, 'label': actionLabel(deviceWords, action.label)},
       ];
     }
     if (call.method == 'chosen') {

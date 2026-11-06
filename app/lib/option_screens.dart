@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:radial_core/radial_core.dart';
 
+import 'words.dart';
+
 const _askFirst = {
   'image-crop',
   'subtitle-shift',
@@ -131,19 +133,20 @@ class _FormDialogState extends State<FormDialog> {
   }
 
   void _finish() {
+    final words = context.words;
     int? read(TextEditingController field) => int.tryParse(field.text.trim());
     final width = read(_width);
     final height = read(_height);
     final atLeast = read(_atLeast);
     final atMost = read(_atMost);
     setState(() {
-      _pixelsError = (width == null) != (height == null) ? 'Give both, or neither.' : null;
-      if ((width ?? 1) < 1 || (height ?? 1) < 1) _pixelsError = 'These must be above 0.';
-      if ((width ?? 0) > 10000 || (height ?? 0) > 10000) _pixelsError = 'These are too large.';
+      _pixelsError = (width == null) != (height == null) ? words.giveBoth : null;
+      if ((width ?? 1) < 1 || (height ?? 1) < 1) _pixelsError = words.theseAboveZero;
+      if ((width ?? 0) > 10000 || (height ?? 0) > 10000) _pixelsError = words.theseTooLarge;
       _sizeError = atLeast != null && atMost != null && atLeast > atMost
-          ? 'The smallest can\'t be more than the largest.'
+          ? words.smallestOverLargest
           : atMost == 0
-          ? 'This must be above 0.'
+          ? words.thisAboveZero
           : null;
     });
     if (_pixelsError != null || _sizeError != null) return;
@@ -178,7 +181,7 @@ class _FormDialogState extends State<FormDialog> {
     final styles = Theme.of(context).textTheme;
     final chosen = _chosen;
     return AlertDialog(
-      title: const Text('Form photo'),
+      title: Text(context.words.formPhoto),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -190,13 +193,16 @@ class _FormDialogState extends State<FormDialog> {
                 DropdownButtonFormField<Preset?>(
                   initialValue: chosen,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Fill in from'),
+                  decoration: InputDecoration(labelText: context.words.fillInFrom),
                   items: [
-                    const DropdownMenuItem(child: Text('My own sizes')),
+                    DropdownMenuItem(child: Text(context.words.myOwnSizes)),
                     for (final preset in _presets)
                       DropdownMenuItem(
                         value: preset,
-                        child: Text(preset.label('en'), overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          preset.label(context.words.localeName),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                   ],
                   onChanged: _choose,
@@ -206,18 +212,18 @@ class _FormDialogState extends State<FormDialog> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _number(_width, 'Width (pixels)', errorText: _pixelsError),
+                  _number(_width, context.words.widthPixels, errorText: _pixelsError),
                   const SizedBox(width: 12),
-                  _number(_height, 'Height (pixels)'),
+                  _number(_height, context.words.heightPixels),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _number(_atLeast, 'At least (KB)', errorText: _sizeError),
+                  _number(_atLeast, context.words.atLeastKb, errorText: _sizeError),
                   const SizedBox(width: 12),
-                  _number(_atMost, 'At most (KB)'),
+                  _number(_atMost, context.words.atMostKb),
                 ],
               ),
               const SizedBox(height: 16),
@@ -227,17 +233,14 @@ class _FormDialogState extends State<FormDialog> {
                 if (chosen.source != null) SelectableText(chosen.source!, style: styles.bodySmall),
                 const SizedBox(height: 8),
               ],
-              Text(
-                'Rules change, so check these against your form\'s own notice.',
-                style: styles.bodySmall,
-              ),
+              Text(context.words.checkNotice, style: styles.bodySmall),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _finish, child: const Text('Next')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.words.cancel)),
+        FilledButton(onPressed: _finish, child: Text(context.words.next)),
       ],
     );
   }
@@ -288,7 +291,7 @@ class _PasswordFieldState extends State<_PasswordField> {
         // Tab goes on to the next box. This stays a click away, and in reach of a screen reader.
         suffixIcon: ExcludeFocusTraversal(
           child: IconButton(
-            tooltip: _hidden ? 'Show password' : 'Hide password',
+            tooltip: _hidden ? context.words.showPassword : context.words.hidePassword,
             icon: Icon(_hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _hidden = !_hidden),
           ),
@@ -316,10 +319,15 @@ class _PasswordDialogState extends State<PasswordDialog> {
   final _password = TextEditingController();
   String? _error;
 
+  bool _toldWrong = false;
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.wrong) _error = 'That password didn\'t work. Try again.';
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.wrong && !_toldWrong) {
+      _toldWrong = true;
+      _error = context.words.wrongPassword;
+    }
   }
 
   @override
@@ -330,7 +338,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
 
   void _finish() {
     if (_password.text.isEmpty) {
-      setState(() => _error = 'Type the password.');
+      setState(() => _error = context.words.typePassword);
       return;
     }
     Navigator.of(context).pop(_password.text);
@@ -339,16 +347,16 @@ class _PasswordDialogState extends State<PasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('This file is locked'),
+      title: Text(context.words.fileLocked),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${widget.fileName} needs a password to open. It stays on this device.'),
+          Text(context.words.needsPassword(widget.fileName)),
           const SizedBox(height: 16),
           _PasswordField(
             controller: _password,
-            label: 'Password',
+            label: context.words.password,
             errorText: _error,
             autofocus: true,
             onSubmitted: (_) => _finish(),
@@ -356,8 +364,8 @@ class _PasswordDialogState extends State<PasswordDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _finish, child: const Text('Open')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.words.cancel)),
+        FilledButton(onPressed: _finish, child: Text(context.words.open)),
       ],
     );
   }
@@ -386,8 +394,10 @@ class _AddPasswordDialogState extends State<AddPasswordDialog> {
 
   void _finish() {
     setState(() {
-      _error = _password.text.isEmpty ? 'Choose a password.' : null;
-      _againError = _error == null && _again.text != _password.text ? 'These don\'t match.' : null;
+      _error = _password.text.isEmpty ? context.words.choosePassword : null;
+      _againError = _error == null && _again.text != _password.text
+          ? context.words.passwordsDiffer
+          : null;
     });
     if (_error != null || _againError != null) return;
     Navigator.of(context).pop(ActionOptions(newPassword: _password.text));
@@ -396,33 +406,31 @@ class _AddPasswordDialogState extends State<AddPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add password'),
+      title: Text(context.words.addPassword),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Nobody can open the result without it, and a lost password can\'t be recovered.',
-          ),
+          Text(context.words.addPasswordWarning),
           const SizedBox(height: 16),
           _PasswordField(
             controller: _password,
-            label: 'Password',
+            label: context.words.password,
             errorText: _error,
             autofocus: true,
           ),
           const SizedBox(height: 16),
           _PasswordField(
             controller: _again,
-            label: 'The same password again',
+            label: context.words.samePasswordAgain,
             errorText: _againError,
             onSubmitted: (_) => _finish(),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _finish, child: const Text('Add password')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.words.cancel)),
+        FilledButton(onPressed: _finish, child: Text(context.words.addPassword)),
       ],
     );
   }
@@ -450,7 +458,7 @@ class _ShiftDialogState extends State<ShiftDialog> {
   void _finish() {
     final seconds = double.tryParse(_seconds.text.trim());
     if (seconds == null || seconds <= 0) {
-      setState(() => _error = 'Enter a number of seconds, like 1.5.');
+      setState(() => _error = context.words.secondsHint);
       return;
     }
     final milliseconds = (seconds * 1000).round();
@@ -461,7 +469,7 @@ class _ShiftDialogState extends State<ShiftDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Shift timing'),
+      title: Text(context.words.shiftTiming),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -469,14 +477,14 @@ class _ShiftDialogState extends State<ShiftDialog> {
             controller: _seconds,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(labelText: 'Seconds', errorText: _error),
+            decoration: InputDecoration(labelText: context.words.seconds, errorText: _error),
             onSubmitted: (_) => _finish(),
           ),
           const SizedBox(height: 16),
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Later')),
-              ButtonSegment(value: false, label: Text('Earlier')),
+            segments: [
+              ButtonSegment(value: true, label: Text(context.words.later)),
+              ButtonSegment(value: false, label: Text(context.words.earlier)),
             ],
             selected: {_later},
             onSelectionChanged: (selection) => setState(() => _later = selection.single),
@@ -484,8 +492,8 @@ class _ShiftDialogState extends State<ShiftDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _finish, child: const Text('Shift')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.words.cancel)),
+        FilledButton(onPressed: _finish, child: Text(context.words.shift)),
       ],
     );
   }
@@ -621,7 +629,8 @@ class _TrimDialogState extends State<TrimDialog> {
   }
 
   void _finish() {
-    const useTime = 'Use a time like 1:30.';
+    final words = context.words;
+    final useTime = words.useTime;
     final fromText = _from.text.trim();
     final toText = _to.text.trim();
     final from = parseClock(fromText);
@@ -634,18 +643,18 @@ class _TrimDialogState extends State<TrimDialog> {
       _toError = toBad ? useTime : null;
       if (fromBad || toBad) return;
       if (from == null && to == null) {
-        _fromError = 'Choose where to start or end.';
+        _fromError = words.chooseStartOrEnd;
       } else if (from != null && length != null && from >= length) {
-        _fromError = 'This is only ${formatClock(length)} long.';
+        _fromError = words.onlyThisLong(formatClock(length));
       } else if (from != null && to != null && to <= from) {
-        _toError = 'This must be after the start.';
+        _toError = words.afterStart;
       }
     });
     if (_fromError != null || _toError != null) return;
     Navigator.of(context).pop(ActionOptions(startSeconds: from, endSeconds: to));
   }
 
-  Widget _buildFrame(String label, _FrameSlot slot) {
+  Widget _buildFrame(String label, String described, _FrameSlot slot) {
     final styles = Theme.of(context);
     final frame = slot.frame;
     return Expanded(
@@ -661,7 +670,7 @@ class _TrimDialogState extends State<TrimDialog> {
                       frame,
                       fit: BoxFit.contain,
                       gaplessPlayback: true,
-                      semanticLabel: 'The video at the ${label.toLowerCase()}',
+                      semanticLabel: described,
                     )
                   : Center(
                       child: slot.busy
@@ -685,9 +694,9 @@ class _TrimDialogState extends State<TrimDialog> {
       if (widget.preview?.frameAt != null) ...[
         Row(
           children: [
-            _buildFrame('Start', _startSlot),
+            _buildFrame(context.words.start, context.words.videoAtStart, _startSlot),
             const SizedBox(width: 8),
-            _buildFrame('End', _endSlot),
+            _buildFrame(context.words.end, context.words.videoAtEnd, _endSlot),
           ],
         ),
         const SizedBox(height: 8),
@@ -714,7 +723,7 @@ class _TrimDialogState extends State<TrimDialog> {
   Widget build(BuildContext context) {
     final length = _length;
     return AlertDialog(
-      title: const Text('Trim'),
+      title: Text(context.words.trim),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -726,9 +735,9 @@ class _TrimDialogState extends State<TrimDialog> {
                 controller: _from,
                 autofocus: length == null,
                 decoration: InputDecoration(
-                  labelText: 'Start',
+                  labelText: context.words.start,
                   hintText: '0:00',
-                  helperText: 'Empty means from the beginning',
+                  helperText: context.words.emptyFromBeginning,
                   errorText: _fromError,
                 ),
                 onChanged: (_) => _typed(),
@@ -738,9 +747,9 @@ class _TrimDialogState extends State<TrimDialog> {
               TextField(
                 controller: _to,
                 decoration: InputDecoration(
-                  labelText: 'End',
+                  labelText: context.words.end,
                   hintText: '1:30',
-                  helperText: 'Empty means to the end',
+                  helperText: context.words.emptyToEnd,
                   errorText: _toError,
                 ),
                 onChanged: (_) => _typed(),
@@ -751,8 +760,8 @@ class _TrimDialogState extends State<TrimDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _finish, child: const Text('Trim')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.words.cancel)),
+        FilledButton(onPressed: _finish, child: Text(context.words.trim)),
       ],
     );
   }
@@ -893,6 +902,13 @@ class _CropDialogState extends State<CropDialog> {
     super.dispose();
   }
 
+  String _fieldLabel(Words words, String name) => switch (name) {
+    'Left' => words.left,
+    'Top' => words.top,
+    'Width' => words.width,
+    _ => words.height,
+  };
+
   void _setArea(Rect area) {
     _area = area;
     _fields['Left']!.text = '${area.left.round()}';
@@ -941,23 +957,23 @@ class _CropDialogState extends State<CropDialog> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            tooltip: 'Cancel',
+            tooltip: context.words.cancel,
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text('Crop'),
+          title: Text(context.words.crop),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: FilledButton(
                 onPressed: picture == null ? null : _finish,
-                child: const Text('Crop'),
+                child: Text(context.words.crop),
               ),
             ),
           ],
         ),
         body: _failed
-            ? const Center(child: Text('This picture could not be shown.'))
+            ? Center(child: Text(context.words.pictureNotShown))
             : picture == null
             ? const Center(child: CircularProgressIndicator())
             : Column(
@@ -986,7 +1002,9 @@ class _CropDialogState extends State<CropDialog> {
                                 controller: entry.value,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                decoration: InputDecoration(labelText: entry.key),
+                                decoration: InputDecoration(
+                                  labelText: _fieldLabel(context.words, entry.key),
+                                ),
                                 onChanged: (_) => _typed(),
                               ),
                             ),

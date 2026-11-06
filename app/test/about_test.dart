@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radialconverter/about.dart';
 import 'package:radialconverter/converter_screen.dart';
+import 'package:radialconverter/words.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +71,7 @@ void main() {
   testWidgets('it opens from the main screen', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: ConverterScreen(
           pickFiles: () async => const [],
           saveFile: (file) async => null,
@@ -90,6 +92,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: Words.localizationsDelegates,
         home: Builder(
           builder: (context) =>
               TextButton(onPressed: () => showAbout(context), child: const Text('open')),
