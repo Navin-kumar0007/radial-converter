@@ -15,9 +15,6 @@ the web app.
 | `pdf_writer.dart` | Builds a PDF from JPEGs |
 | `subtitles.dart` | Parses, converts and shifts SRT and VTT |
 
-`lib/history.dart` is the on-device job history (drift and SQLite). After changing its tables, run
-`dart run build_runner build`.
-
 `lib/engines.dart` is separate because it uses `dart:io`: it runs the engines as separate
 processes (desktop only). Try any action without the app:
 

@@ -57,8 +57,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 605 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 309 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 588 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 314 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -177,9 +177,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   and failing to store it never stops a conversion. Undo moves a result to the Trash or Recycle Bin, never deleting it,
   on Mac and Windows only, and refuses if the file's size has changed. Phones and browsers list only, as their saves go where
   the app can't follow. Only a day-old handed-over file is cleared, as another copy of the app may be dragging one.
-  `core/lib/history.dart` is an older drift database, used by nothing in the app. It needs SQLite on each platform for
-  what's a small list, so it wasn't connected. Remove it unless the command line tool wants it.
-  After changing its schema, run `dart run build_runner build` in `core/`; `history_database.g.dart` is checked in.
+  An older drift/SQLite history database was removed on 8 Nov 2026: nothing used it, and its SQLite downloads made every
+  build depend on GitHub serving them. Don't bring SQLite back for a list this small.
 - Open at login (About's switch, `OpenAtLogin`, `loginItem`/`setLoginItem` over the Shift-drag channel): Mac uses
   `SMAppService.mainApp` (macOS 13+; `LoginItem` in `ShiftDrag.swift`) and hides the window when macOS says it opened
   the app at login; Windows writes `HKCU\...\Run` as `"shiftdrop.exe" --hidden`, which starts in the notification
