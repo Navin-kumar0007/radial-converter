@@ -603,5 +603,7 @@
   "trayStillRunning": "ShiftDrop is still running",
   "trayHowToQuit": "Shift-drag keeps working. To quit, right-click this icon.",
   "trayOpen": "Open ShiftDrop",
-  "trayQuit": "Quit"
+  "trayQuit": "Quit",
+  "keepWorkingTitle": "Converting your files",
+  "keepWorkingText": "You can use other apps. ShiftDrop keeps going and the result will be waiting."
 }

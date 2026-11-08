@@ -886,4 +886,11 @@ class WordsEn extends Words {
 
   @override
   String get trayQuit => 'Quit';
+
+  @override
+  String get keepWorkingTitle => 'Converting your files';
+
+  @override
+  String get keepWorkingText =>
+      'You can use other apps. ShiftDrop keeps going and the result will be waiting.';
 }

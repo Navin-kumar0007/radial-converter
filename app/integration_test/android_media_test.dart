@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:radial_core/radial_core.dart';
 import 'package:shiftdrop/android_media.dart';
 import 'package:shiftdrop/convert_native.dart';
+import 'package:shiftdrop/keep_going.dart';
 import 'package:shiftdrop/pdf_engine.dart';
 import 'package:shiftdrop/picked_file.dart';
 import 'package:shiftdrop/shared_files.dart';
@@ -200,6 +201,24 @@ void main() {
     expect(file.lengthSync(), result.size);
     return file.path;
   }
+
+  test('a running job keeps the app going in the background, until it ends', () async {
+    Future<bool> running() async =>
+        await mediaChannel.invokeMethod<bool>('isKeepingWorking') ?? false;
+    Future<bool> becomes(bool wanted) async {
+      for (var i = 0; i < 50; i++) {
+        if (await running() == wanted) return true;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      return false;
+    }
+
+    expect(await running(), isFalse);
+    await keepWorkingInBackground(true);
+    expect(await becomes(true), isTrue, reason: 'running in the foreground, with its notification');
+    await keepWorkingInBackground(false);
+    expect(await becomes(false), isTrue);
+  });
 
   test('the clip is what the tests think it is', () async {
     final info = await probeOnPhone(clip);

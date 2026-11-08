@@ -169,8 +169,9 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   details behind as an unused object after removing a password, so hashes of it stay in the file.
 - Never use pdfrx's `isEncrypted`: in a browser it's false for nearly all locked PDFs. `isPdfLocked` reads the file.
 - Android results and picked-file copies sit in the app's cache and are deleted on the next launch, so a big
-  video briefly needs twice the space. A long job can be killed if the user leaves the app: no foreground
-  service yet.
+  video briefly needs twice the space. While any job runs, `KeepWorkingService` (a foreground service, type
+  mediaProcessing on Android 15+, dataSync before) keeps the app alive with a notification, so leaving the app
+  doesn't kill the job. Dart starts and stops it around each job (`keepWorkingInBackground`).
 - History and undo (`core/lib/src/history_log.dart`, `history_store_*.dart`, `history_screen.dart`): each saved result is
   listed for 30 days, at most 500, as facts only, in a small file or the browser's storage. Damaged history starts afresh
   and failing to store it never stops a conversion. Undo moves a result to the Trash or Recycle Bin, never deleting it,

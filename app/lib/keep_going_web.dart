@@ -15,6 +15,9 @@ web.File _fileOf(String name, Uint8List bytes) {
 }
 
 /// Whether this browser can share files. iPhones and Android phones can; most desktop ones can't.
+/// Browsers keep a page's work going for as long as the tab is open.
+Future<void> keepWorkingInBackground(bool working) async {}
+
 bool get canShareOut {
   try {
     final probe = _fileOf('probe.jpg', Uint8List(1));

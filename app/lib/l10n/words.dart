@@ -1526,6 +1526,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Quit'**
   String get trayQuit;
+
+  /// No description provided for @keepWorkingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Converting your files'**
+  String get keepWorkingTitle;
+
+  /// No description provided for @keepWorkingText.
+  ///
+  /// In en, this message translates to:
+  /// **'You can use other apps. ShiftDrop keeps going and the result will be waiting.'**
+  String get keepWorkingText;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

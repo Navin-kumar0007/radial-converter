@@ -886,4 +886,11 @@ class WordsHi extends Words {
 
   @override
   String get trayQuit => 'बंद करें';
+
+  @override
+  String get keepWorkingTitle => 'आपकी फ़ाइलें बदली जा रही हैं';
+
+  @override
+  String get keepWorkingText =>
+      'आप दूसरे ऐप इस्तेमाल कर सकते हैं। ShiftDrop काम करता रहेगा और नतीजा तैयार मिलेगा।';
 }

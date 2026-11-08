@@ -124,6 +124,19 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 result,
             )
             "save" -> save(call, result)
+            "keepWorking" -> {
+                if (call.argument<Boolean>("working") == true) {
+                    KeepWorkingService.start(
+                        activity,
+                        call.argument<String>("title") ?: "ShiftDrop",
+                        call.argument<String>("text") ?: "",
+                    )
+                } else {
+                    KeepWorkingService.stop(activity)
+                }
+                result.success(null)
+            }
+            "isKeepingWorking" -> result.success(KeepWorkingService.isRunning(activity))
             else -> result.notImplemented()
         }
     }
@@ -131,6 +144,7 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
     fun stop() {
         channel.setMethodCallHandler(null)
         running.keys.toList().forEach(::cancel)
+        KeepWorkingService.stop(activity)
     }
 
     /** Writes a HEIC photo out as a PNG, upright, for the picture engine to read. */
