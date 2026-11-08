@@ -1,6 +1,6 @@
 {
-    "name": "Radial Converter",
-    "short_name": "Radial",
+    "name": "ShiftDrop",
+    "short_name": "ShiftDrop",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0B6E5F",

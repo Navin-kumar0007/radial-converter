@@ -8,8 +8,8 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:radial_core/engines.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/convert_native.dart';
-import 'package:radialconverter/picked_file.dart';
+import 'package:shiftdrop/convert_native.dart';
+import 'package:shiftdrop/picked_file.dart';
 
 void main() {
   final tools = EngineTools();

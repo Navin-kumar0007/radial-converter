@@ -11,11 +11,11 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/android_media.dart';
-import 'package:radialconverter/convert_native.dart';
-import 'package:radialconverter/pdf_engine.dart';
-import 'package:radialconverter/picked_file.dart';
-import 'package:radialconverter/shared_files.dart';
+import 'package:shiftdrop/android_media.dart';
+import 'package:shiftdrop/convert_native.dart';
+import 'package:shiftdrop/pdf_engine.dart';
+import 'package:shiftdrop/picked_file.dart';
+import 'package:shiftdrop/shared_files.dart';
 
 import 'clip_data.dart';
 

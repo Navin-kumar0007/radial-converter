@@ -1,4 +1,4 @@
-# Radial Converter app
+# ShiftDrop app
 
 The Flutter app. Pick files, choose a slice, save the result. Images and subtitles convert for
 real on every platform, using pure Dart from `core`. Video and audio work in browsers so far.

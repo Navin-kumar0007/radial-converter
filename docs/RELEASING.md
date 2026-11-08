@@ -33,7 +33,7 @@ registered, through the US$25 Android Developer Console.
 
 ### The website and web app
 
-`Radial-Converter-website.zip` is the whole site: the page from `docs/site`, with the web app under `/app/`. Any static host serving HTTPS works, and offline use needs
+`ShiftDrop-website.zip` is the whole site: the page from `docs/site`, with the web app under `/app/`. Any static host serving HTTPS works, and offline use needs
 HTTPS. The plan is Cloudflare Pages: upload the folder, or connect the repository with `app/tool/build_site.sh`
 as the build, serving `app/build/site`. `docs/site/_headers` sets the caching Cloudflare Pages needs. On another host, set `Cache-Control: no-cache` for
 `/app/index.html`, `/app/offline_files.js` and `/app/offline_worker.js`.

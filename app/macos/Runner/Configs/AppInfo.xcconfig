@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Radial Converter
+PRODUCT_NAME = ShiftDrop
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = io.github.navinkumar0007.radialconverter
+PRODUCT_BUNDLE_IDENTIFIER = io.github.navinkumar0007.shiftdrop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 Radial Converter contributors. MPL-2.0.
+PRODUCT_COPYRIGHT = Copyright © 2026 ShiftDrop contributors. MPL-2.0.

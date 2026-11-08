@@ -1,4 +1,4 @@
-name: radialconverter
+name: shiftdrop
 description: "Free, open-source, offline file converter with a Shift-drag radial menu."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.

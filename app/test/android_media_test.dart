@@ -7,8 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/android_media.dart';
-import 'package:radialconverter/conversion.dart';
+import 'package:shiftdrop/android_media.dart';
+import 'package:shiftdrop/conversion.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated 5 November 2026. This covers the Radial Converter apps and web app. "Radial Converter" is a working name.*
+*Last updated 5 November 2026. This covers the ShiftDrop apps and web app.*
 
 **In short: your files stay on your device. We don't collect anything, because the app has nothing to send it with.**
 

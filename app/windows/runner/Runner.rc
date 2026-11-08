@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Radial Converter contributors" "\0"
-            VALUE "FileDescription", "Radial Converter" "\0"
+            VALUE "CompanyName", "ShiftDrop contributors" "\0"
+            VALUE "FileDescription", "ShiftDrop" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "radialconverter" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Radial Converter contributors. MPL-2.0." "\0"
-            VALUE "OriginalFilename", "radialconverter.exe" "\0"
-            VALUE "ProductName", "Radial Converter" "\0"
+            VALUE "InternalName", "shiftdrop" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 ShiftDrop contributors. MPL-2.0." "\0"
+            VALUE "OriginalFilename", "shiftdrop.exe" "\0"
+            VALUE "ProductName", "ShiftDrop" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

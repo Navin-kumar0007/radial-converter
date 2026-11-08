@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/radial_geometry.dart';
-import 'package:radialconverter/radial_menu.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/radial_geometry.dart';
+import 'package:shiftdrop/radial_menu.dart';
+import 'package:shiftdrop/words.dart';
 
 const diameter = 280.0;
 const hub = 56.0;

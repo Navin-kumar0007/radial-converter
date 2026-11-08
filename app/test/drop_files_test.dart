@@ -7,10 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/conversion.dart';
-import 'package:radialconverter/converter_screen.dart';
-import 'package:radialconverter/drop_files.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/conversion.dart';
+import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/drop_files.dart';
+import 'package:shiftdrop/words.dart';
 
 void main() {
   group('reading dropped files', () {

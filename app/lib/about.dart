@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'words.dart';
 
 /// Shown to people, and checked against `pubspec.yaml` by a test.
-const appName = 'Radial Converter';
+const appName = 'ShiftDrop';
 const appVersion = '0.9.0';
 
 const projectAddress = 'https://github.com/Navin-kumar0007/radial-converter';

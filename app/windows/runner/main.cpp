@@ -9,9 +9,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   // Closing the window only hides it, so opening the app again usually means bringing it back. A
   // second copy would also show a second Shift-drag menu.
-  HANDLE running = ::CreateMutexW(nullptr, TRUE, L"RadialConverter.SingleInstance");
+  HANDLE running = ::CreateMutexW(nullptr, TRUE, L"ShiftDrop.SingleInstance");
   if (running != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
-    HWND window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Radial Converter");
+    HWND window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"ShiftDrop");
     if (window != nullptr) {
       ::ShowWindow(window, SW_RESTORE);
       ::SetForegroundWindow(window);
@@ -40,7 +40,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"Radial Converter", origin, size)) {
+  if (!window.Create(L"ShiftDrop", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

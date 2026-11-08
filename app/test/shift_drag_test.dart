@@ -6,9 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/converter_screen.dart';
-import 'package:radialconverter/shift_drag.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/shift_drag.dart';
+import 'package:shiftdrop/words.dart';
 
 void main() {
   late Directory folder;

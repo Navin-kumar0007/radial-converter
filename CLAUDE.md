@@ -1,7 +1,8 @@
-# Radial Converter: notes for Claude Code
+# ShiftDrop: notes for Claude Code
 
-Working name until the real name is chosen. Read this first; it carries the decisions and
-status from the planning chat in the Claude app (2 Nov 2026).
+Named ShiftDrop on 8 Nov 2026; it was "Radial Converter" until then, and the repository and folder still
+are. Read this first; it carries the decisions and status from the planning chat in the Claude app
+(2 Nov 2026).
 
 ## What we're building
 
@@ -57,7 +58,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/history.dart` is the drift history database. `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 605 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.radialconverter`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 309 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 309 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -258,8 +259,8 @@ Engine decisions that differ from the plan or are easy to get wrong:
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
 6. Menu: estimated size on hover, outer ring. A native speaker should review `app_hi.arb`.
-7. Android package name: registered with Google in Phase 5. It holds the working name, so revisit it
-   when the real name is chosen.
+7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
+   the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,
    `sudo xcodebuild -license accept`, `sudo xcodebuild -runFirstLaunch`, `flutter doctor`.
 

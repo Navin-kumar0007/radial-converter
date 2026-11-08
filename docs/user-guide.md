@@ -4,7 +4,7 @@
 
 ### Mac
 
-1. Download the disk image, open it, and move **Radial Converter** to Applications.
+1. Download the disk image, open it, and move **ShiftDrop** to Applications.
 2. Open it. macOS warns about apps from unidentified developers, as this one isn't signed yet. Go to **System Settings → Privacy & Security**, scroll down, and choose **Open Anyway**.
 3. Leave it running. Closing the window keeps it working in the background. To stop it, right-click its Dock icon and choose **Quit**.
 
@@ -26,7 +26,7 @@ Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
 
-**On Android.** Share a file from any app and choose Radial Converter, or open the app and choose files.
+**On Android.** Share a file from any app and choose ShiftDrop, or open the app and choose files.
 
 ## After converting
 

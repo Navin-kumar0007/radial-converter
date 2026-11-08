@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:radialconverter/about.dart';
-import 'package:radialconverter/converter_screen.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/about.dart';
+import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/words.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,10 +18,10 @@ void main() {
 
   test('the raw project name shows nowhere people would see it', () {
     final places = {
-      'web/index.html': '<title>Radial Converter</title>',
-      'web/manifest.json': '"name": "Radial Converter"',
-      'windows/runner/main.cpp': 'L"Radial Converter"',
-      'macos/Runner/Configs/AppInfo.xcconfig': 'PRODUCT_NAME = Radial Converter',
+      'web/index.html': '<title>ShiftDrop</title>',
+      'web/manifest.json': '"name": "ShiftDrop"',
+      'windows/runner/main.cpp': 'L"ShiftDrop"',
+      'macos/Runner/Configs/AppInfo.xcconfig': 'PRODUCT_NAME = ShiftDrop',
     };
     places.forEach((path, expected) {
       expect(File(path).readAsStringSync(), contains(expected), reason: path);
@@ -32,7 +32,7 @@ void main() {
     );
     expect(
       File('windows/runner/Runner.rc').readAsStringSync(),
-      isNot(contains('"ProductName", "radialconverter"')),
+      isNot(contains('"ProductName", "shiftdrop"')),
     );
   });
 
@@ -101,7 +101,7 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Radial Converter'), findsOneWidget);
+    expect(find.text('ShiftDrop'), findsOneWidget);
     expect(find.text('0.9.0'), findsOneWidget);
     expect(find.textContaining('Your files stay on this device'), findsOneWidget);
     expect(find.textContaining('Mozilla Public License'), findsOneWidget);

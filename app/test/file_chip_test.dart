@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:radialconverter/file_chip.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/file_chip.dart';
+import 'package:shiftdrop/words.dart';
 
 void main() {
   Widget host(FileChip chip) => MaterialApp(

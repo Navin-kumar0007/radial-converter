@@ -1,5 +1,5 @@
 name: radial_core
-description: File detection, action catalogue, presets, naming, job queue and history for Radial Converter.
+description: File detection, action catalogue, presets, naming, job queue and history for ShiftDrop.
 version: 0.1.0
 publish_to: none
 

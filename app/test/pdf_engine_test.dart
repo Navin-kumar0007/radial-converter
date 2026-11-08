@@ -8,7 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/pdf_engine.dart';
+import 'package:shiftdrop/pdf_engine.dart';
 
 /// A picture full of detail, so PDF sizes behave like a real scan.
 Uint8List scan({int width = 1200, int height = 1600, int seed = 1}) {

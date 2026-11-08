@@ -1506,7 +1506,7 @@ abstract class Words {
   /// No description provided for @trayStillRunning.
   ///
   /// In en, this message translates to:
-  /// **'Radial Converter is still running'**
+  /// **'ShiftDrop is still running'**
   String get trayStillRunning;
 
   /// No description provided for @trayHowToQuit.
@@ -1518,7 +1518,7 @@ abstract class Words {
   /// No description provided for @trayOpen.
   ///
   /// In en, this message translates to:
-  /// **'Open Radial Converter'**
+  /// **'Open ShiftDrop'**
   String get trayOpen;
 
   /// No description provided for @trayQuit.

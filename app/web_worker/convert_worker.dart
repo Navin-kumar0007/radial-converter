@@ -3,7 +3,7 @@
 import 'dart:js_interop';
 
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/worker_protocol.dart';
+import 'package:shiftdrop/worker_protocol.dart';
 import 'package:web/web.dart' as web;
 
 @JS('self')

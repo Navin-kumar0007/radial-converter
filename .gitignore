@@ -42,5 +42,5 @@ engines/build/
 
 # Downloads of our own builds, for trying them
 *.apk
-/radial-converter-*.zip
+/shiftdrop-*.zip
 /*.app/

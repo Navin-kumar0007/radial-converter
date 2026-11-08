@@ -5,7 +5,7 @@
 set -u
 
 device="${ANDROID_SERIAL:-emulator-5554}"
-app=io.github.navinkumar0007.radialconverter
+app=io.github.navinkumar0007.shiftdrop
 flutter test integration_test/android_media_test.dart -d "$device" &
 tests=$!
 

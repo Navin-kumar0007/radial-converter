@@ -56,7 +56,7 @@ jobs:
         run: tool/build_site.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-web
+          name: shiftdrop-web
           path: app/build/site
 
   android:
@@ -94,22 +94,22 @@ jobs:
         working-directory: app
         run: |
           flutter build apk --release --no-shrink
-          cp build/app/outputs/flutter-apk/app-release.apk "../radial-converter-$APK_NAME.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "../shiftdrop-$APK_NAME.apk"
           flutter build apk --release --no-shrink --target-platform android-arm64
-          cp build/app/outputs/flutter-apk/app-release.apk "../radial-converter-$APK_NAME-arm64.apk"
-          ls -la ../radial-converter-*.apk
+          cp build/app/outputs/flutter-apk/app-release.apk "../shiftdrop-$APK_NAME-arm64.apk"
+          ls -la ../shiftdrop-*.apk
       - name: Check Android itself will stop it reaching a network
         run: |
           aapt="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
-          "$aapt" dump permissions "radial-converter-$APK_NAME.apk" | tee permissions.txt
+          "$aapt" dump permissions "shiftdrop-$APK_NAME.apk" | tee permissions.txt
           if grep -E 'INTERNET|NETWORK|WIFI' permissions.txt; then
             echo "The release app can reach a network." >&2
             exit 1
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-android
-          path: radial-converter-android*.apk
+          name: shiftdrop-android
+          path: shiftdrop-android*.apk
 
   # The real Android video engine, on an emulator, since it can't run in `flutter test`.
   android-device:
@@ -185,15 +185,15 @@ jobs:
         run: |
           $setup = (Get-ChildItem installer/*.exe).FullName
           Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
-          $folder = "$env:LOCALAPPDATA\Programs\Radial Converter"
-          foreach ($file in 'radialconverter.exe','archive.dll','engines\ffmpeg.exe') {
+          $folder = "$env:LOCALAPPDATA\Programs\ShiftDrop"
+          foreach ($file in 'shiftdrop.exe','archive.dll','engines\ffmpeg.exe') {
             if (-not (Test-Path "$folder\$file")) { throw "The installer left out $file" }
           }
-          $app = Start-Process "$folder\radialconverter.exe" -PassThru
+          $app = Start-Process "$folder\shiftdrop.exe" -PassThru
           Start-Sleep -Seconds 15
           if ($app.HasExited) { throw "The installed app stopped by itself: $($app.ExitCode)" }
           # A second copy hands over to the first and leaves, rather than showing a second menu.
-          $second = Start-Process "$folder\radialconverter.exe" -PassThru
+          $second = Start-Process "$folder\shiftdrop.exe" -PassThru
           if (-not $second.WaitForExit(15000)) { throw "A second copy stayed open" }
           if ($app.HasExited) { throw "Opening a second copy stopped the first" }
           # Closing the window leaves it running in the notification area.
@@ -205,14 +205,14 @@ jobs:
           Start-Sleep -Seconds 2
           Start-Process "$folder\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Sleep -Seconds 5
-          if (Test-Path "$folder\radialconverter.exe") { throw "Uninstalling left the app behind" }
+          if (Test-Path "$folder\shiftdrop.exe") { throw "Uninstalling left the app behind" }
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-windows
+          name: shiftdrop-windows
           path: app/build/windows/x64/runner/Release
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-windows-installer
+          name: shiftdrop-windows-installer
           path: installer/*.exe
 
   macos:
@@ -233,7 +233,7 @@ jobs:
       - name: Test PDFs against the real PDFium
         working-directory: app
         run: |
-          PDFIUM_PATH="$PWD/build/macos/Build/Products/Release/Radial Converter.app/Contents/Frameworks/PDFium.framework/pdfium" \
+          PDFIUM_PATH="$PWD/build/macos/Build/Products/Release/ShiftDrop.app/Contents/Frameworks/PDFium.framework/pdfium" \
             flutter test test/pdf_engine_test.dart
       - name: Reuse the video engine if its recipe has not changed
         id: engine
@@ -250,32 +250,32 @@ jobs:
         run: engines/check_heic.sh engines/build/macos/bin
       - name: Add the video engine to the app
         run: |
-          app="app/build/macos/Build/Products/Release/Radial Converter.app"
+          app="app/build/macos/Build/Products/Release/ShiftDrop.app"
           mkdir -p "$app/Contents/Resources/engines"
           cp engines/build/macos/bin/* "$app/Contents/Resources/engines/"
           # Signing again drops the entitlements unless given, and without them the file dialogs refuse to open.
           codesign --force --deep --sign - --entitlements app/macos/Runner/Release.entitlements "$app"
           codesign -d --entitlements - "$app" 2>&1 | grep -q 'files.user-selected.read-write'
       - name: Zip the app, keeping its permissions
-        run: ditto -c -k --keepParent "app/build/macos/Build/Products/Release/Radial Converter.app" radial-converter-macos.zip
+        run: ditto -c -k --keepParent "app/build/macos/Build/Products/Release/ShiftDrop.app" shiftdrop-macos.zip
       - name: Make the disk image
         run: |
           mkdir dmg
-          ditto "app/build/macos/Build/Products/Release/Radial Converter.app" "dmg/Radial Converter.app"
+          ditto "app/build/macos/Build/Products/Release/ShiftDrop.app" "dmg/ShiftDrop.app"
           ln -s /Applications dmg/Applications
-          hdiutil create -volname "Radial Converter" -srcfolder dmg -ov -format UDZO radial-converter-macos.dmg
-          hdiutil verify radial-converter-macos.dmg
-          hdiutil attach -nobrowse -mountpoint mounted radial-converter-macos.dmg
-          codesign -d --entitlements - "mounted/Radial Converter.app" 2>&1 | grep -q 'files.user-selected.read-write'
+          hdiutil create -volname "ShiftDrop" -srcfolder dmg -ov -format UDZO shiftdrop-macos.dmg
+          hdiutil verify shiftdrop-macos.dmg
+          hdiutil attach -nobrowse -mountpoint mounted shiftdrop-macos.dmg
+          codesign -d --entitlements - "mounted/ShiftDrop.app" 2>&1 | grep -q 'files.user-selected.read-write'
           hdiutil detach mounted
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-macos
-          path: radial-converter-macos.zip
+          name: shiftdrop-macos
+          path: shiftdrop-macos.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: radial-converter-macos-dmg
-          path: radial-converter-macos.dmg
+          name: shiftdrop-macos-dmg
+          path: shiftdrop-macos.dmg
 
   # The build machines are Apple Silicon, and nothing else here can run the Intel half.
   macos-intel:
@@ -285,12 +285,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: radial-converter-macos
+          name: shiftdrop-macos
       - name: Run the download on an Intel Mac
         run: |
           [ "$(uname -m)" = x86_64 ]
-          ditto -x -k radial-converter-macos.zip unpacked
-          app="unpacked/Radial Converter.app"
+          ditto -x -k shiftdrop-macos.zip unpacked
+          app="unpacked/ShiftDrop.app"
           engines/check_heic.sh "$app/Contents/Resources/engines"
           # Not the hardware encoder, which a virtual machine may not have.
           "$app/Contents/Resources/engines/ffmpeg" -hide_banner -loglevel error \
@@ -302,8 +302,8 @@ jobs:
           grep -q opus streams.txt
       - name: Start the app on an Intel Mac
         run: |
-          app="unpacked/Radial Converter.app"
-          "$app/Contents/MacOS/Radial Converter" &
+          app="unpacked/ShiftDrop.app"
+          "$app/Contents/MacOS/ShiftDrop" &
           pid=$!
           sleep 15
           kill -0 "$pid"
@@ -332,13 +332,13 @@ jobs:
         run: |
           mkdir dist
           # No version in the names, so the website can link to releases/latest/download/.
-          name="Radial-Converter"
-          cp built/radial-converter-macos-dmg/*.dmg "dist/$name-mac.dmg"
-          cp built/radial-converter-windows-installer/*.exe "dist/$name-windows-setup.exe"
-          (cd built/radial-converter-windows && zip -qr "$GITHUB_WORKSPACE/dist/$name-windows-portable.zip" .)
-          (cd built/radial-converter-web && zip -qr "$GITHUB_WORKSPACE/dist/$name-website.zip" .)
-          for apk in built/radial-converter-android/*.apk; do
-            cp "$apk" "dist/$name-$(basename "$apk" .apk | sed 's/^radial-converter-//').apk"
+          name="ShiftDrop"
+          cp built/shiftdrop-macos-dmg/*.dmg "dist/$name-mac.dmg"
+          cp built/shiftdrop-windows-installer/*.exe "dist/$name-windows-setup.exe"
+          (cd built/shiftdrop-windows && zip -qr "$GITHUB_WORKSPACE/dist/$name-windows-portable.zip" .)
+          (cd built/shiftdrop-web && zip -qr "$GITHUB_WORKSPACE/dist/$name-website.zip" .)
+          for apk in built/shiftdrop-android/*.apk; do
+            cp "$apk" "dist/$name-$(basename "$apk" .apk | sed 's/^shiftdrop-//').apk"
           done
           mkdir sources
           curl -fsSL -o sources/ffmpeg-9.0.2.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
@@ -381,4 +381,4 @@ jobs:
           prerelease=()
           case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" dist/* --draft "${prerelease[@]}" \
-            --title "Radial Converter $GITHUB_REF_NAME" --notes-file notes.md
+            --title "ShiftDrop $GITHUB_REF_NAME" --notes-file notes.md

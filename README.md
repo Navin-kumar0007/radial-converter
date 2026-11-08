@@ -1,10 +1,10 @@
-# Radial Converter
+# ShiftDrop
 
 A free, open-source file converter that works offline. Hold **Shift** while dragging a file and a round menu appears at your cursor. Drop the file on a slice, and the result lands next to the original, ready to drag straight into an email or a chat.
 
 **Your files never leave your device.** There's no account, no ads and no tracking, and nothing is uploaded.
 
-> **Beta.** "Radial Converter" is a working name. The Mac, Android and web apps have been used on real devices; Windows has been built and tested automatically but not yet used by hand.
+> **Beta.** The Mac, Android and web apps have been used on real devices; Windows has been built and tested automatically but not yet used by hand.
 
 ## What it does
 

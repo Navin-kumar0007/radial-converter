@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:radialconverter/radial_geometry.dart';
+import 'package:shiftdrop/radial_geometry.dart';
 
 const diameter = 280.0;
 const hub = 56.0;

@@ -17,7 +17,7 @@ class RadialApp extends StatelessWidget {
   Widget build(BuildContext context) {
     const accent = Color(0xFF0B6E5F);
     return MaterialApp(
-      title: 'Radial Converter',
+      title: 'ShiftDrop',
       debugShowCheckedModeBanner: false,
       localizationsDelegates: Words.localizationsDelegates,
       supportedLocales: Words.supportedLocales,

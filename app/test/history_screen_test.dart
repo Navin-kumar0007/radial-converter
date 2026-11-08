@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/conversion.dart';
-import 'package:radialconverter/converter_screen.dart';
-import 'package:radialconverter/history_screen.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/conversion.dart';
+import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/history_screen.dart';
+import 'package:shiftdrop/words.dart';
 
 final english = wordsFor(const Locale('en'));
 

@@ -882,7 +882,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
               shrinkWrap: true,
               padding: const EdgeInsets.all(16),
               children: [
-                Text('Radial Converter', style: styles.headlineSmall, textAlign: TextAlign.center),
+                Text('ShiftDrop', style: styles.headlineSmall, textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(words.tagline, style: styles.bodyMedium, textAlign: TextAlign.center),
                 const SizedBox(height: 24),

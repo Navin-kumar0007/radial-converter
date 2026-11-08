@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:radialconverter/words.dart';
+import 'package:shiftdrop/words.dart';
 
 Map<String, dynamic> _arb(String language) =>
     jsonDecode(File('lib/l10n/app_$language.arb').readAsStringSync()) as Map<String, dynamic>;

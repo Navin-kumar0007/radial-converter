@@ -1,4 +1,4 @@
-package io.github.navinkumar0007.radialconverter
+package io.github.navinkumar0007.shiftdrop
 
 import android.app.Activity
 import android.content.ContentResolver
