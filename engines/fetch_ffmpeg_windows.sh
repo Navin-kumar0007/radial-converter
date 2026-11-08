@@ -10,9 +10,16 @@ sum=dffd61c77a4d8b7d29fdbcafd661e41b806bf5cb896645073518a962cb8c92b9
 
 target="$1"
 work="$(mktemp -d)"
-curl -fsSL -o "$work/ffmpeg.zip" "https://github.com/BtbN/FFmpeg-Builds/releases/download/$tag/$name.zip"
-echo "$sum  $work/ffmpeg.zip" | sha256sum -c -
-unzip -q "$work/ffmpeg.zip" -d "$work"
+# Kept between runs (CI caches this folder), as GitHub's release downloads can fail for a while.
+downloads="$(cd "$(dirname "$0")" && pwd)/build/downloads"
+zip="$downloads/$name.zip"
+mkdir -p "$downloads"
+if [ ! -f "$zip" ] || ! echo "$sum  $zip" | sha256sum -c - >/dev/null 2>&1; then
+  curl -fsSL --retry 6 --retry-all-errors --retry-delay 30 -o "$zip" \
+    "https://github.com/BtbN/FFmpeg-Builds/releases/download/$tag/$name.zip"
+fi
+echo "$sum  $zip" | sha256sum -c -
+unzip -q "$zip" -d "$work"
 
 # Fail if anything that must not ship got in, or the hardware encoder went missing.
 strings "$work/$name/bin/ffmpeg.exe" > "$work/strings.txt"

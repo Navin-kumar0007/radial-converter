@@ -183,6 +183,11 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   `SMAppService.mainApp` (macOS 13+; `LoginItem` in `ShiftDrag.swift`) and hides the window when macOS says it opened
   the app at login; Windows writes `HKCU\...\Run` as `"shiftdrop.exe" --hidden`, which starts in the notification
   area, and the uninstaller removes it. CI checks the hidden start and the removal. Nobody has tried it on a real Mac yet.
+- CI downloads Gradle, PDFium (Windows, Mac) and FFmpeg for Windows from GitHub release downloads, which returned 504 for
+  over an hour on 8 Nov 2026 while GitHub's status page said all was well. Each is cached between runs, and builds go
+  through `app/tool/retry_network.sh`, which retries only when the log shows a failed download. Don't edit
+  `engines/build_ffmpeg_macos.sh` or `build_libarchive_wasm.sh` lightly: their hash keys a cache, and a change means a
+  full rebuild.
 - Releases: pushing a tag like `v0.9.0` makes a draft GitHub release with a Mac disk image, a Windows installer and portable
   zip, APKs, the web app, the LGPL source and checksums. See `docs/RELEASING.md`. The installer and disk image are also made
   and tried on every push. APKs say `TEST-KEY` until the owner sets up a signing key. `--no-shrink` is deliberate: R8 can't see

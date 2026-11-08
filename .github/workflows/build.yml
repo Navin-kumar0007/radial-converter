@@ -35,12 +35,20 @@ jobs:
           dart pub get
           dart analyze
           dart test
+      # PDFium, which the PDF engine downloads from GitHub while building.
+      - name: Reuse PDFium
+        uses: actions/cache@v4
+        with:
+          path: app/.dart_tool/hooks_runner/shared/pdfium_dart
+          key: pdfium-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: pdfium-${{ runner.os }}-
       - name: Test app
         working-directory: app
+        shell: bash
         run: |
           flutter pub get
           flutter analyze
-          flutter test
+          tool/retry_network.sh flutter test
 
   web:
     runs-on: ubuntu-latest
@@ -107,6 +115,15 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # Gradle and its libraries come from GitHub release downloads, which can fail for a while.
+      - name: Reuse Gradle and its downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/android/gradle/wrapper/gradle-wrapper.properties', 'app/android/**/*.kts', 'app/pubspec.lock') }}
+          restore-keys: gradle-${{ runner.os }}-
       - name: Get the signing key, if this repository has one
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -128,9 +145,9 @@ jobs:
       - name: Build for all phones, and for most phones alone, which is far smaller
         working-directory: app
         run: |
-          flutter build apk --release --no-shrink
+          tool/retry_network.sh flutter build apk --release --no-shrink
           cp build/app/outputs/flutter-apk/app-release.apk "../shiftdrop-$APK_NAME.apk"
-          flutter build apk --release --no-shrink --target-platform android-arm64
+          tool/retry_network.sh flutter build apk --release --no-shrink --target-platform android-arm64
           cp build/app/outputs/flutter-apk/app-release.apk "../shiftdrop-$APK_NAME-arm64.apk"
           ls -la ../shiftdrop-*.apk
       - name: Check Android itself will stop it reaching a network
@@ -160,6 +177,18 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # Gradle and its libraries come from GitHub release downloads, which can fail for a while.
+      - name: Reuse Gradle and its downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/android/gradle/wrapper/gradle-wrapper.properties', 'app/android/**/*.kts', 'app/pubspec.lock') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - name: Get Gradle and its libraries before the emulator starts
+        working-directory: app
+        run: tool/retry_network.sh flutter build apk --debug
       - name: Let the emulator use hardware acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
@@ -184,9 +213,22 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # PDFium, which the PDF engine downloads from GitHub while building.
+      - name: Reuse PDFium
+        uses: actions/cache@v4
+        with:
+          path: app/.dart_tool/hooks_runner/shared/pdfium_dart
+          key: pdfium-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: pdfium-${{ runner.os }}-
       - name: Build
         working-directory: app
-        run: flutter build windows --release
+        shell: bash
+        run: tool/retry_network.sh flutter build windows --release
+      - name: Reuse the FFmpeg download
+        uses: actions/cache@v4
+        with:
+          path: engines/build/downloads
+          key: ffmpeg-windows-${{ hashFiles('engines/fetch_ffmpeg_windows.sh') }}
       - name: Add the video engine
         shell: bash
         run: engines/fetch_ffmpeg_windows.sh app/build/windows/x64/runner/Release/engines
@@ -275,9 +317,25 @@ jobs:
           cache: true
       - name: Check Shift-drag
         run: app/tool/check_shift_drag.sh
+      # PDFium, which the PDF engine downloads from GitHub while building.
+      - name: Reuse PDFium
+        uses: actions/cache@v4
+        with:
+          path: app/.dart_tool/hooks_runner/shared/pdfium_dart
+          key: pdfium-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: pdfium-${{ runner.os }}-
+      # PDFium for Mac is a Swift package whose framework comes from a GitHub release.
+      - name: Reuse Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            app/build/macos/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: swiftpm-${{ runner.os }}-
       - name: Build
         working-directory: app
-        run: flutter build macos --release
+        run: tool/retry_network.sh flutter build macos --release
       # A test has no app holding PDFium, and this is the one job that has just built one.
       - name: Test PDFs against the real PDFium
         working-directory: app
@@ -390,8 +448,9 @@ jobs:
             cp "$apk" "dist/$name-$(basename "$apk" .apk | sed 's/^shiftdrop-//').apk"
           done
           mkdir sources
-          curl -fsSL -o sources/ffmpeg-9.0.2.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
-          curl -fsSL -o sources/lame-3.100.tar.gz https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+          get() { curl -fsSL --retry 6 --retry-all-errors --retry-delay 30 -o "$1" "$2"; }
+          get sources/ffmpeg-9.0.2.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+          get sources/lame-3.100.tar.gz https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
           echo "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e  sources/ffmpeg-9.0.2.tar.xz" | sha256sum -c -
           echo "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e  sources/lame-3.100.tar.gz" | sha256sum -c -
           cp sources/* dist/
