@@ -1538,6 +1538,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'You can use other apps. ShiftDrop keeps going and the result will be waiting.'**
   String get keepWorkingText;
+
+  /// No description provided for @openAtLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Open at login'**
+  String get openAtLogin;
+
+  /// No description provided for @openAtLoginWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'So Shift-drag works as soon as you sign in. It waits out of sight until you need it.'**
+  String get openAtLoginWhy;
+
+  /// No description provided for @openAtLoginApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow ShiftDrop in System Settings, General, Login Items.'**
+  String get openAtLoginApprove;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -1,4 +1,41 @@
 import AppKit
+import ServiceManagement
+
+/// Opening at login, so Shift-drag works from the moment someone signs in. Uses the system's own
+/// login items, which macOS 13 added; macOS 12 isn't offered it. Answers with what's true now:
+/// "on", "off", "approval" (macOS wants the user to allow it in System Settings) or "unsupported".
+enum LoginItem {
+  static func status() -> String {
+    guard #available(macOS 13.0, *) else { return "unsupported" }
+    switch SMAppService.mainApp.status {
+    case .enabled: return "on"
+    case .requiresApproval: return "approval"
+    default: return "off"
+    }
+  }
+
+  static func set(_ on: Bool) -> String {
+    guard #available(macOS 13.0, *) else { return "unsupported" }
+    do {
+      if on {
+        try SMAppService.mainApp.register()
+      } else {
+        try SMAppService.mainApp.unregister()
+      }
+    } catch {
+      NSLog("ShiftDrop: could not change opening at login: \(error)")
+    }
+    return status()
+  }
+
+  /// Whether this launch is macOS opening the app at login, when it should start out of the way.
+  /// macOS says so in the event that opens the app; if a version doesn't, the window just shows.
+  static func launchedAtLogin() -> Bool {
+    let event = NSAppleEventManager.shared().currentAppleEvent
+    return event?.eventID == kAEOpenApplication
+      && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+  }
+}
 
 /// Text the app has put in the user's language, by key. English until it has.
 enum NativeWords {

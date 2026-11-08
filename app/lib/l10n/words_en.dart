@@ -893,4 +893,14 @@ class WordsEn extends Words {
   @override
   String get keepWorkingText =>
       'You can use other apps. ShiftDrop keeps going and the result will be waiting.';
+
+  @override
+  String get openAtLogin => 'Open at login';
+
+  @override
+  String get openAtLoginWhy =>
+      'So Shift-drag works as soon as you sign in. It waits out of sight until you need it.';
+
+  @override
+  String get openAtLoginApprove => 'Allow ShiftDrop in System Settings, General, Login Items.';
 }

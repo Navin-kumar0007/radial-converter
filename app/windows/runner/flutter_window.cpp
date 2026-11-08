@@ -14,8 +14,8 @@ const UINT kMenuQuit = 2;
 
 }  // namespace
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project, bool start_hidden)
+    : project_(project), start_hidden_(start_hidden) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -41,7 +41,8 @@ bool FlutterWindow::OnCreate() {
   shift_drag_ = std::make_unique<ShiftDrag>(flutter_controller_->engine()->messenger(), GetHandle());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+    // Hidden only if the icon is there to bring it back.
+    if (!start_hidden_ || !tray_added_) this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is

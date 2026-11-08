@@ -605,5 +605,8 @@
   "trayOpen": "Open ShiftDrop",
   "trayQuit": "Quit",
   "keepWorkingTitle": "Converting your files",
-  "keepWorkingText": "You can use other apps. ShiftDrop keeps going and the result will be waiting."
+  "keepWorkingText": "You can use other apps. ShiftDrop keeps going and the result will be waiting.",
+  "openAtLogin": "Open at login",
+  "openAtLoginWhy": "So Shift-drag works as soon as you sign in. It waits out of sight until you need it.",
+  "openAtLoginApprove": "Allow ShiftDrop in System Settings, General, Login Items."
 }

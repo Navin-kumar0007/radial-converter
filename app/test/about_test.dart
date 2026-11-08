@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shiftdrop/about.dart';
 import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/shift_drag.dart';
 import 'package:shiftdrop/words.dart';
 
 void main() {
@@ -107,5 +108,58 @@ void main() {
     expect(find.textContaining('Mozilla Public License'), findsOneWidget);
     expect(find.text('View licenses'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('open at login', () {
+    Future<void> show(
+      WidgetTester tester, {
+      required LoginItem state,
+      Future<LoginItem> Function(bool on)? write,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
+          home: Scaffold(
+            body: OpenAtLogin(read: () async => state, write: write ?? (on) async => state),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('isn\'t offered where the app can\'t do it', (tester) async {
+      await show(tester, state: LoginItem.unsupported);
+      expect(find.byType(Switch), findsNothing);
+    });
+
+    testWidgets('turns on and off, showing what is true afterwards', (tester) async {
+      final asked = <bool>[];
+      var now = LoginItem.off;
+      await show(
+        tester,
+        state: now,
+        write: (on) async {
+          asked.add(on);
+          return now = on ? LoginItem.on : LoginItem.off;
+        },
+      );
+      expect(find.text('Open at login'), findsOneWidget);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(asked, [true]);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(asked, [true, false]);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+    });
+
+    testWidgets('says where to allow it when macOS asks', (tester) async {
+      await show(tester, state: LoginItem.off, write: (on) async => LoginItem.needsApproval);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(find.textContaining('Login Items'), findsOneWidget);
+    });
   });
 }

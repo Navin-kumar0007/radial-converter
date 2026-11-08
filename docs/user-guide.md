@@ -22,6 +22,8 @@ Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works
 
 ## Converting a file
 
+**Open at login (Mac and Windows).** Shift-drag works only while ShiftDrop runs. Turn on **Open at login** in **About** (the i icon at the top) and it starts when you sign in, out of sight until you need it. On a Mac this needs macOS 13 or newer, and macOS may ask you to allow it in **System Settings → General → Login Items**.
+
 **Shift-drag (Mac and Windows).** Start dragging a file or folder from anywhere, hold **Shift** while dragging, and a round menu appears at your cursor. Drop on a slice. The result lands next to the original, and a chip appears at your cursor to drag it straight on. Drop in the middle to cancel.
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.

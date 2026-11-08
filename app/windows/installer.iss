@@ -43,5 +43,9 @@ Name: "{autodesktop}\ShiftDrop"; Filename: "{app}\shiftdrop.exe"; Tasks: desktop
 [Tasks]
 Name: "desktopicon"; Description: "Add a desktop shortcut"; Flags: unchecked
 
+[Registry]
+; Created by the app's "Open at login" switch, not here. Uninstalling removes it.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "ShiftDrop"; Flags: uninsdeletevalue
+
 [Run]
 Filename: "{app}\shiftdrop.exe"; Description: "Open ShiftDrop"; Flags: nowait postinstall skipifsilent

@@ -2,6 +2,8 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <algorithm>
+
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -34,10 +36,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+  // Signing in opens the app with this, to wait in the notification area for a Shift-drag.
+  const bool hidden = std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                                "--hidden") != command_line_arguments.end();
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
-  FlutterWindow window(project);
+  FlutterWindow window(project, hidden);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
   if (!window.Create(L"ShiftDrop", origin, size)) {

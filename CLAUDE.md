@@ -180,6 +180,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   `core/lib/history.dart` is an older drift database, used by nothing in the app. It needs SQLite on each platform for
   what's a small list, so it wasn't connected. Remove it unless the command line tool wants it.
   After changing its schema, run `dart run build_runner build` in `core/`; `history_database.g.dart` is checked in.
+- Open at login (About's switch, `OpenAtLogin`, `loginItem`/`setLoginItem` over the Shift-drag channel): Mac uses
+  `SMAppService.mainApp` (macOS 13+; `LoginItem` in `ShiftDrag.swift`) and hides the window when macOS says it opened
+  the app at login; Windows writes `HKCU\...\Run` as `"shiftdrop.exe" --hidden`, which starts in the notification
+  area, and the uninstaller removes it. CI checks the hidden start and the removal. Nobody has tried it on a real Mac yet.
 - Releases: pushing a tag like `v0.9.0` makes a draft GitHub release with a Mac disk image, a Windows installer and portable
   zip, APKs, the web app, the LGPL source and checksums. See `docs/RELEASING.md`. The installer and disk image are also made
   and tried on every push. APKs say `TEST-KEY` until the owner sets up a signing key. `--no-shrink` is deliberate: R8 can't see

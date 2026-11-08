@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'shift_drag.dart';
 import 'words.dart';
 
 /// Shown to people, and checked against `pubspec.yaml` by a test.
@@ -75,6 +76,60 @@ void showAbout(BuildContext context) {
       Text(context.words.privacyPromise),
       const SizedBox(height: 12),
       const SelectableText(projectAddress),
+      const OpenAtLogin(),
     ],
   );
+}
+
+/// The switch for opening at login, shown only where the app can do it.
+class OpenAtLogin extends StatefulWidget {
+  const OpenAtLogin({super.key, this.read = loginItem, this.write = setLoginItem});
+
+  final Future<LoginItem> Function() read;
+  final Future<LoginItem> Function(bool on) write;
+
+  @override
+  State<OpenAtLogin> createState() => _OpenAtLoginState();
+}
+
+class _OpenAtLoginState extends State<OpenAtLogin> {
+  LoginItem _state = LoginItem.unsupported;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.read().then((state) {
+      if (mounted) setState(() => _state = state);
+    });
+  }
+
+  Future<void> _set(bool on) async {
+    setState(() => _busy = true);
+    final state = await widget.write(on);
+    if (mounted) {
+      setState(() {
+        _state = state;
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_state == LoginItem.unsupported) return const SizedBox.shrink();
+    final words = context.words;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(words.openAtLogin),
+        subtitle: Text(
+          _state == LoginItem.needsApproval ? words.openAtLoginApprove : words.openAtLoginWhy,
+        ),
+        value: _state != LoginItem.off,
+        onChanged: _busy ? null : _set,
+      ),
+    );
+  }
 }

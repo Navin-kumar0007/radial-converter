@@ -99,5 +99,15 @@ if ProcessInfo.processInfo.environment["CI"] != nil {
   }
 }
 
+// Only reads: turning it on here would add this check program to the login items.
+if !["on", "off", "approval", "unsupported"].contains(LoginItem.status()) {
+  print("FAILED login item status is one of the four answers: \(LoginItem.status())")
+  failures += 1
+}
+if LoginItem.launchedAtLogin() {
+  print("FAILED a program started from a shell isn't opened at login")
+  failures += 1
+}
+
 if failures == 0 { print("Shift-drag checks passed.") }
 exit(failures == 0 ? 0 : 1)

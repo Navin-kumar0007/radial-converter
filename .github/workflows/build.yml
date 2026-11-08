@@ -238,9 +238,23 @@ jobs:
           if ($app.HasExited) { throw "Closing the window quit the app" }
           Stop-Process -Id $app.Id -Force
           Start-Sleep -Seconds 2
+          # Opened at sign-in, it waits in the notification area with no window.
+          $hidden = Start-Process "$folder\shiftdrop.exe" -ArgumentList '--hidden' -PassThru
+          Start-Sleep -Seconds 15
+          if ($hidden.HasExited) { throw "Starting hidden stopped the app: $($hidden.ExitCode)" }
+          $hidden.Refresh()
+          if ($hidden.MainWindowHandle -ne 0) { throw "Starting hidden showed the window" }
+          Stop-Process -Id $hidden.Id -Force
+          Start-Sleep -Seconds 2
+          # The app's "Open at login" switch writes this; uninstalling must take it away.
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          New-ItemProperty -Path $run -Name 'ShiftDrop' -Value "`"$folder\shiftdrop.exe`" --hidden" -Force | Out-Null
           Start-Process "$folder\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Sleep -Seconds 5
           if (Test-Path "$folder\shiftdrop.exe") { throw "Uninstalling left the app behind" }
+          if (Get-ItemProperty -Path $run -Name 'ShiftDrop' -ErrorAction SilentlyContinue) {
+            throw "Uninstalling left it opening at sign-in"
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: shiftdrop-windows

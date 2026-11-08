@@ -15,3 +15,10 @@ Future<String> saveBesideOriginal(String originalPath, PortableFile file) {
 
 /// Only a desktop has a window to bring forward from behind other apps.
 void showAppWindow() {}
+
+/// Whether the app opens when the user signs in. A page can't.
+enum LoginItem { unsupported, off, on, needsApproval }
+
+Future<LoginItem> loginItem() async => LoginItem.unsupported;
+
+Future<LoginItem> setLoginItem(bool on) async => LoginItem.unsupported;
