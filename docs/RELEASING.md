@@ -23,9 +23,9 @@ release. **Keep the keystore safe and backed up. If it's lost, no one can ever u
 
 ```sh
 keytool -genkeypair -v -keystore radial-release.jks -alias radial -keyalg RSA -keysize 4096 -validity 10000
-base64 -i radial-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R Navin-kumar0007/radial-converter
-gh secret set ANDROID_KEYSTORE_PASSWORD -R Navin-kumar0007/radial-converter
-gh secret set ANDROID_KEY_ALIAS -R Navin-kumar0007/radial-converter --body radial
+base64 -i radial-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R Navin-kumar0007/shiftdrop
+gh secret set ANDROID_KEYSTORE_PASSWORD -R Navin-kumar0007/shiftdrop
+gh secret set ANDROID_KEY_ALIAS -R Navin-kumar0007/shiftdrop --body radial
 ```
 
 Never commit the keystore or its password. From 2027 Android also needs apps from websites to be
@@ -42,8 +42,8 @@ such as `core-engine.shiftdrop.pages.dev`. It needs two secrets, set once:
 2. Find your **Account ID**: open **Workers & Pages** in the dashboard; it's on the right of the page.
 3. Store both in GitHub. Each command asks for the value, so it stays out of your shell history:
    ```sh
-   gh secret set CLOUDFLARE_API_TOKEN -R Navin-kumar0007/radial-converter
-   gh secret set CLOUDFLARE_ACCOUNT_ID -R Navin-kumar0007/radial-converter
+   gh secret set CLOUDFLARE_API_TOKEN -R Navin-kumar0007/shiftdrop
+   gh secret set CLOUDFLARE_ACCOUNT_ID -R Navin-kumar0007/shiftdrop
    ```
 4. Re-run the latest CI run, or push. The `website` job creates the `shiftdrop` project on its first run and
    prints the address. If that name is taken on pages.dev, Cloudflare adds a few letters to it.

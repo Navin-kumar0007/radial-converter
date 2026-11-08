@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.0 (beta, not yet released)
+## 0.9.0 (beta, 8 November 2026)
 
 First version people can try.
 

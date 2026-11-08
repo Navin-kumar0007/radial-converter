@@ -1,7 +1,7 @@
 # ShiftDrop: notes for Claude Code
 
-Named ShiftDrop on 8 Nov 2026; it was "Radial Converter" until then, and the repository and folder still
-are. Read this first; it carries the decisions and status from the planning chat in the Claude app
+Named ShiftDrop on 8 Nov 2026; it was "Radial Converter" until then. The GitHub repository is now
+`Navin-kumar0007/shiftdrop` (the old address redirects); only this folder keeps the old name. Read this first; it carries the decisions and status from the planning chat in the Claude app
 (2 Nov 2026).
 
 ## What we're building

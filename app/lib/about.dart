@@ -8,7 +8,7 @@ import 'words.dart';
 const appName = 'ShiftDrop';
 const appVersion = '0.9.0';
 
-const projectAddress = 'https://github.com/Navin-kumar0007/radial-converter';
+const projectAddress = 'https://github.com/Navin-kumar0007/shiftdrop';
 
 /// Parts built into the app whose licences Flutter can't find by itself, as they aren't Dart
 /// packages. LGPL parts say where their source is and that they can be replaced, as LGPL asks.
