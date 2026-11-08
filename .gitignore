@@ -33,3 +33,14 @@ key.properties
 
 # Secrets
 .env
+
+# Dart package lock (core is a library)
+core/pubspec.lock
+
+# Engines are built by scripts in engines/, not checked in
+engines/build/
+
+# Downloads of our own builds, for trying them
+*.apk
+/shiftdrop-*.zip
+/*.app/
