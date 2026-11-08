@@ -62,7 +62,7 @@ Headline features that make people switch:
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
-| `docs/` | User guide, privacy policy, website (later). |
+| `docs/` | User guide, privacy policy, `site/` (the website), `RELEASING.md`. |
 
 The first `core/` (from `radial-core.zip` in the planning chat) never reached git. This one was
 rebuilt from the plan on 2 Nov. Run it with `cd core && dart pub get && dart test`.
@@ -194,7 +194,8 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   both ARB files as `fail<Key>`: a test fails if Hindi lacks any key in `failures.dart`.
 - Website: `docs/site`, one static page with its own security policy, loading nothing from elsewhere. Scroll scenes are our
   own `site.js`; springs, the orbit and card effects use Motion 14.6.0 (MIT), vendored unmodified in `docs/site/vendor/motion/`. `app/tool/build_site.sh`
-  puts the web app under `/app/`. Not hosted yet, as that needs the owner's account. Download links need a published release.
+  puts the web app under `/app/`. CI's `website` job publishes it to Cloudflare Pages once the
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets exist (project `shiftdrop`). Download links need a published release.
 - Test as you go: `cd app && flutter run -d chrome`. CI (`.github/workflows/build.yml`) builds web,
   Android, Windows and macOS downloads on every push.
 

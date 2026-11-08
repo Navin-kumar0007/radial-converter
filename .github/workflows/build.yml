@@ -59,6 +59,41 @@ jobs:
           name: shiftdrop-web
           path: app/build/site
 
+  # Publishes the site to Cloudflare Pages: main is the live site, any other branch gets its own
+  # preview address. Nothing happens until the repository has the Cloudflare secrets; see
+  # docs/RELEASING.md.
+  website:
+    needs: [test, web]
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'shiftdrop' }}
+    steps:
+      - name: Check Cloudflare is set up
+        id: ready
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Cloudflare secrets yet, so nothing is published."
+          fi
+      - uses: actions/download-artifact@v4
+        if: steps.ready.outputs.go == 'true'
+        with:
+          name: shiftdrop-web
+          path: site
+      - name: Publish
+        if: steps.ready.outputs.go == 'true'
+        run: |
+          wrangler="npx --yes wrangler@4.152.0"
+          if ! $wrangler pages project list | grep -qw "$PROJECT"; then
+            $wrangler pages project create "$PROJECT" --production-branch main
+          fi
+          $wrangler pages deploy site --project-name "$PROJECT" --branch "$GITHUB_REF_NAME" \
+            --commit-hash "$GITHUB_SHA" --commit-dirty=true
+
   android:
     runs-on: ubuntu-latest
     steps:

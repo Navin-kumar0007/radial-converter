@@ -33,13 +33,27 @@ registered, through the US$25 Android Developer Console.
 
 ### The website and web app
 
-`ShiftDrop-website.zip` is the whole site: the page from `docs/site`, with the web app under `/app/`. Any static host serving HTTPS works, and offline use needs
-HTTPS. The plan is Cloudflare Pages: upload the folder, or connect the repository with `app/tool/build_site.sh`
-as the build, serving `app/build/site`. `docs/site/_headers` sets the caching Cloudflare Pages needs. On another host, set `Cache-Control: no-cache` for
-`/app/index.html`, `/app/offline_files.js` and `/app/offline_worker.js`.
+CI builds the whole site (`app/tool/build_site.sh`: the page from `docs/site`, the web app under `/app/`) and
+publishes it to Cloudflare Pages: pushes to `main` go to the live site, other branches to a preview address
+such as `core-engine.shiftdrop.pages.dev`. It needs two secrets, set once:
 
-The page's download links use `releases/latest/download/`, so they only work once a full release, not a draft or
-prerelease, is published. CI fails a release that lacks a file the page links to.
+1. In Cloudflare, open **My Profile, API Tokens, Create Token**, choose **Create Custom Token**, and give it
+   one permission: **Account, Cloudflare Pages, Edit**, for your account. Copy the token.
+2. Find your **Account ID**: open **Workers & Pages** in the dashboard; it's on the right of the page.
+3. Store both in GitHub. Each command asks for the value, so it stays out of your shell history:
+   ```sh
+   gh secret set CLOUDFLARE_API_TOKEN -R Navin-kumar0007/radial-converter
+   gh secret set CLOUDFLARE_ACCOUNT_ID -R Navin-kumar0007/radial-converter
+   ```
+4. Re-run the latest CI run, or push. The `website` job creates the `shiftdrop` project on its first run and
+   prints the address. If that name is taken on pages.dev, Cloudflare adds a few letters to it.
+
+Never paste the token anywhere else. To use another project name, set the repository variable
+`CLOUDFLARE_PAGES_PROJECT`. A custom domain is added later under the project's **Custom domains**.
+`docs/site/_headers` sets the caching the web app needs. `Download` buttons on the site use
+`releases/latest/download/`, so they work once a full release is published.
+
+`ShiftDrop-website.zip` in each release is the same site, for any other static host serving HTTPS.
 
 ### Windows signing (optional, free)
 
