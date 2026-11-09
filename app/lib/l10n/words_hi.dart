@@ -109,6 +109,16 @@ class WordsHi extends Words {
   String get nothingFits => 'कुछ भी नहीं चलेगा';
 
   @override
+  String sizeAbout(String size) {
+    return 'लगभग $size';
+  }
+
+  @override
+  String sizeUpTo(String size) {
+    return '$size तक';
+  }
+
+  @override
   String get trashMac => 'ट्रैश';
 
   @override

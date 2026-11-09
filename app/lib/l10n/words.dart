@@ -267,6 +267,18 @@ abstract class Words {
   /// **'Nothing fits'**
   String get nothingFits;
 
+  /// In the menu's centre: how big a result came out when tried, such as About 85 KB.
+  ///
+  /// In en, this message translates to:
+  /// **'About {size}'**
+  String sizeAbout(String size);
+
+  /// In the menu's centre: the most a size-limited result can be, such as Up to 100 KB.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {size}'**
+  String sizeUpTo(String size);
+
   /// No description provided for @trashMac.
   ///
   /// In en, this message translates to:

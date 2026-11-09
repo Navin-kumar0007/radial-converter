@@ -29,6 +29,8 @@
   "moreActions": "और विकल्प",
   "cancelFiles": "रद्द करें, {count} फ़ाइलें",
   "nothingFits": "कुछ भी नहीं चलेगा",
+  "sizeAbout": "लगभग {size}",
+  "sizeUpTo": "{size} तक",
   "trashMac": "ट्रैश",
   "trashWindows": "रीसायकल बिन",
   "movedTo": "{place} में भेज दिया गया।",

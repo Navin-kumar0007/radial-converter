@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:radial_core/radial_core.dart';
 import 'package:shiftdrop/radial_geometry.dart';
 import 'package:shiftdrop/radial_menu.dart';
+import 'package:shiftdrop/size_preview.dart';
 import 'package:shiftdrop/words.dart';
 
 const diameter = 280.0;
@@ -28,6 +29,7 @@ void main() {
     List<RadialAction> actions, {
     int fileCount = 1,
     bool reduceMotion = false,
+    SizeGuesser? sizeOf,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -39,6 +41,7 @@ void main() {
               child: RadialMenu(
                 actions: actions,
                 fileCount: fileCount,
+                sizeOf: sizeOf,
                 onSelected: selected.add,
                 onCancelled: () => cancels++,
               ),
@@ -107,6 +110,79 @@ void main() {
         tester.getSemantics(find.bySemanticsLabel(label)),
         matchesSemantics(isButton: true, hasSelectedState: true, hasTapAction: true, label: label),
       );
+    });
+  });
+
+  group('sizes', () {
+    late Map<String, int> asked;
+
+    Future<SizeGuess?> sizes(RadialAction action) async {
+      asked[action.id] = (asked[action.id] ?? 0) + 1;
+      return action == menuPages(pdf).single.first ? const SizeGuess.about(85 * 1024) : null;
+    }
+
+    setUp(() => asked = {});
+
+    testWidgets('resting on a slice shows its size in the centre, once asked', (tester) async {
+      await pump(tester, pdf, sizeOf: sizes);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(slicePoint(tester, 0, pdf.length));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('About 85 KB'), findsNothing, reason: 'passing over asks nothing');
+      expect(asked, isEmpty);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      expect(find.text('About 85 KB'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      await mouse.moveTo(slicePoint(tester, 1, pdf.length));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('About 85 KB'), findsNothing);
+
+      await mouse.moveTo(slicePoint(tester, 0, pdf.length));
+      await tester.pump();
+      expect(
+        find.text('About 85 KB'),
+        findsOneWidget,
+        reason: 'a size already known shows at once',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(asked[menuPages(pdf).single.first.id], 1);
+    });
+
+    testWidgets('the keyboard shows sizes too', (tester) async {
+      await pump(tester, pdf, sizeOf: sizes);
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('About 85 KB'), findsOneWidget);
+    });
+
+    testWidgets('a screen reader hears the size with its slice', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, pdf, sizeOf: sizes);
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 300));
+      final label = menuPages(pdf).single.first.label;
+      expect(tester.getSemantics(find.bySemanticsLabel(label)).value, 'About 85 KB');
+      handle.dispose();
+    });
+
+    testWidgets('a guess that fails leaves the menu as it was', (tester) async {
+      await pump(tester, pdf, sizeOf: (action) async => throw StateError('no'));
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('a long size still fits the centre', (tester) async {
+      await pump(tester, pdf, sizeOf: (action) async => const SizeGuess.upTo(1023 * 1024 * 1024));
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Up to 1023.0 MB'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

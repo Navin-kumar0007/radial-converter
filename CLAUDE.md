@@ -58,7 +58,7 @@ Headline features that make people switch:
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
 | `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 588 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 314 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 330 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -125,6 +125,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   up to `maxFolderFiles` (200), without hidden files or links. The menu only offers what all files share, so a folder
   keeps its biggest family that this device can run (`pickFromFolder`) and says how many it left out. Windows reports a
   dropped folder as a file, so ask the disk, not the plugin.
+- Size on hover (`size_preview.dart`, the window's menu only): resting 250 ms on a slice shows its size in the centre. One
+  picture the pure-Dart engine handles, up to 25 MB, is really converted (`SizePreviews`, last 4 kept), and choosing that
+  slice takes the trial's result (`take` in `_runTogether`), so nothing runs twice. Otherwise only a size limit is shown
+  ("Up to 20 MB"). Not yet in the native Shift-drag menus, nor for video, whose size needs its length first.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.
@@ -268,7 +272,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: estimated size on hover, outer ring. A native speaker should review `app_hi.arb`.
+6. Menu: size on hover in the Shift-drag menus and for video, outer ring. A native speaker should review `app_hi.arb`.
 7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
    the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

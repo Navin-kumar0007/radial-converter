@@ -51,6 +51,24 @@
     }
   },
   "nothingFits": "Nothing fits",
+  "sizeAbout": "About {size}",
+  "@sizeAbout": {
+    "description": "In the menu's centre: how big a result came out when tried, such as About 85 KB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "sizeUpTo": "Up to {size}",
+  "@sizeUpTo": {
+    "description": "In the menu's centre: the most a size-limited result can be, such as Up to 100 KB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "trashMac": "the Trash",
   "trashWindows": "the Recycle Bin",
   "movedTo": "Moved to {place}.",

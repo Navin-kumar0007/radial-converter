@@ -301,6 +301,54 @@ void main() {
     expect(reads, 1);
   });
 
+  testWidgets('resting on a slice shows its real size, and choosing it reuses that work', (
+    tester,
+  ) async {
+    var conversions = 0;
+    await pump(
+      tester,
+      converter: (action, files, onProgress, options) {
+        conversions++;
+        return runPortable(action, files, options: options);
+      },
+    );
+    await chooseFiles(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight); // PNG
+    await tester.pump(const Duration(milliseconds: 300));
+    await settleWork(tester);
+    expect(find.textContaining(RegExp(r'^About \d+ (B|KB)$')), findsOneWidget);
+    expect(conversions, 1);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await settleWork(tester);
+    expect(find.text('photo (converted).png'), findsOneWidget);
+    expect(conversions, 1, reason: 'the trial was the conversion');
+  });
+
+  testWidgets('choosing another slice than the one tried converts it afresh', (tester) async {
+    final converted = <String>[];
+    await pump(
+      tester,
+      converter: (action, files, onProgress, options) {
+        converted.add(action.id);
+        return runPortable(action, files, options: options);
+      },
+    );
+    await chooseFiles(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump(const Duration(milliseconds: 300));
+    await settleWork(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await settleWork(tester);
+    expect(converted, hasLength(2));
+    expect(converted.first, 'image-to-png');
+    expect(converted.last, isNot('image-to-png'));
+  });
+
   testWidgets('a picture too large for memory says so, without reading it', (tester) async {
     var reads = 0;
     toPick = [picked('giant.jpg', jpeg(), size: maxInMemoryBytes + 1, onRead: () => reads++)];

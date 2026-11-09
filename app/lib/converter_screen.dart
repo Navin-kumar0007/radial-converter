@@ -17,6 +17,7 @@ import 'presets.dart';
 import 'radial_menu.dart';
 import 'shared_files.dart';
 import 'shift_drag.dart';
+import 'size_preview.dart';
 import 'words.dart';
 
 typedef FilesPicker = Future<List<PickedFile>> Function();
@@ -185,6 +186,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   bool _menuOpen = false;
   List<_Job> _jobs = const [];
   ConvertControl? _control;
+  SizePreviews? _previews;
 
   /// Jobs still running, as an earlier one can still be finishing when the next starts.
   int _working = 0;
@@ -623,12 +625,24 @@ class _ConverterScreenState extends State<ConverterScreen> {
       ];
     }
 
+    List<_Result> portable(List<PortableFile> outputs) {
+      return matched([
+        for (final output in outputs)
+          ConvertedFile(name: output.name, size: output.bytes.length, inMemory: output),
+      ]);
+    }
+
     final isPdf = kinds.every((kind) => canRunPdf(action, kind));
     if (!_inMemory(action, kinds)) {
       return matched(
         await widget.mediaConverter(action, files, kinds, onProgress, control, options),
       );
     }
+    // The menu may have tried this already, to show its size.
+    final tried = files.length == 1 && options.password == null
+        ? _previews?.take(action, files.single)
+        : null;
+    if (tried != null) return portable(await tried);
     final List<PortableFile> inputs;
     try {
       inputs = [
@@ -656,11 +670,20 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ),
       ]);
     }
-    final outputs = await widget.converter(action, inputs, onProgress, options);
-    return matched([
-      for (final output in outputs)
-        ConvertedFile(name: output.name, size: output.bytes.length, inMemory: output),
-    ]);
+    return portable(await widget.converter(action, inputs, onProgress, options));
+  }
+
+  /// The menu's trials for one file, made again when another file is chosen. Only one file, as
+  /// the centre has room for one size.
+  SizePreviews? get _sizePreviews {
+    if (_files.length != 1) return _previews = null;
+    final current = _previews;
+    if (current != null && identical(current.file, _files.single)) return current;
+    return _previews = SizePreviews(
+      _files.single,
+      _kinds.single,
+      (action, files) => widget.converter(action, files, (_) {}, const ActionOptions()),
+    );
   }
 
   /// Asks anything the action needs to know, then starts it.
@@ -1006,6 +1029,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         RadialMenu(
           actions: actions,
           fileCount: _files.length,
+          sizeOf: _sizePreviews?.guess,
           onSelected: _choose,
           onCancelled: () => setState(() => _menuOpen = false),
         ),

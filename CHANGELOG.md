@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Rest on a slice and the menu says how big the result will be. For one picture it really makes it, so choosing that slice is then instant.
+
 ## 0.9.1 (beta, 9 November 2026)
 
 - Android: a long conversion keeps going when you leave the app, with a notification while it runs.

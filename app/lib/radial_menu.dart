@@ -8,6 +8,7 @@ import 'package:radial_core/radial_core.dart';
 
 import 'action_icons.dart';
 import 'radial_geometry.dart';
+import 'size_preview.dart';
 import 'words.dart';
 
 const _openDuration = Duration(milliseconds: 120);
@@ -23,6 +24,8 @@ class RadialMenu extends StatefulWidget {
     this.fileCount = 1,
     this.diameter = 280,
     this.moreDwell = const Duration(milliseconds: 400),
+    this.sizeOf,
+    this.sizeDwell = const Duration(milliseconds: 250),
   });
 
   final List<RadialAction> actions;
@@ -35,6 +38,13 @@ class RadialMenu extends StatefulWidget {
 
   /// How long hovering on "More" takes to turn the page.
   final Duration moreDwell;
+
+  /// Tells the centre how big the highlighted slice's result will be.
+  final SizeGuesser? sizeOf;
+
+  /// How long a slice stays highlighted before its size is asked, so sweeping across the ring
+  /// doesn't start work for every slice passed.
+  final Duration sizeDwell;
 
   @override
   State<RadialMenu> createState() => _RadialMenuState();
@@ -49,6 +59,10 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   int _page = 0;
   int? _highlighted;
   Timer? _moreTimer;
+  Timer? _sizeTimer;
+
+  /// Sizes by action id. Null while asking, or if it can't be told.
+  final _sizes = <String, SizeGuess?>{};
 
   double get _hubRadius => widget.diameter * 0.2;
   bool get _hasMore => _pages.length > 1;
@@ -72,6 +86,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   @override
   void didUpdateWidget(RadialMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.sizeOf != widget.sizeOf) _sizes.clear();
     if (oldWidget.actions != widget.actions) {
       _pages = menuPages(widget.actions);
       _page = 0;
@@ -82,6 +97,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   @override
   void dispose() {
     _moreTimer?.cancel();
+    _sizeTimer?.cancel();
     _opening.dispose();
     super.dispose();
   }
@@ -90,6 +106,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
     if (slice == _highlighted) return;
     _moreTimer?.cancel();
     setState(() => _highlighted = slice);
+    _askSize();
     if (slice != null && _isMore(slice)) {
       _moreTimer = Timer(widget.moreDwell, () => _nextPage(highlight: null));
     }
@@ -101,6 +118,32 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
     setState(() {
       _page = (_page + 1) % _pages.length;
       _highlighted = highlight;
+    });
+    _askSize();
+  }
+
+  RadialAction? get _highlightedAction {
+    final slice = _highlighted;
+    if (slice == null || _isMore(slice) || slice >= _shown.length) return null;
+    return _shown[slice];
+  }
+
+  /// Asks the size of the highlighted slice once it has stayed highlighted for a moment.
+  void _askSize() {
+    _sizeTimer?.cancel();
+    final sizeOf = widget.sizeOf;
+    final action = _highlightedAction;
+    if (sizeOf == null || action == null || _sizes.containsKey(action.id)) return;
+    _sizeTimer = Timer(widget.sizeDwell, () async {
+      _sizes[action.id] = null;
+      SizeGuess? guess;
+      try {
+        guess = await sizeOf(action);
+      } catch (_) {
+        // Without a size the menu works as before.
+      }
+      if (!mounted || widget.sizeOf != sizeOf) return;
+      setState(() => _sizes[action.id] = guess);
     });
   }
 
@@ -154,6 +197,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
     final next = current == null ? (step > 0 ? 0 : _sliceCount - 1) : current + step;
     _moreTimer?.cancel();
     setState(() => _highlighted = next % _sliceCount);
+    _askSize();
   }
 
   @override
@@ -227,6 +271,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
     const height = 54.0;
     final words = context.words;
     final label = isMore ? words.more : actionLabel(words, action!.label);
+    final size = isMore ? null : _sizes[action!.id];
     return Positioned(
       left: centre.dx - width / 2,
       top: centre.dy - height / 2,
@@ -236,6 +281,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
         button: true,
         selected: isOn,
         label: isMore ? words.moreActions : label,
+        value: size?.describe(words),
         onTap: () => _apply(slice),
         child: ExcludeSemantics(
           child: IgnorePointer(
@@ -268,6 +314,8 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   Widget _buildHub(ColorScheme colours) {
     final words = context.words;
     final empty = widget.actions.isEmpty;
+    final action = _highlightedAction;
+    final size = action == null ? null : _sizes[action.id];
     return Semantics(
       button: true,
       label: widget.fileCount > 1 ? words.cancelFiles(widget.fileCount) : words.cancel,
@@ -290,6 +338,22 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
                     child: Text(
                       '${widget.fileCount}',
                       style: TextStyle(fontSize: 11, color: colours.onPrimary),
+                    ),
+                  ),
+                if (size != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        size.describe(words),
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: colours.onSurface,
+                        ),
+                      ),
                     ),
                   ),
                 Text(
