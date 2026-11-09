@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 (beta, 9 November 2026)
+
+- Android: a long conversion keeps going when you leave the app, with a notification while it runs.
+- Mac and Windows: About has an "Open at login" switch. At login the app starts quietly, ready for Shift-drag.
+- Links point to the project's new address, github.com/Navin-kumar0007/shiftdrop.
+
 ## 0.9.0 (beta, 8 November 2026)
 
 First version people can try.

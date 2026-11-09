@@ -7,7 +7,7 @@ import 'words.dart';
 
 /// Shown to people, and checked against `pubspec.yaml` by a test.
 const appName = 'ShiftDrop';
-const appVersion = '0.9.0';
+const appVersion = '0.9.1';
 
 const projectAddress = 'https://github.com/Navin-kumar0007/shiftdrop';
 
