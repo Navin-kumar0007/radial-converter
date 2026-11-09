@@ -25,6 +25,7 @@ typedef ShiftDragListener = void Function() Function({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
   required void Function(RadialAction action, List<String> paths) chosen,
 });
+typedef KeepWorking = Future<void> Function(bool working);
 typedef FileSaver = Future<SavedAs?> Function(PortableFile file);
 typedef ArchiveUnpacker = Future<Uint8List> Function(PickedFile file);
 typedef ResultHandOver = Future<void> Function(ConvertedFile output);
@@ -122,6 +123,7 @@ class ConverterScreen extends StatefulWidget {
     this.dropReader = readDroppedFiles,
     this.sharedFiles = listenForSharedFiles,
     this.shiftDrag = listenForShiftDrag,
+    this.keepWorking = keepWorkingInBackground,
     this.mediaAvailable,
     this.acceptsDrops,
     this.savesBeside,
@@ -158,6 +160,9 @@ class ConverterScreen extends StatefulWidget {
   /// Starts listening for the system-wide Shift-drag menu, and returns how to stop.
   final ShiftDragListener shiftDrag;
 
+  /// Asks the platform to keep the app going while a job runs, even if the user leaves it.
+  final KeepWorking keepWorking;
+
   /// Whether this device can run video. Null asks the platform.
   final bool? mediaAvailable;
 
@@ -180,6 +185,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
   bool _menuOpen = false;
   List<_Job> _jobs = const [];
   ConvertControl? _control;
+
+  /// Jobs still running, as an earlier one can still be finishing when the next starts.
+  int _working = 0;
   late final bool _mediaAvailable = widget.mediaAvailable ?? mediaEngineAvailable();
   late final bool _acceptsDrops =
       widget.acceptsDrops ??
@@ -713,6 +721,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
     final job = jobs.single;
     final failed = <_Job>[];
+    if (_working++ == 0) unawaited(widget.keepWorking(true));
     try {
       var results = await _run(
         action,
@@ -771,6 +780,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ..state = FileChipState.failed
           ..message = _words.convertFailed;
       });
+    } finally {
+      if (--_working == 0) unawaited(widget.keepWorking(false));
     }
   }
 

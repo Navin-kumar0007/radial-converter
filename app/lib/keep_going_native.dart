@@ -14,6 +14,22 @@ bool get canDragOut => Platform.isMacOS || Platform.isWindows;
 /// Whether a result can be shared with another app.
 bool get canShareOut => Platform.isAndroid;
 
+/// On a phone, keeps the app going while [working], with a notification saying so, so leaving the
+/// app doesn't get a long job killed. Desktops don't stop apps that are left.
+Future<void> keepWorkingInBackground(bool working) async {
+  if (!Platform.isAndroid) return;
+  final words = deviceWords;
+  try {
+    await mediaChannel.invokeMethod<void>('keepWorking', {
+      'working': working,
+      'title': words.keepWorkingTitle,
+      'text': words.keepWorkingText,
+    });
+  } catch (_) {
+    // The job still runs; it just isn't protected if the app is left.
+  }
+}
+
 int _next = 0;
 
 /// Results handed to other apps sit here, as they need a real file. They go when the app next opens.

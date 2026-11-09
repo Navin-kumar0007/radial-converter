@@ -15,6 +15,15 @@ class MainFlutterWindow: NSWindow {
     self.isReleasedWhenClosed = false
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    // Opened at login, the app waits out of the way for a Shift-drag; the Dock icon brings it back.
+    // The event that opened it is still current when launching finishes.
+    var launched: NSObjectProtocol?
+    launched = NotificationCenter.default.addObserver(
+      forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      if LoginItem.launchedAtLogin() { self?.orderOut(nil) }
+      if let launched { NotificationCenter.default.removeObserver(launched) }
+    }
     connectShiftDrag(to: flutterViewController.engine.binaryMessenger, view: flutterViewController.view)
 
     super.awakeFromNib()
@@ -54,6 +63,11 @@ class MainFlutterWindow: NSWindow {
         result(nil)
       case "moveToTrash":
         result(paths.count == 1 && moveFileToTrash(paths[0]))
+      case "loginItem":
+        result(LoginItem.status())
+      case "setLoginItem":
+        let on = (call.arguments as? [String: Any])?["on"] as? Bool ?? false
+        result(LoginItem.set(on))
       case "setWords":
         NativeWords.set(call.arguments)
         result(nil)

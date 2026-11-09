@@ -32,4 +32,4 @@ Where the web app is hosted, the hosting company handles requests as any website
 
 ## Changes and contact
 
-Any change will be recorded here and in the project's history, which is public. Questions can be asked in the project's [issues](https://github.com/Navin-kumar0007/radial-converter/issues).
+Any change will be recorded here and in the project's history, which is public. Questions can be asked in the project's [issues](https://github.com/Navin-kumar0007/shiftdrop/issues).

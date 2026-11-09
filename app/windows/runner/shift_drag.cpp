@@ -136,6 +136,30 @@ std::wstring WideFromUtf8(const std::string& text) {
 }
 
 // The "paths" list in a call from Flutter.
+// Where Windows keeps what opens at sign-in, for this user only.
+constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+constexpr wchar_t kRunValue[] = L"ShiftDrop";
+
+bool OpensAtLogin() {
+  return ::RegGetValueW(HKEY_CURRENT_USER, kRunKey, kRunValue, RRF_RT_REG_SZ, nullptr, nullptr,
+                        nullptr) == ERROR_SUCCESS;
+}
+
+// Opens this copy of the program, wherever it is now, hidden in the notification area.
+bool SetOpensAtLogin(bool on) {
+  if (!on) {
+    const LSTATUS removed = ::RegDeleteKeyValueW(HKEY_CURRENT_USER, kRunKey, kRunValue);
+    return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
+  }
+  wchar_t program[MAX_PATH];
+  const DWORD length = ::GetModuleFileNameW(nullptr, program, MAX_PATH);
+  if (length == 0 || length == MAX_PATH) return false;
+  const std::wstring command = L"\"" + std::wstring(program, length) + L"\" --hidden";
+  return ::RegSetKeyValueW(HKEY_CURRENT_USER, kRunKey, kRunValue, REG_SZ, command.c_str(),
+                           static_cast<DWORD>((command.size() + 1) * sizeof(wchar_t))) ==
+         ERROR_SUCCESS;
+}
+
 std::map<std::string, std::wstring>& Words() {
   static std::map<std::string, std::wstring> words;
   return words;
@@ -206,6 +230,20 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
     } else if (call.method_name() == "moveToTrash") {
       const auto paths = PathsFrom(call.arguments());
       result->Success(EncodableValue(paths.size() == 1 && MoveToRecycleBin(paths[0])));
+      return;
+    } else if (call.method_name() == "loginItem") {
+      result->Success(EncodableValue(std::string(OpensAtLogin() ? "on" : "off")));
+      return;
+    } else if (call.method_name() == "setLoginItem") {
+      bool on = false;
+      if (const auto* map = std::get_if<EncodableMap>(call.arguments())) {
+        const auto found = map->find(EncodableValue("on"));
+        if (found != map->end()) {
+          if (const auto* value = std::get_if<bool>(&found->second)) on = *value;
+        }
+      }
+      SetOpensAtLogin(on);
+      result->Success(EncodableValue(std::string(OpensAtLogin() ? "on" : "off")));
       return;
     } else if (call.method_name() == "setWords") {
       if (const auto* map = std::get_if<EncodableMap>(call.arguments())) {

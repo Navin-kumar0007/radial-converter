@@ -6,11 +6,20 @@
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+    <!-- Lets a long conversion keep going after the app is left, with a notification saying so. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="ShiftDrop"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:localeConfig="@xml/locales_config">
+        <service
+            android:name=".KeepWorkingService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|mediaProcessing" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.results"

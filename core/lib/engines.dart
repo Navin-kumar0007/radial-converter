@@ -7,4 +7,4 @@ export 'src/engines/ffmpeg_plan.dart';
 export 'src/engines/libarchive.dart';
 export 'src/engines/process.dart';
 export 'src/engines/tools.dart';
-export 'src/history/record_io.dart';
+export 'src/engines/size_on_disk.dart';

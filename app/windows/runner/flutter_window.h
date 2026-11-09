@@ -19,7 +19,8 @@
 class FlutterWindow : public Win32Window {
  public:
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
-  explicit FlutterWindow(const flutter::DartProject& project);
+  // With |start_hidden|, the window stays out of sight until opened from the notification area.
+  FlutterWindow(const flutter::DartProject& project, bool start_hidden = false);
   virtual ~FlutterWindow();
 
  protected:
@@ -49,6 +50,7 @@ class FlutterWindow : public Win32Window {
   bool tray_added_ = false;
   // Said once, so nobody thinks closing the window stopped the app, or that it has crashed.
   bool told_about_tray_ = false;
+  bool start_hidden_ = false;
   // Sent when Explorer restarts, which forgets every icon.
   UINT taskbar_created_ = 0;
 };

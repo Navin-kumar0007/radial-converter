@@ -9,7 +9,7 @@ the installers attached. Nothing is public until you press **Publish** on it.
    `CHANGELOG.md`, with a heading for the new version.
 2. Merge to `main`, then tag it:
    ```sh
-   git tag v0.9.0 && git push origin v0.9.0
+   git tag v0.9.1 && git push origin v0.9.1
    ```
 3. When CI finishes, open the draft under **Releases**, try the downloads, and press **Publish**.
 
@@ -22,10 +22,10 @@ refuses updates signed by a different key, so the real one has to be used from t
 release. **Keep the keystore safe and backed up. If it's lost, no one can ever update the app.**
 
 ```sh
-keytool -genkeypair -v -keystore radial-release.jks -alias radial -keyalg RSA -keysize 4096 -validity 10000
-base64 -i radial-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R Navin-kumar0007/radial-converter
-gh secret set ANDROID_KEYSTORE_PASSWORD -R Navin-kumar0007/radial-converter
-gh secret set ANDROID_KEY_ALIAS -R Navin-kumar0007/radial-converter --body radial
+keytool -genkeypair -v -keystore shiftdrop-release.jks -alias shiftdrop -keyalg RSA -keysize 4096 -validity 10000
+base64 -i shiftdrop-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R Navin-kumar0007/shiftdrop
+gh secret set ANDROID_KEYSTORE_PASSWORD -R Navin-kumar0007/shiftdrop
+gh secret set ANDROID_KEY_ALIAS -R Navin-kumar0007/shiftdrop --body shiftdrop
 ```
 
 Never commit the keystore or its password. From 2027 Android also needs apps from websites to be
@@ -42,8 +42,8 @@ such as `core-engine.shiftdrop.pages.dev`. It needs two secrets, set once:
 2. Find your **Account ID**: open **Workers & Pages** in the dashboard; it's on the right of the page.
 3. Store both in GitHub. Each command asks for the value, so it stays out of your shell history:
    ```sh
-   gh secret set CLOUDFLARE_API_TOKEN -R Navin-kumar0007/radial-converter
-   gh secret set CLOUDFLARE_ACCOUNT_ID -R Navin-kumar0007/radial-converter
+   gh secret set CLOUDFLARE_API_TOKEN -R Navin-kumar0007/shiftdrop
+   gh secret set CLOUDFLARE_ACCOUNT_ID -R Navin-kumar0007/shiftdrop
    ```
 4. Re-run the latest CI run, or push. The `website` job creates the `shiftdrop` project on its first run and
    prints the address. If that name is taken on pages.dev, Cloudflare adds a few letters to it.

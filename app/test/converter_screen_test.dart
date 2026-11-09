@@ -67,6 +67,7 @@ void main() {
     Converter? converter,
     bool? savesBeside,
     Locale? locale,
+    KeepWorking? keepWorking,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -75,6 +76,7 @@ void main() {
         supportedLocales: Words.supportedLocales,
         home: ConverterScreen(
           savesBeside: savesBeside,
+          keepWorking: keepWorking ?? (_) async {},
           pickFiles: () async => toPick,
           saveFile: (file) async {
             if (saveWorks) saved.add(file);
@@ -134,6 +136,29 @@ void main() {
       reason: 'sizes before and after',
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps working in the background while a job runs, and only then', (tester) async {
+    final asked = <bool>[];
+    await pump(tester, keepWorking: (working) async => asked.add(working));
+    await chooseFiles(tester);
+    expect(asked, isEmpty, reason: 'choosing files starts nothing');
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(asked, [true, false]);
+  });
+
+  testWidgets('stops keeping working when a job fails too', (tester) async {
+    final asked = <bool>[];
+    await pump(
+      tester,
+      keepWorking: (working) async => asked.add(working),
+      converter: (action, files, onProgress, options) async => throw Fail.notConverted,
+    );
+    await chooseFiles(tester);
+    await selectFirstSlice(tester);
+    await settleWork(tester);
+    expect(asked, [true, false]);
   });
 
   testWidgets('cancelling the file dialog changes nothing', (tester) async {

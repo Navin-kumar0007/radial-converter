@@ -22,6 +22,8 @@ Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works
 
 ## Converting a file
 
+**Open at login (Mac and Windows).** Shift-drag works only while ShiftDrop runs. Turn on **Open at login** in **About** (the i icon at the top) and it starts when you sign in, out of sight until you need it. On a Mac this needs macOS 13 or newer, and macOS may ask you to allow it in **System Settings → General → Login Items**.
+
 **Shift-drag (Mac and Windows).** Start dragging a file or folder from anywhere, hold **Shift** while dragging, and a round menu appears at your cursor. Drop on a slice. The result lands next to the original, and a chip appears at your cursor to drag it straight on. Drop in the middle to cancel.
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
@@ -64,4 +66,4 @@ Exactly what's offered depends on the file and the device. The menu only shows w
 
 **Language.** The app follows your device's language, in English or Hindi. On Android 13 or newer and on a Mac you can also choose a language for this app alone, in the system settings.
 
-**Something wrong?** Please tell us in the project's [issues](https://github.com/Navin-kumar0007/radial-converter/issues).
+**Something wrong?** Please tell us in the project's [issues](https://github.com/Navin-kumar0007/shiftdrop/issues).

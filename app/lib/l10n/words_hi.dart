@@ -886,4 +886,22 @@ class WordsHi extends Words {
 
   @override
   String get trayQuit => 'बंद करें';
+
+  @override
+  String get keepWorkingTitle => 'आपकी फ़ाइलें बदली जा रही हैं';
+
+  @override
+  String get keepWorkingText =>
+      'आप दूसरे ऐप इस्तेमाल कर सकते हैं। ShiftDrop काम करता रहेगा और नतीजा तैयार मिलेगा।';
+
+  @override
+  String get openAtLogin => 'लॉग इन पर खोलें';
+
+  @override
+  String get openAtLoginWhy =>
+      'ताकि साइन इन करते ही Shift-drag काम करे। ज़रूरत पड़ने तक यह छिपा रहता है।';
+
+  @override
+  String get openAtLoginApprove =>
+      'System Settings, General, Login Items में ShiftDrop को अनुमति दें।';
 }

@@ -77,3 +77,39 @@ Future<String> saveBesideOriginal(String originalPath, PortableFile file) async 
 void showAppWindow() {
   if (Platform.isMacOS || Platform.isWindows) shiftDragChannel.invokeMethod<void>('showWindow');
 }
+
+/// Whether the app opens when the user signs in, so Shift-drag works from then on.
+enum LoginItem {
+  /// Not on this platform, or this version of it.
+  unsupported,
+  off,
+  on,
+
+  /// Asked for, but macOS wants the user to allow it in System Settings.
+  needsApproval;
+
+  static LoginItem _from(String? answer) => switch (answer) {
+    'on' => on,
+    'off' => off,
+    'approval' => needsApproval,
+    _ => unsupported,
+  };
+}
+
+Future<LoginItem> loginItem() async {
+  if (!Platform.isMacOS && !Platform.isWindows) return LoginItem.unsupported;
+  try {
+    return LoginItem._from(await shiftDragChannel.invokeMethod<String>('loginItem'));
+  } catch (_) {
+    return LoginItem.unsupported;
+  }
+}
+
+/// Turns opening at login on or off, and answers with how it is now.
+Future<LoginItem> setLoginItem(bool on) async {
+  try {
+    return LoginItem._from(await shiftDragChannel.invokeMethod<String>('setLoginItem', {'on': on}));
+  } catch (_) {
+    return loginItem();
+  }
+}
