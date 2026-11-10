@@ -13,6 +13,7 @@ const shiftDragChannel = MethodChannel('radial/shift_drag');
 /// how to stop.
 void Function() listenForShiftDrag({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
+  required Future<String?> Function(RadialAction action, List<String> paths) sizeOf,
   required void Function(RadialAction action, List<String> paths) chosen,
 }) {
   if (!Platform.isMacOS && !Platform.isWindows) return () {};
@@ -24,6 +25,11 @@ void Function() listenForShiftDrag({
         for (final action in await menuFor(paths))
           {'id': action.id, 'label': actionLabel(deviceWords, action.label)},
       ];
+    }
+    if (call.method == 'sizeOf') {
+      // What the centre shows while the drag rests on a slice, such as "About 240 KB".
+      final action = actionById(arguments['id'] as String);
+      return action == null ? null : await sizeOf(action, paths);
     }
     if (call.method == 'chosen') {
       final action = actionById(arguments['id'] as String);

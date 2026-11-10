@@ -46,6 +46,35 @@ for count in [1, 4, 8] {
   image.unlockFocus()
 }
 
+// The centre fits a size above Cancel, shrinking long ones rather than spilling over the ring.
+view.slices = (0..<4).map { RadialSlice(id: "id\($0)", label: "PNG") }
+view.sizes = ["id0": "About 240 KB", "id2": "लगभग 1,023.9 MB"]
+view.highlighted = nil
+var highlightsSeen: [Int?] = []
+view.onHighlight = { highlightsSeen.append($0) }
+for index in [0, 1, 2, 2, nil] as [Int?] {
+  view.highlighted = index
+  let image = NSImage(size: view.bounds.size)
+  image.lockFocus()
+  view.draw(view.bounds)
+  image.unlockFocus()
+}
+if highlightsSeen != [0, 1, 2, nil] {
+  print("FAILED a highlight is told once per change: \(highlightsSeen)")
+  failures += 1
+}
+let fitted = fittedFontSize("About 1,023.9 MB", width: 60, largest: 11, smallest: 7, weight: .bold)
+let fittedWidth = ("About 1,023.9 MB" as NSString).size(
+  withAttributes: [.font: NSFont.systemFont(ofSize: fitted, weight: .bold)]).width
+if fitted >= 11 || (fitted > 7 && fittedWidth > 60) {
+  print("FAILED a long size shrinks to fit: \(fitted) pt, \(fittedWidth) wide")
+  failures += 1
+}
+if fittedFontSize("1 KB", width: 60, largest: 11, smallest: 7, weight: .bold) != 11 {
+  print("FAILED a short size keeps its full size")
+  failures += 1
+}
+
 let watcher = ShiftDragWatcher()
 watcher.start()
 

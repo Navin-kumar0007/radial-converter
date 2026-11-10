@@ -70,9 +70,16 @@ func radialSlice(dx: CGFloat, dy: CGFloat, count: Int, innerRadius: CGFloat) -> 
 final class RadialDropView: NSView {
   var slices: [RadialSlice] = [] { didSet { needsDisplay = true } }
   var highlighted: Int? {
-    didSet { if oldValue != highlighted { needsDisplay = true } }
+    didSet {
+      guard oldValue != highlighted else { return }
+      needsDisplay = true
+      onHighlight?(highlighted)
+    }
   }
+  /// What the centre says each slice's result will weigh, by slice id, such as "About 240 KB".
+  var sizes: [String: String] = [:] { didSet { needsDisplay = true } }
   var onDrop: ((RadialSlice, [String]) -> Void)?
+  var onHighlight: ((Int?) -> Void)?
 
   private let innerRadius: CGFloat = 38
   private var outerRadius: CGFloat { min(bounds.width, bounds.height) / 2 - 6 }
@@ -125,7 +132,24 @@ final class RadialDropView: NSView {
         x: centre.x - hubRadius, y: centre.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2))
     NSColor.windowBackgroundColor.withAlphaComponent(0.95).setFill()
     hub.fill()
-    drawLabel(NativeWords.word("cancel", "Cancel"), at: centre, color: .secondaryLabelColor, size: 11, weight: .regular)
+    let cancel = NativeWords.word("cancel", "Cancel")
+    guard let size = highlightedSize else {
+      drawLabel(cancel, at: centre, color: .secondaryLabelColor, size: 11, weight: .regular)
+      return
+    }
+    // The size above, Cancel below, both inside the hub.
+    let room = (hubRadius - 4) * 2
+    drawLabel(
+      size, at: NSPoint(x: centre.x, y: centre.y + 7), color: .labelColor,
+      size: fittedFontSize(size, width: room, largest: 11, smallest: 7, weight: .bold), weight: .bold)
+    drawLabel(
+      cancel, at: NSPoint(x: centre.x, y: centre.y - 8), color: .secondaryLabelColor, size: 10,
+      weight: .regular)
+  }
+
+  private var highlightedSize: String? {
+    guard let index = highlighted, index < slices.count else { return nil }
+    return sizes[slices[index].id]
   }
 
   private func drawLabel(
@@ -161,6 +185,19 @@ final class RadialDropView: NSView {
   }
 }
 
+/// The largest font size from [largest] down to [smallest] at which [text] fits in [width].
+func fittedFontSize(
+  _ text: String, width: CGFloat, largest: CGFloat, smallest: CGFloat, weight: NSFont.Weight
+) -> CGFloat {
+  var size = largest
+  while size > smallest {
+    let font = NSFont.systemFont(ofSize: size, weight: weight)
+    if (text as NSString).size(withAttributes: [.font: font]).width <= width { break }
+    size -= 0.5
+  }
+  return size
+}
+
 /// The files on a drag, as paths.
 func shiftDragPaths(on pasteboard: NSPasteboard) -> [String] {
   let urls =
@@ -175,6 +212,8 @@ func shiftDragPaths(on pasteboard: NSPasteboard) -> [String] {
 final class ShiftDragWatcher: NSObject {
   /// Asks what the menu should offer for these files. An empty answer shows no menu.
   var askForSlices: (([String], @escaping ([RadialSlice]) -> Void) -> Void)?
+  /// Asks what the centre should say about a slice's result, or nil if nothing can be told.
+  var askForSize: ((RadialSlice, [String], @escaping (String?) -> Void) -> Void)?
   var onChosen: ((RadialSlice, [String]) -> Void)?
   /// While our own files are being dragged out, holding Shift mustn't bring the menu up over them.
   var isPaused: () -> Bool = { false }
@@ -186,6 +225,16 @@ final class ShiftDragWatcher: NSObject {
   private var isShowing = false
   private var isAsking = false
   private var hideAt: Date?
+  private var paths: [String] = []
+  private var sizeTimer: Timer?
+  /// Slices already asked about in this drag, so each is asked once.
+  private var asked: Set<String> = []
+  /// Each showing gets a number, so a late answer about an earlier drag is ignored.
+  private var showing = 0
+
+  /// How long a slice stays highlighted before its size is asked, so sweeping across the ring
+  /// doesn't start work for every slice passed. The window's menu waits as long.
+  static let sizeDwell: TimeInterval = 0.25
 
   override init() {
     let size: CGFloat = 300
@@ -205,6 +254,32 @@ final class ShiftDragWatcher: NSObject {
     radial.onDrop = { [weak self] slice, paths in
       self?.hide()
       self?.onChosen?(slice, paths)
+    }
+    radial.onHighlight = { [weak self] index in self?.highlightChanged(index) }
+  }
+
+  private func highlightChanged(_ index: Int?) {
+    sizeTimer?.invalidate()
+    sizeTimer = nil
+    guard isShowing, askForSize != nil, let index = index, index < radial.slices.count else {
+      return
+    }
+    let slice = radial.slices[index]
+    guard !asked.contains(slice.id) else { return }
+    let timer = Timer(timeInterval: Self.sizeDwell, repeats: false) { [weak self] _ in
+      self?.askSize(of: slice)
+    }
+    // Common modes, as the drag is still being tracked.
+    RunLoop.main.add(timer, forMode: .common)
+    sizeTimer = timer
+  }
+
+  private func askSize(of slice: RadialSlice) {
+    let showing = self.showing
+    asked.insert(slice.id)
+    askForSize?(slice, paths) { [weak self] size in
+      guard let self = self, self.isShowing, self.showing == showing, let size = size else { return }
+      self.radial.sizes[slice.id] = size
     }
   }
 
@@ -250,11 +325,15 @@ final class ShiftDragWatcher: NSObject {
         self.seenChange = pasteboard.changeCount
         return
       }
-      self.show(slices, at: NSEvent.mouseLocation)
+      self.show(slices, for: paths, at: NSEvent.mouseLocation)
     }
   }
 
-  private func show(_ slices: [RadialSlice], at point: NSPoint) {
+  private func show(_ slices: [RadialSlice], for paths: [String], at point: NSPoint) {
+    showing += 1
+    self.paths = paths
+    asked = []
+    radial.sizes = [:]
     let size = panel.frame.size
     let origin = originOnScreen(
       NSPoint(x: point.x - size.width / 2, y: point.y - size.height / 2), size: size, near: point)
@@ -270,6 +349,8 @@ final class ShiftDragWatcher: NSObject {
     panel.orderOut(nil)
     isShowing = false
     hideAt = nil
+    sizeTimer?.invalidate()
+    sizeTimer = nil
   }
 }
 

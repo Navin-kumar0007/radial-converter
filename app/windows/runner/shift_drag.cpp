@@ -30,6 +30,10 @@ const UINT kChipLifetimeMs = 15000;
 const int kChipWidth = 280;
 const int kChipHeight = 56;
 const UINT_PTR kTimer = 1;
+const UINT_PTR kSizeTimer = 3;
+// How long a slice stays highlighted before its size is asked, so sweeping across the ring doesn't
+// start work for every slice passed. The window's menu waits as long.
+const UINT kSizeDwellMs = 250;
 const UINT kCheckEveryMs = 33;
 // Past this many pixels a press has become a drag.
 const int kDragDistance = 8;
@@ -197,6 +201,27 @@ void ShowInExplorer(const std::wstring& path) {
   if (FAILED(::SHParseDisplayName(path.c_str(), nullptr, &item, 0, nullptr))) return;
   ::SHOpenFolderAndSelectItems(item, 0, nullptr, 0);
   ::CoTaskMemFree(item);
+}
+
+HFONT MenuFont(double points, double scale, int weight) {
+  return ::CreateFontW(-static_cast<int>(points * scale), 0, 0, 0, weight, FALSE, FALSE, FALSE,
+                       DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                       DEFAULT_PITCH, L"Segoe UI");
+}
+
+// The largest font from [largest] down to [smallest] points at which [text] fits in [width].
+HFONT FittedFont(HDC dc, const std::wstring& text, int width, double scale, int weight,
+                 int largest, int smallest) {
+  for (int points = largest;; points--) {
+    HFONT font = MenuFont(points, scale, weight);
+    if (points <= smallest) return font;
+    HGDIOBJ old = ::SelectObject(dc, font);
+    SIZE extent = {};
+    ::GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &extent);
+    ::SelectObject(dc, old);
+    if (extent.cx <= width) return font;
+    ::DeleteObject(font);
+  }
 }
 
 EncodableValue PathsArgument(const std::vector<std::string>& paths) {
@@ -411,6 +436,11 @@ LRESULT CALLBACK ShiftDrag::PanelProc(HWND window, UINT message, WPARAM wparam, 
       self->Tick();
       return 0;
     }
+    if (message == WM_TIMER && wparam == kSizeTimer) {
+      ::KillTimer(window, kSizeTimer);
+      self->AskSize();
+      return 0;
+    }
     if (message == WM_PAINT) {
       self->Paint();
       return 0;
@@ -465,7 +495,11 @@ void ShiftDrag::Place(POINT cursor) {
   }
   slices_.clear();
   paths_.clear();
+  sizes_.clear();
+  asked_.clear();
   highlighted_ = -1;
+  resting_on_ = -1;
+  ::KillTimer(panel_, kSizeTimer);
   revealed_ = false;
   hide_at_ = 0;
   drag_++;
@@ -489,6 +523,10 @@ void ShiftDrag::Hide() {
   revealed_ = false;
   hide_at_ = 0;
   slices_.clear();
+  sizes_.clear();
+  asked_.clear();
+  resting_on_ = -1;
+  ::KillTimer(panel_, kSizeTimer);
   drag_++;
 }
 
@@ -539,6 +577,34 @@ void ShiftDrag::SetHighlight(int slice) {
   if (slice == highlighted_) return;
   highlighted_ = slice;
   ::InvalidateRect(panel_, nullptr, FALSE);
+  ::KillTimer(panel_, kSizeTimer);
+  resting_on_ = -1;
+  if (!revealed_ || slice < 0 || slice >= static_cast<int>(slices_.size())) return;
+  if (asked_.count(slices_[slice].id) > 0) return;
+  resting_on_ = slice;
+  ::SetTimer(panel_, kSizeTimer, kSizeDwellMs, nullptr);
+}
+
+void ShiftDrag::AskSize() {
+  if (!revealed_ || resting_on_ < 0 || resting_on_ >= static_cast<int>(slices_.size())) return;
+  const std::string id = slices_[resting_on_].id;
+  resting_on_ = -1;
+  asked_.insert(id);
+  const unsigned int drag = drag_;
+  auto answered = [this, drag, id](const EncodableValue* answer) {
+    if (drag != drag_ || answer == nullptr) return;
+    const auto* size = std::get_if<std::string>(answer);
+    if (size == nullptr) return;
+    sizes_[id] = Utf16FromUtf8(*size);
+    ::InvalidateRect(panel_, nullptr, FALSE);
+  };
+  EncodableMap arguments = {{EncodableValue("id"), EncodableValue(id)},
+                            {EncodableValue("paths"), PathsArgument(paths_)}};
+  channel_->InvokeMethod(
+      "sizeOf", std::make_unique<EncodableValue>(arguments),
+      std::make_unique<flutter::MethodResultFunctions<EncodableValue>>(
+          [answered](const EncodableValue* answer) { answered(answer); },
+          [](const std::string&, const std::string&, const EncodableValue*) {}, []() {}));
 }
 
 HRESULT ShiftDrag::DragEnter(IDataObject* data, DWORD, POINTL point, DWORD* effect) {
@@ -604,9 +670,7 @@ void ShiftDrag::Paint() {
   HBRUSH background_brush = ::CreateSolidBrush(background);
   HBRUSH accent_brush = ::CreateSolidBrush(kAccent);
   HPEN line = ::CreatePen(PS_SOLID, 1, ::GetSysColor(COLOR_3DSHADOW));
-  HFONT font = ::CreateFontW(-static_cast<int>(13 * scale), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE,
-                             FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                             CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+  HFONT font = MenuFont(13, scale, FW_SEMIBOLD);
   HGDIOBJ old_pen = ::SelectObject(dc, line);
   HGDIOBJ old_brush = ::SelectObject(dc, background_brush);
   HGDIOBJ old_font = ::SelectObject(dc, font);
@@ -651,9 +715,35 @@ void ShiftDrag::Paint() {
   const int middle = static_cast<int>(centre);
   ::Ellipse(dc, middle - hub, middle - hub, middle + hub, middle + hub);
   ::SetTextColor(dc, text);
-  RECT cancel = {middle - hub, middle - hub, middle + hub, middle + hub};
-  ::DrawTextW(dc, NativeWord("cancel", L"Cancel").c_str(), -1, &cancel,
-              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+  const std::wstring cancel_word = NativeWord("cancel", L"Cancel");
+  const std::wstring* size = nullptr;
+  if (highlighted_ >= 0 && highlighted_ < count) {
+    const auto found = sizes_.find(slices_[highlighted_].id);
+    if (found != sizes_.end()) size = &found->second;
+  }
+  if (size == nullptr) {
+    RECT cancel = {middle - hub, middle - hub, middle + hub, middle + hub};
+    ::DrawTextW(dc, cancel_word.c_str(), -1, &cancel,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+  } else {
+    // The size above, Cancel below, both inside the hub.
+    const int room = static_cast<int>(hub * 2 - 8 * scale);
+    const int gap = static_cast<int>(2 * scale);
+    HFONT size_font = FittedFont(dc, *size, room, scale, FW_BOLD, 11, 7);
+    HFONT cancel_font = MenuFont(10, scale, FW_NORMAL);
+    ::SelectObject(dc, size_font);
+    RECT above = {middle - hub, middle - hub, middle + hub, middle - gap};
+    ::DrawTextW(dc, size->c_str(), -1, &above,
+                DT_CENTER | DT_BOTTOM | DT_SINGLELINE | DT_NOPREFIX);
+    ::SelectObject(dc, cancel_font);
+    ::SetTextColor(dc, ::GetSysColor(COLOR_GRAYTEXT));
+    RECT below = {middle - hub, middle + gap, middle + hub, middle + hub};
+    ::DrawTextW(dc, cancel_word.c_str(), -1, &below,
+                DT_CENTER | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+    ::SelectObject(dc, font);
+    ::DeleteObject(cancel_font);
+    ::DeleteObject(size_font);
+  }
 
   ::SelectObject(dc, old_font);
   ::SelectObject(dc, old_brush);

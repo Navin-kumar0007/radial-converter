@@ -3,6 +3,7 @@ import 'package:radial_core/radial_core.dart';
 /// A page can't watch drags outside itself.
 void Function() listenForShiftDrag({
   required Future<List<RadialAction>> Function(List<String> paths) menuFor,
+  required Future<String?> Function(RadialAction action, List<String> paths) sizeOf,
   required void Function(RadialAction action, List<String> paths) chosen,
 }) {
   return () {};

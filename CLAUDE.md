@@ -125,10 +125,12 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   up to `maxFolderFiles` (200), without hidden files or links. The menu only offers what all files share, so a folder
   keeps its biggest family that this device can run (`pickFromFolder`) and says how many it left out. Windows reports a
   dropped folder as a file, so ask the disk, not the plugin.
-- Size on hover (`size_preview.dart`, the window's menu only): resting 250 ms on a slice shows its size in the centre. One
+- Size on hover (`size_preview.dart`): resting 250 ms on a slice shows its size in the centre. One
   picture the pure-Dart engine handles, up to 25 MB, is really converted (`SizePreviews`, last 4 kept), and choosing that
   slice takes the trial's result (`take` in `_runTogether`), so nothing runs twice. Otherwise only a size limit is shown
-  ("Up to 20 MB"). Not yet in the native Shift-drag menus, nor for video, whose size needs its length first.
+  ("Up to 20 MB"). The Shift-drag menus ask Dart over the channel (`sizeOf`) once a drag rests on a slice, and Dart keeps
+  the dragged file and its trials (`_dragged`) so the drop reuses them. Mac checked by `check_shift_drag.sh`, Windows
+  untested. Not yet for video, whose size needs its length first.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.
@@ -272,7 +274,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: size on hover in the Shift-drag menus and for video, outer ring. A native speaker should review `app_hi.arb`.
+6. Menu: size on hover for video, outer ring. Try size on hover in a real Shift-drag on both desktops. A native speaker should review `app_hi.arb`.
 7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
    the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

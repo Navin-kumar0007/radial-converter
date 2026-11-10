@@ -70,8 +70,54 @@ void main() {
     });
   });
 
+  group('the channel', () {
+    final hasMenu = Platform.isMacOS || Platform.isWindows;
+
+    Future<Object?> ask(String method, Map<String, Object?> arguments) async {
+      const codec = StandardMethodCodec();
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      ByteData? reply;
+      await messenger.handlePlatformMessage(
+        shiftDragChannel.name,
+        codec.encodeMethodCall(MethodCall(method, arguments)),
+        (data) => reply = data,
+      );
+      return codec.decodeEnvelope(reply!);
+    }
+
+    test('answers what the centre says for a slice', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final asked = <String>[];
+      final stop = listenForShiftDrag(
+        menuFor: (paths) async => const [],
+        sizeOf: (action, paths) async {
+          asked.add('${action.id} ${paths.join()}');
+          return 'About 12 KB';
+        },
+        chosen: (action, paths) {},
+      );
+      addTearDown(stop);
+      expect(
+        await ask('sizeOf', {
+          'id': 'image-to-jpg',
+          'paths': ['/a.png'],
+        }),
+        'About 12 KB',
+      );
+      expect(
+        await ask('sizeOf', {
+          'id': 'no-such-action',
+          'paths': ['/a.png'],
+        }),
+        isNull,
+      );
+      expect(asked, ['image-to-jpg /a.png']);
+    }, skip: hasMenu ? false : 'Only macOS and Windows have the Shift-drag menu');
+  });
+
   group('through the screen', () {
     late Future<List<RadialAction>> Function(List<String>) menuFor;
+    late Future<String?> Function(RadialAction, List<String>) sizeOf;
     late void Function(RadialAction, List<String>) chosen;
     var stopped = false;
 
@@ -91,15 +137,16 @@ void main() {
                 (action, files, onProgress, options) {
                   return runPortable(action, files, options: options);
                 },
-            shiftDrag: ({required menuFor, required chosen}) {
+            shiftDrag: ({required menuFor, required sizeOf, required chosen}) {
               // Named differently from the test's, so both are in reach.
-              _capture(menuFor, chosen);
+              _capture(menuFor, sizeOf, chosen);
               return () => stopped = true;
             },
           ),
         ),
       );
       menuFor = _menuFor!;
+      sizeOf = _sizeOf!;
       chosen = _chosen!;
     }
 
@@ -228,6 +275,66 @@ void main() {
       expect(folder.listSync().where((e) => e.path.endsWith('.pdf')), hasLength(1));
     });
 
+    testWidgets('resting on a slice gives its real size, and dropping there reuses that work', (
+      tester,
+    ) async {
+      final converted = <String>[];
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          converted.add(action.id);
+          return runPortable(action, files, options: options);
+        },
+      );
+      final path = aPhoto('photo.png');
+      final jpg = actionById('image-to-jpg')!;
+      await tester.runAsync(() => menuFor([path]));
+      final size = await tester.runAsync(() => sizeOf(jpg, [path]));
+      expect(size, matches(RegExp(r'^About \d+ (B|KB)$')));
+      expect(converted, ['image-to-jpg']);
+
+      await tester.runAsync(() async => chosen(jpg, [path]));
+      await untilSaved(tester, 1);
+      expect(File(p.join(folder.path, 'photo (converted).jpg')).existsSync(), isTrue);
+      expect(converted, ['image-to-jpg'], reason: 'the trial was the conversion');
+    });
+
+    testWidgets('dropping on another slice than the one tried converts afresh', (tester) async {
+      final converted = <String>[];
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          converted.add(action.id);
+          return runPortable(action, files, options: options);
+        },
+      );
+      final path = aPhoto('photo.png');
+      await tester.runAsync(() => menuFor([path]));
+      await tester.runAsync(() => sizeOf(actionById('image-to-jpg')!, [path]));
+      await tester.runAsync(() async => chosen(actionById('image-to-webp')!, [path]));
+      await untilSaved(tester, 1);
+      expect(converted, ['image-to-jpg', 'image-to-webp']);
+      expect(File(p.join(folder.path, 'photo (converted).webp')).existsSync(), isTrue);
+    });
+
+    testWidgets('several files, or a drag the menu never saw, have no size', (tester) async {
+      var conversions = 0;
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          conversions++;
+          return runPortable(action, files, options: options);
+        },
+      );
+      final jpg = actionById('image-to-jpg')!;
+      final one = aPhoto('a.png');
+      final two = [one, aPhoto('b.png')];
+      expect(await tester.runAsync(() => sizeOf(jpg, [one])), isNull);
+      await tester.runAsync(() => menuFor(two));
+      expect(await tester.runAsync(() => sizeOf(jpg, two)), isNull);
+      expect(conversions, 0);
+    });
+
     testWidgets('it stops listening when the screen goes', (tester) async {
       await pump(tester);
       await tester.pumpWidget(const SizedBox());
@@ -237,12 +344,15 @@ void main() {
 }
 
 Future<List<RadialAction>> Function(List<String>)? _menuFor;
+Future<String?> Function(RadialAction, List<String>)? _sizeOf;
 void Function(RadialAction, List<String>)? _chosen;
 
 void _capture(
   Future<List<RadialAction>> Function(List<String>) menuFor,
+  Future<String?> Function(RadialAction, List<String>) sizeOf,
   void Function(RadialAction, List<String>) chosen,
 ) {
   _menuFor = menuFor;
+  _sizeOf = sizeOf;
   _chosen = chosen;
 }

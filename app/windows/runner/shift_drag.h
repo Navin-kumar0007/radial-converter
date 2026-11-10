@@ -7,7 +7,9 @@
 #include <oleidl.h>
 #include <windows.h>
 
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -63,6 +65,8 @@ class ShiftDrag : public IDropTarget {
   int SliceAt(POINTL point) const;
   double Scale() const;
   void SetHighlight(int slice);
+  // Asks Dart what the centre should say about the slice the drag has rested on.
+  void AskSize();
 
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   HWND app_window_;
@@ -75,6 +79,12 @@ class ShiftDrag : public IDropTarget {
   std::vector<Slice> slices_;
   std::vector<std::string> paths_;
   int highlighted_ = -1;
+  // What the centre says each slice's result will weigh, by slice id, such as "About 240 KB".
+  std::map<std::string, std::wstring> sizes_;
+  // Slices already asked about in this drag, so each is asked once.
+  std::set<std::string> asked_;
+  // The slice whose size is asked once the drag has rested on it.
+  int resting_on_ = -1;
   bool button_was_down_ = false;
   POINT pressed_at_ = {};
   bool placed_ = false;

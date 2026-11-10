@@ -42,6 +42,11 @@ class MainFlutterWindow: NSWindow {
           })
       }
     }
+    shiftDrag.askForSize = { slice, paths, reply in
+      channel.invokeMethod("sizeOf", arguments: ["id": slice.id, "paths": paths]) { answer in
+        reply(answer as? String)
+      }
+    }
     shiftDrag.onChosen = { slice, paths in
       channel.invokeMethod("chosen", arguments: ["id": slice.id, "paths": paths])
     }
