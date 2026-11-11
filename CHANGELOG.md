@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Settings, behind the gear at the top: where results go (beside the original, or one folder of your choice, on Mac
+  and Windows), theme, language, previews, open at login and update checks. About now only says what the app is.
+
 ## 0.10.0 (beta, 11 November 2026)
 
 This is the first version that tells you about the next one. Copies of 0.9 don't check, so install this one by hand.

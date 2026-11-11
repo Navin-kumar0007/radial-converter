@@ -221,7 +221,7 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   the app can't follow. Only a day-old handed-over file is cleared, as another copy of the app may be dragging one.
   An older drift/SQLite history database was removed on 8 Nov 2026: nothing used it, and its SQLite downloads made every
   build depend on GitHub serving them. Don't bring SQLite back for a list this small.
-- Open at login (About's switch, `OpenAtLogin`, `loginItem`/`setLoginItem` over the Shift-drag channel): Mac uses
+- Open at login (Settings' switch, `OpenAtLogin`, `loginItem`/`setLoginItem` over the Shift-drag channel): Mac uses
   `SMAppService.mainApp` (macOS 13+; `LoginItem` in `ShiftDrag.swift`) and hides the window when macOS says it opened
   the app at login; Windows writes `HKCU\...\Run` as `"shiftdrop.exe" --hidden`, which starts in the notification
   area, and the uninstaller removes it. CI checks the hidden start and the removal. Nobody has tried it on a real Mac yet.
@@ -237,17 +237,21 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - First launch (`welcome_screen.dart`, shown by `app_home.dart` until `welcomed`): a hello, a practice drag on a sample
   photo drawn in Dart (`samplePhoto`), then language, open at login and update checks. The practice uses the real
   `RadialMenu`, following a drag that began outside it (`RadialMenuDrag`), and really converts the photo. A mouse on a
-  desktop must hold Shift; a finger just drags. Skipping counts as seen, and About shows it again.
-- Settings (`app_settings.dart`, `settings_store_*.dart`): `settings.json` beside the history, or localStorage. Read
-  before the first frame in `main()`. Damaged or missing reads as the defaults; failing to save never stops anything.
+  desktop must hold Shift; a finger just drags. Skipping counts as seen, and Settings shows it again.
+- Settings (`app_settings.dart`, `settings_store_*.dart`, `settings_screen.dart`, behind the gear): `settings.json`
+  beside the history, or localStorage. Read before the first frame in `main()`. Damaged or missing reads as the
+  defaults; failing to save never stops anything. Holds the guide, language, theme, previews, update checks and, on a
+  desktop, a results folder: `_resultsFolder` checks it can take a file (`folderWritable`) at each job, falls back to
+  beside the original and says so once, and passes it to `saveBesideOriginal(folder:)` and, through
+  `ConvertControl.outputFolder`, to the engines. Phones and browsers keep their save dialogs. About is information only.
 - Update check (`update_check.dart`, `core/lib/src/update_info.dart`): Mac and Windows copies from the website fetch
   `https://shiftdrop.pages.dev/version.json` (`docs/site/version.json`) at most once a day, 5 s after launch, and show a
   banner whose Download opens the address in the browser (`openPage`, native `openPage`/`radial/pages`, https only).
   Only github.com and shiftdrop.pages.dev addresses are kept from the file. The Store copy is built with
-  `--dart-define=SHIFTDROP_STORE=true` and never checks. Android keeps no internet permission, so About only opens the
+  `--dart-define=SHIFTDROP_STORE=true` and never checks. Android keeps no internet permission, so Settings only opens the
   releases page. Update `version.json` by hand after a release (`docs/RELEASING.md`); a test fails if it runs ahead of
   `pubspec.yaml`. Sparkle and in-app APK downloads, as the plan has them, aren't done: both need more than a link.
-- Languages: English and Hindi, following the device unless one is picked in About (`chosenLocale` for `deviceWords`,
+- Languages: English and Hindi, following the device unless one is picked in Settings (`chosenLocale` for `deviceWords`,
   and `sendNativeWords` tells the native menus again) (`app/lib/l10n/app_*.arb`, `flutter gen-l10n` writes `words*.dart`,
   checked in). `context.words` on screen, `deviceWords` where there's no screen, such as the Shift-drag menu. Action
   labels stay English in `core/` and in history, and `actionLabel` translates them by their English text; a test fails

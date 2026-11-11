@@ -21,3 +21,16 @@ Future<void> writeSettingsText(String text) async {
   await part.writeAsString(text, flush: true);
   await part.rename(file.path);
 }
+
+/// Whether results can be written into [path]: it is a folder that exists and takes a new file.
+Future<bool> folderWritable(String path) async {
+  final folder = Directory(path);
+  if (!folder.existsSync()) return false;
+  try {
+    final trial = await folder.createTemp('.shiftdrop-');
+    await trial.delete();
+    return true;
+  } on FileSystemException {
+    return false;
+  }
+}

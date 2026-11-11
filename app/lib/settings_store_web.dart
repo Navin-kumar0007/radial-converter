@@ -6,3 +6,6 @@ const _key = 'radial_settings';
 Future<String?> readSettingsText() async => web.window.localStorage.getItem(_key);
 
 Future<void> writeSettingsText(String text) async => web.window.localStorage.setItem(_key, text);
+
+/// A browser has no folders to write results to.
+Future<bool> folderWritable(String path) async => false;

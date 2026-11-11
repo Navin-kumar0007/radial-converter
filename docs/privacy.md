@@ -18,7 +18,7 @@ Nothing. There are no accounts, no analytics, no ads, no crash reports and no tr
 
 Copies of the Mac and Windows apps downloaded from our website ask once a day whether a newer version is out, by fetching one small file, `version.json`, from our website. The request carries nothing about you, your device or your files: no identifier, no cookies, no list of what you've converted, only the app's name. As with any website, the host sees the IP address it came from (see **The website** below). The answer only says which version is newest and where to download it. Nothing is downloaded or installed unless you choose **Download**, which opens the page in your browser.
 
-Turn it off in **About**, with **Check for new versions**. The Microsoft Store copy doesn't check, as the Store updates it. The Android app and the web app never check.
+Turn it off in **Settings**, with **Check for new versions**. The Microsoft Store copy doesn't check, as the Store updates it. The Android app and the web app never check.
 
 ## How the apps are kept off the network
 
@@ -27,7 +27,7 @@ The desktop video engine has networking compiled out on macOS. On Windows it's b
 ## What stays on your device
 
 - **History.** The name of each result you save, where it was saved on a desktop, how large it was and what was done. It's kept for 30 days in a file only the app uses, or in your browser's storage for the web app. **Clear** in the History screen removes it at once, and it never touches your files. Nothing inside your files is stored.
-- **Settings.** Whether you've seen the first-launch guide, the language you chose, whether to check for new versions, and when that last happened. Kept in a small file only the app uses, or in your browser's storage.
+- **Settings.** Whether you've seen the first-launch guide, the language and theme you chose, whether to show previews and check for new versions, when that last happened, and the folder for results if you chose one. Kept in a small file only the app uses, or in your browser's storage.
 - **Passwords.** One you type to open a locked file is kept only while that job runs, and is never saved or logged.
 - **Temporary copies.** A result dragged to another app is written to a temporary folder first, and cleared the next time the app opens after a day has passed. On Android, results wait in the app's cache until the app next opens. In a browser, large results wait in the browser's private storage, and are cleared the next time video is converted.
 

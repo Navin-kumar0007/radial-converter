@@ -136,7 +136,15 @@ Future<List<ConvertedFile>> convertMedia(
   final results = <ConvertedFile>[];
   try {
     for (var i = 0; i < paths.length; i++) {
-      final job = queue.add((context) => runner.run(action, [paths[i]], context, options: options));
+      final job = queue.add(
+        (context) => runner.run(
+          action,
+          [paths[i]],
+          context,
+          options: options,
+          outputFolder: control.outputFolder,
+        ),
+      );
       control.cancel = job.cancel;
       final progress = queue.changes.listen((changed) {
         if (identical(changed, job) && changed.progress > 0) {

@@ -689,5 +689,41 @@
       "address": {}
     }
   },
-  "showGuide": "Show the guide again"
+  "showGuide": "Show the guide again",
+  "settingsTitle": "Settings",
+  "resultsWhere": "Where results go",
+  "resultsBeside": "Beside the original",
+  "resultsInFolder": "In one folder",
+  "resultsFolderIs": "Results go in {folder}",
+  "@resultsFolderIs": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
+  "resultsChange": "Change",
+  "resultsFolderGone": "{folder} can't be used, so results went beside the originals. Choose another folder in Settings.",
+  "@resultsFolderGone": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
+  "saveAllTo": "Save all in {folder}",
+  "@saveAllTo": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
+  "savedIn": "Saved in {folder}. {sizes}",
+  "@savedIn": {
+    "placeholders": {
+      "folder": {},
+      "sizes": {}
+    }
+  },
+  "theme": "Theme",
+  "themeSystem": "As the system",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "showPreviews": "Show previews",
+  "showPreviewsWhy": "A small picture of each file's first page, before and after. Made on this device and never kept."
 }

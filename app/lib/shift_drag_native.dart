@@ -81,11 +81,11 @@ void sendNativeWords() {
       });
 }
 
-/// Writes [file] next to the file it came from, under a free name. Returns where. Originals and
-/// anything else already there are never replaced.
-Future<String> saveBesideOriginal(String originalPath, PortableFile file) async {
-  final folder = p.dirname(originalPath);
-  bool taken(String name) => File(p.join(folder, name)).existsSync();
+/// Writes [file] next to the file it came from, or into [folder] if given, under a free name.
+/// Returns where. Originals and anything else already there are never replaced.
+Future<String> saveBesideOriginal(String originalPath, PortableFile file, {String? folder}) async {
+  final into = folder ?? p.dirname(originalPath);
+  bool taken(String name) => File(p.join(into, name)).existsSync();
   final name = !taken(file.name)
       ? file.name
       : freeOutputName(
@@ -94,7 +94,7 @@ Future<String> saveBesideOriginal(String originalPath, PortableFile file) async 
           suffix: 'copy',
           exists: taken,
         );
-  final path = p.join(folder, name);
+  final path = p.join(into, name);
   // It appears whole or not at all, so nothing can pick up half a file.
   final part = File('$path.part');
   try {

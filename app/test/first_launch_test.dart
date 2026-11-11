@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radial_core/radial_core.dart';
-import 'package:shiftdrop/about.dart';
 import 'package:shiftdrop/app_home.dart';
 import 'package:shiftdrop/app_settings.dart';
 import 'package:shiftdrop/update_check.dart';
@@ -352,67 +351,6 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-    });
-  });
-
-  group('About', () {
-    Future<void> openAbout(WidgetTester tester, SettingsStore store, {VoidCallback? guide}) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        _app(
-          Builder(
-            builder: (context) => TextButton(
-              onPressed: () => showAbout(context, onShowGuide: guide),
-              child: const Text('open'),
-            ),
-          ),
-          settings: store,
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('picks the language', (tester) async {
-      final store = _store();
-      await openAbout(tester, store);
-      await tester.tap(find.text('English'));
-      await tester.pumpAndSettle();
-      expect(store.value.language, 'en');
-      await tester.tap(find.text('As the device'));
-      await tester.pumpAndSettle();
-      expect(store.value.language, isNull);
-    });
-
-    testWidgets('opens the guide again', (tester) async {
-      var shown = 0;
-      await openAbout(tester, _store(), guide: () => shown++);
-      await tester.tap(find.text('Show the guide again'));
-      await tester.pumpAndSettle();
-      expect(shown, 1);
-      expect(find.text(appVersion), findsNothing, reason: 'About closes first');
-    });
-
-    testWidgets('a phone gets a link to the download page instead of a check', (tester) async {
-      final opened = <Uri>[];
-      await tester.pumpWidget(
-        _app(
-          Scaffold(
-            body: GetNewest(
-              open: (address) async {
-                opened.add(address);
-                return false;
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Get the newest version'));
-      await tester.pumpAndSettle();
-      expect(opened.single.toString(), '$projectAddress/releases/latest');
-      expect(find.textContaining("Couldn't open the page"), findsOneWidget);
     });
   });
 }

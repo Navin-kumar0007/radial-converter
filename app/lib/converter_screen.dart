@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:radial_core/radial_core.dart';
 
 import 'about.dart';
+import 'app_settings.dart';
 import 'conversion.dart';
 import 'drop_files.dart';
 import 'file_chip.dart';
@@ -15,6 +17,8 @@ import 'keep_going.dart';
 import 'option_screens.dart';
 import 'presets.dart';
 import 'radial_menu.dart';
+import 'settings_screen.dart';
+import 'settings_store.dart';
 import 'shared_files.dart';
 import 'shift_drag.dart';
 import 'size_preview.dart';
@@ -130,6 +134,7 @@ class ConverterScreen extends StatefulWidget {
     this.acceptsDrops,
     this.savesBeside,
     this.showGuide,
+    this.folderCheck = folderWritable,
   });
 
   final FilesPicker pickFiles;
@@ -177,8 +182,11 @@ class ConverterScreen extends StatefulWidget {
   /// copies sit in a cache nobody would look in, and a browser has no folders to write to.
   final bool? savesBeside;
 
-  /// Opens the first-launch guide again, from About.
+  /// Opens the first-launch guide again, from Settings.
   final VoidCallback? showGuide;
+
+  /// Whether results can be written into a folder chosen in Settings.
+  final Future<bool> Function(String folder) folderCheck;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -217,6 +225,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
   bool _savingAll = false;
   bool _dragging = false;
   bool _receiving = false;
+
+  /// A chosen folder that can't be used is said once, not on every job.
+  bool _saidFolderGone = false;
   late final StreamSubscription<SharedFiles> _shares;
   late final void Function() _stopShiftDrag;
 
@@ -438,8 +449,29 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return dragged != null && listEquals(dragged.paths, paths) ? dragged : null;
   }
 
-  /// Saves results held in memory next to what they came from. Video is already there.
-  Future<List<_Result>> _saveBeside(List<_Result> results) async {
+  /// The folder chosen in Settings for results, if there is one and it can take them. Otherwise
+  /// null, for beside each original, and a folder that's gone or locked is said once.
+  Future<String?> _resultsFolder() async {
+    if (!_savesBeside) return null;
+    final chosen = SettingsScope.read(context)?.value.resultsFolder;
+    if (chosen == null) return null;
+    var usable = false;
+    try {
+      usable = await widget.folderCheck(chosen);
+    } catch (_) {
+      // Treated as unusable.
+    }
+    if (usable) return chosen;
+    if (!_saidFolderGone && mounted) {
+      _saidFolderGone = true;
+      _say(_words.resultsFolderGone(chosen));
+    }
+    return null;
+  }
+
+  /// Saves results held in memory next to what they came from, or into [folder]. Video is
+  /// already there.
+  Future<List<_Result>> _saveBeside(List<_Result> results, String? folder) async {
     final saved = <_Result>[];
     for (final result in results) {
       final inMemory = result.output.inMemory;
@@ -448,7 +480,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         saved.add(result);
         continue;
       }
-      final path = await saveBesideOriginal(original, inMemory);
+      final path = await saveBesideOriginal(original, inMemory, folder: folder);
       saved.add(_Result(_savedAt(result.output, path), result.from, result.bytesBefore));
     }
     return saved;
@@ -796,10 +828,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Future<void> _start(RadialAction action, ActionOptions options, {bool saveBeside = false}) async {
+    final folder = await _resultsFolder();
+    if (!mounted) return;
     final before = _files.fold<int>(0, (sum, file) => sum + file.size);
     final files = _files;
     final jobs = [_Job(_workingName(), before)];
-    final control = ConvertControl();
+    final control = ConvertControl()..outputFolder = folder;
     _stopRunningJob();
     _control = control;
     setState(() {
@@ -824,7 +858,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         outsideTheWindow: saveBeside,
       );
       if (saveBeside) {
-        results = await _saveBeside(results);
+        results = await _saveBeside(results, folder);
         if (failed.isNotEmpty) showAppWindow();
         // Ready at the cursor to drag straight on, as the window may be behind other apps.
         showChipAtCursor([
@@ -914,9 +948,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
     setState(() => _savingAll = true);
     try {
       if (_savesBeside) {
+        final folder = await _resultsFolder();
         for (final job in waiting) {
           final output = job.output!;
-          final path = await saveBesideOriginal(job.from!.path!, output.inMemory!);
+          final path = await saveBesideOriginal(job.from!.path!, output.inMemory!, folder: folder);
           if (!mounted) return;
           setState(() {
             job
@@ -960,10 +995,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
         toolbarHeight: 44,
         backgroundColor: Colors.transparent,
         actions: [
+          if (SettingsScope.maybeOf(context) != null)
+            IconButton(
+              tooltip: words.settingsTitle,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => openSettings(context, onShowGuide: widget.showGuide),
+            ),
           IconButton(
             tooltip: words.about,
             icon: const Icon(Icons.info_outline),
-            onPressed: () => showAbout(context, onShowGuide: widget.showGuide),
+            onPressed: () => showAbout(context),
           ),
           IconButton(
             tooltip: words.history,
@@ -1019,7 +1060,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     child: FilledButton.tonalIcon(
                       onPressed: _savingAll ? null : _saveAll,
                       icon: const Icon(Icons.save_alt),
-                      label: Text(_savesBeside ? words.saveAllBeside : words.saveAllZip),
+                      label: Text(_saveAllLabel(words)),
                     ),
                   ),
                 if (_files.isNotEmpty && !_menuOpen)
@@ -1046,6 +1087,21 @@ class _ConverterScreenState extends State<ConverterScreen> {
       },
       child: Stack(fit: StackFit.expand, children: [screen, if (_dragging) _buildDropHint(styles)]),
     );
+  }
+
+  String _saveAllLabel(Words words) {
+    if (!_savesBeside) return words.saveAllZip;
+    final folder = SettingsScope.maybeOf(context)?.value.resultsFolder;
+    return folder == null ? words.saveAllBeside : words.saveAllTo(p.basename(folder));
+  }
+
+  /// Where a saved result went, when that's the folder chosen in Settings rather than beside its
+  /// original.
+  String? _savedInFolder(_Job job) {
+    final saved = job.output?.savedPath;
+    final original = job.from?.path;
+    if (saved == null || original == null || p.dirname(saved) == p.dirname(original)) return null;
+    return p.basename(p.dirname(saved));
   }
 
   Widget _buildDropHint(TextTheme styles) {
@@ -1144,6 +1200,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       indeterminate: job.state == FileChipState.working && job.progress == null,
       detail: job.undone
           ? _words.movedTo(trashName(_words))
+          : _savedInFolder(job) != null
+          ? _words.savedIn(_savedInFolder(job)!, sizes ?? '')
           : output?.savedPath != null
           ? _words.savedBeside(sizes ?? '')
           : job.saved

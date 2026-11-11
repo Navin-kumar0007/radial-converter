@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shiftdrop/about.dart';
 import 'package:shiftdrop/converter_screen.dart';
+import 'package:shiftdrop/settings_screen.dart';
 import 'package:shiftdrop/shift_drag.dart';
 import 'package:shiftdrop/words.dart';
 

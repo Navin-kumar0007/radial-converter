@@ -1784,6 +1784,96 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Show the guide again'**
   String get showGuide;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @resultsWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Where results go'**
+  String get resultsWhere;
+
+  /// No description provided for @resultsBeside.
+  ///
+  /// In en, this message translates to:
+  /// **'Beside the original'**
+  String get resultsBeside;
+
+  /// No description provided for @resultsInFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'In one folder'**
+  String get resultsInFolder;
+
+  /// No description provided for @resultsFolderIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Results go in {folder}'**
+  String resultsFolderIs(Object folder);
+
+  /// No description provided for @resultsChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get resultsChange;
+
+  /// No description provided for @resultsFolderGone.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} can\'t be used, so results went beside the originals. Choose another folder in Settings.'**
+  String resultsFolderGone(Object folder);
+
+  /// No description provided for @saveAllTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save all in {folder}'**
+  String saveAllTo(Object folder);
+
+  /// No description provided for @savedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved in {folder}. {sizes}'**
+  String savedIn(Object folder, Object sizes);
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'As the system'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// No description provided for @showPreviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Show previews'**
+  String get showPreviews;
+
+  /// No description provided for @showPreviewsWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'A small picture of each file\'s first page, before and after. Made on this device and never kept.'**
+  String get showPreviewsWhy;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

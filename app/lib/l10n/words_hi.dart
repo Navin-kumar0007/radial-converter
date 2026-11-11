@@ -1037,4 +1037,58 @@ class WordsHi extends Words {
 
   @override
   String get showGuide => 'गाइड फिर से दिखाएँ';
+
+  @override
+  String get settingsTitle => 'सेटिंग';
+
+  @override
+  String get resultsWhere => 'नतीजे कहाँ जाएँ';
+
+  @override
+  String get resultsBeside => 'मूल फ़ाइल के पास';
+
+  @override
+  String get resultsInFolder => 'एक फ़ोल्डर में';
+
+  @override
+  String resultsFolderIs(Object folder) {
+    return 'नतीजे $folder में जाते हैं';
+  }
+
+  @override
+  String get resultsChange => 'बदलें';
+
+  @override
+  String resultsFolderGone(Object folder) {
+    return '$folder इस्तेमाल नहीं हो सका, इसलिए नतीजे मूल फ़ाइलों के पास रखे गए। सेटिंग में कोई दूसरा फ़ोल्डर चुनें।';
+  }
+
+  @override
+  String saveAllTo(Object folder) {
+    return 'सभी को $folder में सहेजें';
+  }
+
+  @override
+  String savedIn(Object folder, Object sizes) {
+    return '$folder में सहेजी गई। $sizes';
+  }
+
+  @override
+  String get theme => 'थीम';
+
+  @override
+  String get themeSystem => 'सिस्टम जैसी';
+
+  @override
+  String get themeLight => 'हल्की';
+
+  @override
+  String get themeDark => 'गहरी';
+
+  @override
+  String get showPreviews => 'झलक दिखाएँ';
+
+  @override
+  String get showPreviewsWhy =>
+      'हर फ़ाइल के पहले पेज की छोटी तस्वीर, पहले और बाद में। इसी डिवाइस पर बनती है और कभी रखी नहीं जाती।';
 }

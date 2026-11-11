@@ -1036,4 +1036,58 @@ class WordsEn extends Words {
 
   @override
   String get showGuide => 'Show the guide again';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get resultsWhere => 'Where results go';
+
+  @override
+  String get resultsBeside => 'Beside the original';
+
+  @override
+  String get resultsInFolder => 'In one folder';
+
+  @override
+  String resultsFolderIs(Object folder) {
+    return 'Results go in $folder';
+  }
+
+  @override
+  String get resultsChange => 'Change';
+
+  @override
+  String resultsFolderGone(Object folder) {
+    return '$folder can\'t be used, so results went beside the originals. Choose another folder in Settings.';
+  }
+
+  @override
+  String saveAllTo(Object folder) {
+    return 'Save all in $folder';
+  }
+
+  @override
+  String savedIn(Object folder, Object sizes) {
+    return 'Saved in $folder. $sizes';
+  }
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeSystem => 'As the system';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get showPreviews => 'Show previews';
+
+  @override
+  String get showPreviewsWhy =>
+      'A small picture of each file\'s first page, before and after. Made on this device and never kept.';
 }

@@ -281,5 +281,20 @@
   "updateGet": "डाउनलोड करें",
   "updateLater": "बाद में",
   "pageFailed": "पेज नहीं खुल सका। पता है: {address}",
-  "showGuide": "गाइड फिर से दिखाएँ"
+  "showGuide": "गाइड फिर से दिखाएँ",
+  "settingsTitle": "सेटिंग",
+  "resultsWhere": "नतीजे कहाँ जाएँ",
+  "resultsBeside": "मूल फ़ाइल के पास",
+  "resultsInFolder": "एक फ़ोल्डर में",
+  "resultsFolderIs": "नतीजे {folder} में जाते हैं",
+  "resultsChange": "बदलें",
+  "resultsFolderGone": "{folder} इस्तेमाल नहीं हो सका, इसलिए नतीजे मूल फ़ाइलों के पास रखे गए। सेटिंग में कोई दूसरा फ़ोल्डर चुनें।",
+  "saveAllTo": "सभी को {folder} में सहेजें",
+  "savedIn": "{folder} में सहेजी गई। {sizes}",
+  "theme": "थीम",
+  "themeSystem": "सिस्टम जैसी",
+  "themeLight": "हल्की",
+  "themeDark": "गहरी",
+  "showPreviews": "झलक दिखाएँ",
+  "showPreviewsWhy": "हर फ़ाइल के पहले पेज की छोटी तस्वीर, पहले और बाद में। इसी डिवाइस पर बनती है और कभी रखी नहीं जाती।"
 }

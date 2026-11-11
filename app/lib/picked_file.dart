@@ -88,4 +88,7 @@ class SavedAs {
 /// Lets the screen stop a running conversion.
 class ConvertControl {
   void Function()? cancel;
+
+  /// Where a desktop's engines write results, or null for beside each original.
+  String? outputFolder;
 }

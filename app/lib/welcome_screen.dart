@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
 
-import 'about.dart';
+import 'settings_screen.dart';
 import 'app_settings.dart';
 import 'conversion.dart';
 import 'converter_screen.dart' show Converter;

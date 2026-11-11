@@ -13,7 +13,7 @@ void Function() listenForShiftDrag({
 void sendNativeWords() {}
 
 /// Only a desktop has a folder to save beside.
-Future<String> saveBesideOriginal(String originalPath, PortableFile file) {
+Future<String> saveBesideOriginal(String originalPath, PortableFile file, {String? folder}) {
   throw UnsupportedError('No folders in a browser');
 }
 
