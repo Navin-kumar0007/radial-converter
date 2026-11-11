@@ -130,7 +130,11 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   slice takes the trial's result (`take` in `_runTogether`), so nothing runs twice. Otherwise only a size limit is shown
   ("Up to 20 MB"). The Shift-drag menus ask Dart over the channel (`sizeOf`) once a drag rests on a slice, and Dart keeps
   the dragged file and its trials (`_dragged`) so the drop reuses them. Mac checked by `check_shift_drag.sh`, Windows
-  untested. Not yet for video, whose size needs its length first.
+  built by CI but untried. Video and sound aren't tried, as that takes minutes: the file is probed once (`readMedia`, the
+  trim screen's probe, now with codecs on web too), and `estimateMediaBytes` reads the size off the shared plan. Copied
+  streams weigh what they did, a set bitrate gives bitrate times length, a size limit stays "Up to". Anything else
+  (an encoder's own bitrate, a trim, sound copied out of a video) shows nothing rather than a guess. Checked against
+  real FFmpeg results: copies and mute match; compress came out under the estimate on a synthetic clip.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.
@@ -274,7 +278,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: size on hover for video, outer ring. Try size on hover in a real Shift-drag on both desktops. A native speaker should review `app_hi.arb`.
+6. Menu: outer ring. Try size on hover in a real Shift-drag on both desktops, and for video in a browser and on a phone. A native speaker should review `app_hi.arb`.
 7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
    the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

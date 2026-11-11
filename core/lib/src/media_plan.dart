@@ -319,3 +319,33 @@ int _compressedKbps(MediaInfo info) {
   int even(double value) => math.max(2, (value / 2).round() * 2);
   return (width: even(width * scale), height: even(height * scale));
 }
+
+/// How big [plan]'s result will be for a file of [inputBytes], from what is known before running
+/// it, or null if that can't be told honestly. [atMost] is true when only an upper bound is known,
+/// such as sound dropped from a copied video, whose share of the file is unknown.
+///
+/// Streams kept as they are weigh what they did, and streams encoded at a set bitrate weigh that
+/// over the length. An encoder left to its own bitrate, or a trim, could be anything.
+({int bytes, bool atMost})? estimateMediaBytes(
+  MediaPlan plan,
+  MediaInfo info, {
+  required int inputBytes,
+}) {
+  if (info.seconds <= 0 || plan.startSeconds != null || plan.endSeconds != null) return null;
+  final keepsVideo = info.hasVideo && !plan.dropVideo;
+  final keepsAudio = info.hasAudio && !plan.dropAudio;
+  final copiesVideo = keepsVideo && plan.copiesVideo(info);
+  final copiesAudio = keepsAudio && plan.copiesAudio(info);
+  if ((!keepsVideo || copiesVideo) && (!keepsAudio || copiesAudio)) {
+    // Sound copied out of a video is a small part of it, of unknown size: "up to" the whole video
+    // would be true but suggest far too much. Muting leaves most of it.
+    if (info.hasVideo && !keepsVideo) return null;
+    return (bytes: inputBytes, atMost: info.hasAudio && !keepsAudio);
+  }
+  // A copied stream's own bitrate isn't known, nor is an encoder's when the plan doesn't set one.
+  int? kbps(bool keeps, bool copies, int? planned) => !keeps ? 0 : (copies ? null : planned);
+  final video = kbps(keepsVideo, copiesVideo, plan.videoKbps);
+  final audio = kbps(keepsAudio, copiesAudio, plan.audioKbps);
+  if (video == null || audio == null) return null;
+  return (bytes: ((video + audio) * 1000 / 8 * info.seconds).round(), atMost: false);
+}

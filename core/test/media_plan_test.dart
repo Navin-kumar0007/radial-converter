@@ -310,4 +310,97 @@ void main() {
       expect(makes, isNotEmpty, reason: kind.extension);
     }
   });
+
+  group('estimateMediaBytes', () {
+    const phoneClip = MediaInfo(
+      seconds: 60,
+      hasVideo: true,
+      hasAudio: true,
+      width: 1920,
+      height: 1080,
+      videoCodec: 'avc',
+      audioCodec: 'aac',
+    );
+    const mb = 1024 * 1024;
+
+    ({int bytes, bool atMost})? estimate(String id, FileKind kind, MediaInfo info) {
+      return estimateMediaBytes(one(id, kind, info), info, inputBytes: 90 * mb);
+    }
+
+    test('streams kept as they are weigh what the file did', () {
+      expect(estimate('video-to-mp4', FileKind.mov, phoneClip), (bytes: 90 * mb, atMost: false));
+    });
+
+    test('a copy that drops the sound is at most the file', () {
+      expect(estimate('video-mute', FileKind.mp4, phoneClip), (bytes: 90 * mb, atMost: true));
+    });
+
+    test('sound copied out of a video tells nothing, as its share is unknown', () {
+      // A real 15 MB clip gave 0.4 MB of sound: "up to 15 MB" would mislead.
+      expect(estimate('video-to-m4a', FileKind.mp4, phoneClip), isNull);
+    });
+
+    test('sound encoded out of a video is its bitrate over the length', () {
+      const mp3 = MediaInfo(
+        seconds: 60,
+        hasVideo: true,
+        hasAudio: true,
+        videoCodec: 'avc',
+        audioCodec: 'mp3',
+      );
+      final plan = one('video-to-m4a', FileKind.mp4, mp3);
+      expect(estimateMediaBytes(plan, mp3, inputBytes: 90 * mb), (
+        bytes: (plan.audioKbps! * 1000 / 8 * 60).round(),
+        atMost: false,
+      ));
+    });
+
+    test('a set bitrate gives the size over the length', () {
+      final plan = one('video-compress', FileKind.mp4, phoneClip);
+      final kbps = plan.videoKbps! + plan.audioKbps!;
+      expect(estimateMediaBytes(plan, phoneClip, inputBytes: 90 * mb), (
+        bytes: (kbps * 1000 / 8 * 60).round(),
+        atMost: false,
+      ));
+    });
+
+    test('sound encoded from another codec is its bitrate over the length', () {
+      const opus = MediaInfo(seconds: 200, hasAudio: true, audioCodec: 'opus');
+      final plan = one('audio-to-m4a', FileKind.opus, opus);
+      expect(plan.copiesAudio(opus), isFalse);
+      expect(estimateMediaBytes(plan, opus, inputBytes: mb), (
+        bytes: (plan.audioKbps! * 1000 / 8 * 200).round(),
+        atMost: false,
+      ));
+    });
+
+    test('an encoder left to its own bitrate, or an unknown codec, tells nothing', () {
+      const vp9 = MediaInfo(
+        seconds: 60,
+        hasVideo: true,
+        hasAudio: true,
+        videoCodec: 'vp9',
+        audioCodec: 'opus',
+      );
+      expect(estimate('video-to-mp4', FileKind.webm, vp9), isNull);
+      // A browser or a probe that didn't say which codec: copying can't be counted on.
+      expect(estimate('video-to-mp4', FileKind.mov, hd), isNull);
+      expect(estimate('audio-to-wav', FileKind.mp3, song), isNull);
+    });
+
+    test('a trim or an unknown length tells nothing', () {
+      final trim = one(
+        'video-trim',
+        FileKind.mp4,
+        phoneClip,
+        const ActionOptions(startSeconds: 1, endSeconds: 5),
+      );
+      expect(estimateMediaBytes(trim, phoneClip, inputBytes: mb), isNull);
+      const noLength = MediaInfo(seconds: 0, hasVideo: true, videoCodec: 'avc');
+      expect(
+        estimateMediaBytes(one('video-mute', FileKind.mp4, noLength), noLength, inputBytes: mb),
+        isNull,
+      );
+    });
+  });
 }

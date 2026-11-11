@@ -201,6 +201,8 @@ MediaInfo _readInfo(JSObject info) {
     hasAudio: map['hasAudio']! as bool,
     width: (map['width'] as num?)?.toInt(),
     height: (map['height'] as num?)?.toInt(),
+    videoCodec: map['videoCodec'] as String?,
+    audioCodec: map['audioCodec'] as String?,
   );
 }
 

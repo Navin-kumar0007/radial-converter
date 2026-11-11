@@ -372,7 +372,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _dragged = (
         paths: List.unmodifiable(paths),
         file: files.single,
-        previews: SizePreviews(files.single, kinds.single, _trial),
+        previews: SizePreviews(files.single, kinds.single, _trial, readMedia: widget.mediaProbe),
       );
     }
     return availableActions(
@@ -716,7 +716,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (_files.length != 1) return _previews = null;
     final current = _previews;
     if (current != null && identical(current.file, _files.single)) return current;
-    return _previews = SizePreviews(_files.single, _kinds.single, _trial);
+    return _previews = SizePreviews(
+      _files.single,
+      _kinds.single,
+      _trial,
+      readMedia: widget.mediaProbe,
+    );
   }
 
   Future<List<PortableFile>> _trial(RadialAction action, List<PortableFile> files) {

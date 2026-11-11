@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Rest on a slice and the menu says how big the result will be. For one picture it really makes it, so choosing that slice is then instant. This works in the Shift-drag menu on Mac and Windows too.
+- Videos and sound show a size as well, worked out from their length without converting, when it can be told honestly.
 
 ## 0.9.1 (beta, 9 November 2026)
 

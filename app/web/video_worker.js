@@ -52,6 +52,9 @@ async function probe(url) {
       hasAudio: audio !== null,
       width: video ? video.displayWidth : null,
       height: video ? video.displayHeight : null,
+      // Mediabunny's names are the ones plans use: avc, hevc, vp9, aac, opus.
+      videoCodec: video ? video.codec : null,
+      audioCodec: audio ? audio.codec : null,
     };
   } finally {
     input.dispose?.();

@@ -132,4 +132,82 @@ void main() {
     final hindi = wordsFor(const Locale('hi'));
     expect(const SizeGuess.upTo(1024 * 1024).describe(hindi), '1.0 MB तक');
   });
+
+  group('video and sound', () {
+    const mb = 1024 * 1024;
+    const clip = MediaInfo(
+      seconds: 60,
+      hasVideo: true,
+      hasAudio: true,
+      width: 1920,
+      height: 1080,
+      videoCodec: 'avc',
+      audioCodec: 'aac',
+    );
+    late int probes;
+    late PickedFile video;
+
+    SizePreviews previewsOf(FileKind kind, {MediaInfo info = clip}) {
+      return SizePreviews(
+        video,
+        kind,
+        fake,
+        readMedia: (file) async {
+          probes++;
+          return info;
+        },
+      );
+    }
+
+    setUp(() {
+      probes = 0;
+      video = _file('clip.mov', size: 90 * mb);
+    });
+
+    test('streams kept as they are come out about as big, with nothing converted', () async {
+      final previews = previewsOf(FileKind.mov);
+      expect(await previews.guess(_action('video-to-mp4')), const SizeGuess.about(90 * mb));
+      expect(conversions, 0);
+    });
+
+    test('dropping the sound can only make it smaller', () async {
+      final previews = previewsOf(FileKind.mov);
+      expect(await previews.guess(_action('video-mute')), const SizeGuess.upTo(90 * mb));
+    });
+
+    test('compressing gives its bitrate over the length', () async {
+      final previews = previewsOf(FileKind.mov);
+      final guess = await previews.guess(_action('video-compress'));
+      expect(guess?.approximate, isTrue);
+      expect(guess!.bytes, lessThan(90 * mb));
+      expect(guess.bytes, greaterThan(0));
+    });
+
+    test('the file is read once for every slice', () async {
+      final previews = previewsOf(FileKind.mov);
+      for (final id in ['video-to-mp4', 'video-mute', 'video-compress', 'video-to-mp4']) {
+        await previews.guess(_action(id));
+      }
+      expect(probes, 1);
+    });
+
+    test('a size limit is promised without reading the file', () async {
+      final previews = previewsOf(FileKind.mov);
+      expect(await previews.guess(_action('fit-email-video')), const SizeGuess.upTo(20 * mb));
+      expect(probes, 0);
+    });
+
+    test('what can\'t be told, or a file that can\'t be read, shows nothing', () async {
+      const webm = MediaInfo(seconds: 60, hasVideo: true, videoCodec: 'vp9');
+      video = _file('clip.webm', size: 90 * mb);
+      expect(await previewsOf(FileKind.webm, info: webm).guess(_action('video-to-mp4')), isNull);
+      final unreadable = SizePreviews(
+        video,
+        FileKind.mov,
+        fake,
+        readMedia: (file) async => throw StateError('No engine'),
+      );
+      expect(await unreadable.guess(_action('video-to-mp4')), isNull);
+    });
+  });
 }
