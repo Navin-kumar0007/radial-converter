@@ -53,6 +53,18 @@ String actionLabel(Words words, String label) {
   };
 }
 
+/// A choice on the outer ring, in [words]' language. Angles and pixel sizes read the same everywhere.
+String ringChoiceLabel(Words words, RingChoice choice) {
+  return switch (choice.key) {
+    'rotateRight' => words.ringRotateRight,
+    'rotateLeft' => words.ringRotateLeft,
+    'flipSideways' => words.ringMirror,
+    'flipUpsideDown' => words.ringUpsideDown,
+    'resizeHalf' => words.ringHalf,
+    _ => choice.label,
+  };
+}
+
 /// Why a job failed, in [words]' language. Failures name their message from `Fail` in core, with
 /// what fills its blanks; one that doesn't, or a message this app has no words for, stays as it was
 /// written.

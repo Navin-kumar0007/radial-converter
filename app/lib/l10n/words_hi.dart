@@ -101,6 +101,26 @@ class WordsHi extends Words {
   String get moreActions => 'और विकल्प';
 
   @override
+  String get ringRotateRight => '90° दाईं ओर';
+
+  @override
+  String get ringRotateLeft => '90° बाईं ओर';
+
+  @override
+  String get ringMirror => 'आईने जैसा';
+
+  @override
+  String get ringUpsideDown => 'उल्टा';
+
+  @override
+  String get ringHalf => 'आधा';
+
+  @override
+  String ringChoice(String action, String choice) {
+    return '$action, $choice';
+  }
+
+  @override
   String cancelFiles(int count) {
     return 'रद्द करें, $count फ़ाइलें';
   }

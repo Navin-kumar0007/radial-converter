@@ -101,6 +101,26 @@ class WordsEn extends Words {
   String get moreActions => 'More actions';
 
   @override
+  String get ringRotateRight => '90° right';
+
+  @override
+  String get ringRotateLeft => '90° left';
+
+  @override
+  String get ringMirror => 'Mirror';
+
+  @override
+  String get ringUpsideDown => 'Upside down';
+
+  @override
+  String get ringHalf => 'Half';
+
+  @override
+  String ringChoice(String action, String choice) {
+    return '$action, $choice';
+  }
+
+  @override
   String cancelFiles(int count) {
     return 'Cancel, $count files';
   }

@@ -676,7 +676,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       );
     }
     // The menu may have tried this already, to show its size.
-    final tried = files.length == 1 && options.password == null
+    // Trials run with no options, so a ring's choice or a password needs its own run.
+    final tried = files.length == 1 && identical(options, const ActionOptions())
         ? _previews?.take(action, files.single)
         : null;
     if (tried != null) return portable(await tried);
@@ -1073,6 +1074,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
           fileCount: _files.length,
           sizeOf: _sizePreviews?.guess,
           onSelected: _choose,
+          // Ring choices are complete options, so nothing is asked first.
+          onChoice: (action, options) => _start(action, options),
           onCancelled: () => setState(() => _menuOpen = false),
         ),
         if (actions.isEmpty) ...[

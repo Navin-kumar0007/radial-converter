@@ -18,5 +18,6 @@ export 'src/pdf_writer.dart';
 export 'src/portable_archive.dart' show canRunUnpacked, maxOpenedBytes, zipFiles;
 export 'src/portable_engine.dart';
 export 'src/preset.dart';
+export 'src/ring_choices.dart';
 export 'src/size_target.dart';
 export 'src/subtitles.dart';

@@ -255,6 +255,42 @@ abstract class Words {
   /// **'More actions'**
   String get moreActions;
 
+  /// No description provided for @ringRotateRight.
+  ///
+  /// In en, this message translates to:
+  /// **'90° right'**
+  String get ringRotateRight;
+
+  /// No description provided for @ringRotateLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'90° left'**
+  String get ringRotateLeft;
+
+  /// No description provided for @ringMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get ringMirror;
+
+  /// No description provided for @ringUpsideDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Upside down'**
+  String get ringUpsideDown;
+
+  /// No description provided for @ringHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'Half'**
+  String get ringHalf;
+
+  /// A choice on the outer ring, read out by screen readers, such as: Rotate, 180°
+  ///
+  /// In en, this message translates to:
+  /// **'{action}, {choice}'**
+  String ringChoice(String action, String choice);
+
   /// No description provided for @cancelFiles.
   ///
   /// In en, this message translates to:

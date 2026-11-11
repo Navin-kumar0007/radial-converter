@@ -135,6 +135,14 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   streams weigh what they did, a set bitrate gives bitrate times length, a size limit stays "Up to". Anything else
   (an encoder's own bitrate, a trim, sound copied out of a video) shows nothing rather than a guess. Checked against
   real FFmpeg results: copies and mute match; compress came out under the estimate on a synthetic clip.
+- Outer ring (`ringChoices` in `core/lib/src/ring_choices.dart`, `onChoice` in `radial_menu.dart`): resting on Rotate,
+  Flip or Resize shows their choices around the slice (90° right, 180°, 90° left; Mirror, Upside down; Half, 1920, 1280,
+  640 px), using options every engine already honoured but nobody could pick. The first choice is what the slice does,
+  and runs as the slice, so its size trial is reused; others run with their options. A finger taps once to see the
+  choices; Tab goes in and out of them; screen readers get them as actions on the slice. A narrow screen narrows the ring,
+  then the menu, then drops the ring. Window menu only: Shift-drag offers only convert actions, none of which have
+  choices, so native rings wait until Shift-drag gets Tools. Tried in Chrome. Quality levels for Compress need a new
+  option in every engine.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.
@@ -278,7 +286,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: outer ring. Try size on hover in a real Shift-drag on both desktops, and for video in a browser and on a phone. A native speaker should review `app_hi.arb`.
+6. Menu: quality levels on Compress's ring, and Tools in Shift-drag (then rings in the native menus). Try size on hover in a real Shift-drag on both desktops, and for video in a browser and on a phone. A native speaker should review `app_hi.arb`.
 7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
    the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

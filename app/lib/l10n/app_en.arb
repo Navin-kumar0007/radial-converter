@@ -42,6 +42,19 @@
   "dragToApp": "Drag to another app",
   "more": "More",
   "moreActions": "More actions",
+  "ringRotateRight": "90° right",
+  "ringRotateLeft": "90° left",
+  "ringMirror": "Mirror",
+  "ringUpsideDown": "Upside down",
+  "ringHalf": "Half",
+  "ringChoice": "{action}, {choice}",
+  "@ringChoice": {
+    "description": "A choice on the outer ring, read out by screen readers, such as: Rotate, 180°",
+    "placeholders": {
+      "action": {"type": "String"},
+      "choice": {"type": "String"}
+    }
+  },
   "cancelFiles": "Cancel, {count} files",
   "@cancelFiles": {
     "placeholders": {

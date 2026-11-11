@@ -28,6 +28,8 @@ Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
 
+Some tools have choices. Rest on **Rotate**, **Flip** or **Resize** and they appear in an outer ring around the slice, such as 180° or a long side of 1280 pixels: move out onto one and click. Choosing the slice itself does the first choice. On a phone, tap the slice once to see its choices. With a keyboard, press **Tab** to move into them and back.
+
 Rest on a slice for a moment, in the window or while Shift-dragging, and the middle of the menu says how big the result will be. For one picture, ShiftDrop really makes it to find out, so choosing that slice is then instant. For video and sound it works the size out from the length, without converting. For PDFs, and for size limits, it shows the most the result can be, such as "Up to 20 MB". When it can't tell, it shows nothing.
 
 **On Android.** Share a file from any app and choose ShiftDrop, or open the app and choose files.
