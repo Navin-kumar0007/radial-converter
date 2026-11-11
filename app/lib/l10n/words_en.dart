@@ -1090,4 +1090,20 @@ class WordsEn extends Words {
   @override
   String get showPreviewsWhy =>
       'A small picture of each file\'s first page, before and after. Made on this device and never kept.';
+
+  @override
+  String get reorderTitle => 'Put them in order';
+
+  @override
+  String get reorderHint => 'They go together from top to bottom. Drag them, or use the arrows.';
+
+  @override
+  String reorderUp(Object name) {
+    return 'Move $name up';
+  }
+
+  @override
+  String reorderDown(Object name) {
+    return 'Move $name down';
+  }
 }

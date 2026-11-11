@@ -1091,4 +1091,21 @@ class WordsHi extends Words {
   @override
   String get showPreviewsWhy =>
       'हर फ़ाइल के पहले पेज की छोटी तस्वीर, पहले और बाद में। इसी डिवाइस पर बनती है और कभी रखी नहीं जाती।';
+
+  @override
+  String get reorderTitle => 'इन्हें क्रम में लगाएँ';
+
+  @override
+  String get reorderHint =>
+      'ये ऊपर से नीचे के क्रम में जुड़ेंगी। इन्हें खींचें, या तीरों का इस्तेमाल करें।';
+
+  @override
+  String reorderUp(Object name) {
+    return '$name को ऊपर ले जाएँ';
+  }
+
+  @override
+  String reorderDown(Object name) {
+    return '$name को नीचे ले जाएँ';
+  }
 }

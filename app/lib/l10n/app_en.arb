@@ -725,5 +725,19 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "showPreviews": "Show previews",
-  "showPreviewsWhy": "A small picture of each file's first page, before and after. Made on this device and never kept."
+  "showPreviewsWhy": "A small picture of each file's first page, before and after. Made on this device and never kept.",
+  "reorderTitle": "Put them in order",
+  "reorderHint": "They go together from top to bottom. Drag them, or use the arrows.",
+  "reorderUp": "Move {name} up",
+  "@reorderUp": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "reorderDown": "Move {name} down",
+  "@reorderDown": {
+    "placeholders": {
+      "name": {}
+    }
+  }
 }

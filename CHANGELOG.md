@@ -4,6 +4,8 @@
 
 - Settings, behind the gear at the top: where results go (beside the original, or one folder of your choice, on Mac
   and Windows), theme, language, previews, open at login and update checks. About now only says what the app is.
+- Merging PDFs, video or sound, and One PDF from pictures, first show the files in a list to put in order, by
+  dragging or with arrow buttons.
 
 ## 0.10.0 (beta, 11 November 2026)
 

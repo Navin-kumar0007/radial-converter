@@ -149,6 +149,9 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   Windows the window's region is the menu plus the highlighted slice's choices, so drags elsewhere still reach the apps
   below. Neither has been tried in a real drag. Alt+Shift is Windows' default shortcut for switching keyboard language,
   so check in the VM whether a Tools drag also switches it.
+- Order before combining (`reorder_dialog.dart`, `keepsOrder` in core): in the window, actions that combine files ask
+  for their order first, and `_files`/`_kinds` are put in that order before the job. Up and down buttons do what dragging
+  does, for keyboards and screen readers. Shift-drag can't ask, so it keeps the drag's order.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.

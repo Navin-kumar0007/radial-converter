@@ -41,3 +41,18 @@ IconData iconFor(RadialAction action) {
     _ => Icons.auto_awesome_outlined,
   };
 }
+
+/// The icon for a file of this family, where there's no picture of it.
+IconData iconForFamily(FileFamily family) {
+  return switch (family) {
+    FileFamily.image => Icons.image_outlined,
+    FileFamily.video => Icons.movie_outlined,
+    FileFamily.audio => Icons.music_note_outlined,
+    FileFamily.pdf => Icons.picture_as_pdf_outlined,
+    FileFamily.archive => Icons.inventory_2_outlined,
+    FileFamily.subtitle => Icons.subtitles_outlined,
+    FileFamily.document => Icons.description_outlined,
+    FileFamily.folder => Icons.folder_outlined,
+    FileFamily.unknown => Icons.insert_drive_file_outlined,
+  };
+}

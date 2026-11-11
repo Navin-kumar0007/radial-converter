@@ -32,6 +32,8 @@ Hold **Option** (Mac) or **Alt** (Windows) as well, at any point in the drag, an
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
 
+**Putting files in order.** Merging PDFs, video or sound, and **One PDF** from pictures, first show the files in a list. They go together from top to bottom: drag them by the handle, or use the arrows, then press the button to go on. A Shift-drag has no list to show, so its files go in the order they were dragged; to change it, open the menu again in the window and choose the slice there.
+
 Some tools have choices. Rest on **Rotate**, **Flip** or **Resize** and they appear in an outer ring around the slice, such as 180° or a long side of 1280 pixels: move out onto one and click. Choosing the slice itself does the first choice. On a phone, tap the slice once to see its choices. With a keyboard, press **Tab** to move into them and back.
 
 Rest on a slice for a moment, in the window or while Shift-dragging, and the middle of the menu says how big the result will be. For one picture, ShiftDrop really makes it to find out, so choosing that slice is then instant. For video and sound it works the size out from the length, without converting. For PDFs, and for size limits, it shows the most the result can be, such as "Up to 20 MB". When it can't tell, it shows nothing.

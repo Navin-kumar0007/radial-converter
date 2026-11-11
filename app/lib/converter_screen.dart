@@ -17,6 +17,7 @@ import 'keep_going.dart';
 import 'option_screens.dart';
 import 'presets.dart';
 import 'radial_menu.dart';
+import 'reorder_dialog.dart';
 import 'settings_screen.dart';
 import 'settings_store.dart';
 import 'shared_files.dart';
@@ -784,6 +785,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   /// Asks anything the action needs to know, then starts it.
   Future<void> _choose(RadialAction action) async {
+    // Pages or clips go one after another, so the order is asked first. From a Shift-drag there's
+    // no screen to ask on, and they go in the order they were dragged.
+    if (keepsOrder(action) && _files.length > 1) {
+      final order = await askForOrder(context, action: action, files: _files, kinds: _kinds);
+      if (order == null || !mounted) return;
+      setState(() {
+        _files = [for (final i in order) _files[i]];
+        _kinds = [for (final i in order) _kinds[i]];
+      });
+    }
     if (!needsOptions(action)) {
       await _start(action, const ActionOptions());
       return;

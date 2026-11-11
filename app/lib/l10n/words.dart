@@ -1874,6 +1874,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'A small picture of each file\'s first page, before and after. Made on this device and never kept.'**
   String get showPreviewsWhy;
+
+  /// No description provided for @reorderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Put them in order'**
+  String get reorderTitle;
+
+  /// No description provided for @reorderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'They go together from top to bottom. Drag them, or use the arrows.'**
+  String get reorderHint;
+
+  /// No description provided for @reorderUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {name} up'**
+  String reorderUp(Object name);
+
+  /// No description provided for @reorderDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {name} down'**
+  String reorderDown(Object name);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

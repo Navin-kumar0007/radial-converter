@@ -163,5 +163,12 @@ void main() {
         expect(combinesFiles(action!), isFalse, reason: id);
       }
     });
+
+    test('everything that combines files asks for their order first', () {
+      for (final action in actionCatalogue) {
+        expect(keepsOrder(action), combinesFiles(action), reason: action.id);
+      }
+      expect(keepsOrder(actionById('image-to-jpg')!), isFalse);
+    });
   });
 }

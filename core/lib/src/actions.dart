@@ -75,6 +75,10 @@ List<RadialAction> actionsFor(Iterable<FileKind> kinds, ActionMode mode) {
 /// Whether [action] makes one result from all its files, rather than one from each.
 bool combinesFiles(RadialAction action) => action.minFiles > 1 || action.id == 'images-to-pdf';
 
+/// Whether the result follows its files in order, as pages or clips one after another, so the
+/// user is shown the order first.
+bool keepsOrder(RadialAction action) => combinesFiles(action);
+
 /// The action with this id, or null.
 RadialAction? actionById(String id) {
   for (final action in actionCatalogue) {

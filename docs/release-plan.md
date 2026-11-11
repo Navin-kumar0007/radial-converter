@@ -53,8 +53,8 @@ to beside the original and says so once. Animations already follow the system's 
 
 Merging PDFs, video or sound, and One PDF from pictures, first show the files in a list to drag into order, with a
 small preview of each, then **Merge**. Up and down buttons do the same for keyboards and screen readers. In a
-Shift-drag there is no screen to ask on, so the files are merged in the order they were dragged; the result chip says
-so, and **Open menu again** in the window offers the list.
+Shift-drag there is no screen to ask on, so the files are merged in the order they were dragged, and **Open menu
+again** in the window offers the list. **Done** (`reorder_dialog.dart`).
 
 ### 3. Previews
 
