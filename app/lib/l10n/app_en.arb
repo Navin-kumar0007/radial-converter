@@ -623,14 +623,14 @@
   "failWidthAndHeight": "Give both a width and a height, or neither.",
   "notePictures": "Pages are now pictures, so text can't be selected.",
   "noteScanned": "This PDF is scanned, so its pages came in as pictures and can't be edited as text.",
-  "noteSomePictures": "{count} of {total} pages are mostly pictures, so they came in that way. On the others, simple tables come through, but pictures and exact layout aren't kept.",
+  "noteSomePictures": "{count} of {total} pages are mostly pictures, so they came in that way. On the others, text, bold, simple tables and pictures came through, but not the exact layout.",
   "@noteSomePictures": {
     "placeholders": {
       "count": {},
       "total": {}
     }
   },
-  "noteTextEditable": "The text and simple tables can be edited. Pictures and exact layout aren't kept.",
+  "noteTextEditable": "Text, bold, simple tables and pictures came through, ready to edit. The exact layout isn't kept.",
   "trayStillRunning": "ShiftDrop is still running",
   "trayHowToQuit": "Shift-drag keeps working. To quit, right-click this icon.",
   "trayOpen": "Open ShiftDrop",

@@ -419,6 +419,119 @@ void main() {
     });
   });
 
+  group('bold and pictures', () {
+    ({String text, List<CharBox> boxes, List<bool> bold}) styled(
+      List<({double top, String text})> lines,
+    ) {
+      // Asterisks around words mark them bold here; they don't reach the page.
+      final text = StringBuffer();
+      final boxes = <CharBox>[];
+      final bold = <bool>[];
+      for (final line in lines) {
+        var x = 50.0;
+        var on = false;
+        for (final unit in line.text.split('')) {
+          if (unit == '*') {
+            on = !on;
+            continue;
+          }
+          text.write(unit);
+          boxes.add((left: x, top: line.top, right: x + 6, bottom: line.top - 12));
+          bold.add(on);
+          x += 6;
+        }
+        text.write('\r\n');
+        boxes.addAll([
+          (left: x, top: line.top, right: x, bottom: line.top),
+          (left: x, top: line.top, right: x, bottom: line.top),
+        ]);
+        bold.addAll([false, false]);
+      }
+      return (text: text.toString(), boxes: boxes, bold: bold);
+    }
+
+    String plain(String text) => text.replaceAll(RegExp('[$docxBoldOn$docxBoldOff]'), '');
+
+    test('bold words stay bold, and the rest plain', () {
+      final made = styled([(top: 700, text: 'Read the *whole* form *first*.')]);
+      final out = layoutPageText(made.text, made.boxes, pageWidth: 600, bold: made.bold);
+      expect(
+        (out.single as DocxParagraph).text,
+        'Read the ${docxBoldOn}whole$docxBoldOff form ${docxBoldOn}first$docxBoldOff.',
+      );
+    });
+
+    test('bold carries across lines of a paragraph, each line closing its own', () {
+      final made = styled([
+        (top: 700, text: '*A heading that runs on to a*'),
+        (top: 686, text: '*second line*'),
+      ]);
+      final out = layoutPageText(made.text, made.boxes, pageWidth: 600, bold: made.bold);
+      final text = (out.single as DocxParagraph).text;
+      expect(plain(text), contains('a second'));
+      expect(docxBoldOn.allMatches(text).length, docxBoldOff.allMatches(text).length);
+    });
+
+    test('a hyphen before bold still joins a broken word', () {
+      final made = styled([
+        (top: 700, text: 'This long line of words ends in a broken *infor-*'),
+        (top: 686, text: '*mation* and goes on here, as text does.'),
+      ]);
+      final out = layoutPageText(made.text, made.boxes, pageWidth: 600, bold: made.bold);
+      expect(plain((out.single as DocxParagraph).text), contains('information'));
+    });
+
+    test('without bold given, nothing is', () {
+      final made = styled([(top: 700, text: 'Plain *still* plain')]);
+      final out = layoutPageText(made.text, made.boxes, pageWidth: 600);
+      expect((out.single as DocxParagraph).text, 'Plain still plain');
+    });
+
+    test('pictures go where they stand among the text', () {
+      final made = styled([
+        (top: 700, text: 'Above the picture.'),
+        (top: 400, text: 'Below the picture.'),
+      ]);
+      final picture = DocxPicture(Uint8List(3), width: 30, height: 20, displayWidth: 150);
+      final out = layoutPageText(
+        made.text,
+        made.boxes,
+        pageWidth: 600,
+        pictures: [(top: 600, picture: picture)],
+        newPage: true,
+      );
+      expect(out.map((block) => block.runtimeType), [DocxParagraph, DocxPicture, DocxParagraph]);
+      expect(out.first.newPage, isTrue);
+      expect(out[1].newPage, isFalse);
+    });
+
+    test('a picture at the top of a page starts it', () {
+      final made = styled([(top: 400, text: 'Under it.')]);
+      final picture = DocxPicture(Uint8List(3), width: 30, height: 20);
+      final out = layoutPageText(
+        made.text,
+        made.boxes,
+        pageWidth: 600,
+        pictures: [(top: 750, picture: picture)],
+        newPage: true,
+      );
+      expect(out.first, isA<DocxPicture>());
+      expect(out.first.newPage, isTrue);
+      expect((out.first as DocxPicture).jpeg, hasLength(3));
+    });
+
+    test('a page of only pictures keeps them, top first', () {
+      DocxPicture one(int width) => DocxPicture(Uint8List(1), width: width, height: 10);
+      final out = layoutPageText(
+        '',
+        const [],
+        pageWidth: 600,
+        pictures: [(top: 100, picture: one(2)), (top: 700, picture: one(1))],
+      );
+      expect([for (final block in out) (block as DocxPicture).width], [1, 2]);
+    });
+  });
+
   group('telling a scan from text', () {
     bool isPicture(int letters, double text, double ink) {
       return pageIsAPicture(letters: letters, textCoverage: text, inkCoverage: ink);
@@ -512,6 +625,39 @@ void main() {
       expect(body, contains('<w:gridCol w:w="6765"/>'));
     });
 
+    test('bold becomes bold runs, in paragraphs and in cells', () {
+      final docx = buildDocx(const [
+        DocxParagraph('Read the ${docxBoldOn}whole$docxBoldOff form'),
+        DocxTable(
+          [
+            ['${docxBoldOn}Name$docxBoldOff', 'Asha'],
+          ],
+          columnWidths: [1, 1],
+        ),
+      ]);
+      final body = xml(docx, 'word/document.xml');
+      expect(
+        body,
+        contains('<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">whole</w:t></w:r>'),
+      );
+      expect(body, contains('<w:r><w:t xml:space="preserve">Read the </w:t></w:r>'));
+      expect(body, contains('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Name</w:t>'));
+      expect(body, isNot(contains(docxBoldOn)));
+      expect(body, isNot(contains(docxBoldOff)));
+    });
+
+    test('a picture from a page of text keeps its size on the page', () {
+      final jpeg = img.encodeJpg(img.Image(width: 300, height: 200));
+      final docx = buildDocx([
+        DocxPicture(jpeg, width: 300, height: 200, displayWidth: 150),
+        DocxPicture(jpeg, width: 300, height: 200, displayWidth: 2000),
+      ]);
+      final body = xml(docx, 'word/document.xml');
+      // 150 points wide by 100 high, then held to the writing width of 451 points.
+      expect(body, contains('<wp:extent cx="${150 * 12700}" cy="${100 * 12700}"/>'));
+      expect(body, contains('<wp:extent cx="${451 * 12700}"'));
+    });
+
     test('macOS\'s own reader opens it, and finds the words', () async {
       final folder = Directory.systemTemp.createTempSync('radial_docx_');
       addTearDown(() => folder.deleteSync(recursive: true));
@@ -522,6 +668,7 @@ void main() {
           DocxParagraph('Tom & Jerry < 5', centred: true),
           DocxParagraph('नमस्ते दुनिया', newPage: true),
           DocxParagraph('left\tright'),
+          DocxParagraph('Some ${docxBoldOn}bold$docxBoldOff words'),
           DocxTable(
             [
               ['Cell one', 'Cell two'],
@@ -539,6 +686,7 @@ void main() {
       expect(text, contains('Tom & Jerry < 5'));
       expect(text, contains('नमस्ते दुनिया'));
       expect(text, contains('left\tright'));
+      expect(text, contains('Some bold words'));
       for (final word in ['Cell one', 'Cell two', 'Cell three', 'Cell four']) {
         expect(text, contains(word));
       }

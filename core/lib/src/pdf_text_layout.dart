@@ -5,6 +5,13 @@ import 'docx_writer.dart';
 /// Where a character sits on a page, with y growing upward, as PDFs measure it.
 typedef CharBox = ({double left, double top, double right, double bottom});
 
+/// A picture on a page that also has text, with where its top edge is, in the page's measures.
+typedef PagePicture = ({double top, DocxPicture picture});
+
+/// Text with its bold marks taken out, for measuring and matching it.
+String _plain(String text) => text.replaceAll(_marks, '');
+final _marks = RegExp('[$docxBoldOn$docxBoldOff]');
+
 /// Text on one line between two wide gaps: a table's cell, or a column's line.
 class _Cell {
   _Cell(this.left, this.right);
@@ -20,6 +27,18 @@ class _Cell {
     text.write(unit);
     starts.add(at);
   }
+
+  void closeBold(double at) {
+    final written = text.toString();
+    if (!written.endsWith(' ')) {
+      write(docxBoldOff, at);
+      return;
+    }
+    text
+      ..clear()
+      ..write('${written.substring(0, written.length - 1)}$docxBoldOff ');
+    starts.insert(starts.length - 1, starts.last);
+  }
 }
 
 class _Line {
@@ -34,6 +53,29 @@ class _Line {
 
   /// The line split at its wide gaps, left to right.
   final List<_Cell> cells;
+
+  /// Whether the text written so far ends in bold, so the line can close it.
+  bool bold = false;
+
+  void setBold(bool on, double at) {
+    if (on == bold) return;
+    bold = on;
+    if (on) {
+      text.write(docxBoldOn);
+      cells.last.write(docxBoldOn, at);
+      return;
+    }
+    // Bold ends with its last word, not the space after it.
+    final written = text.toString();
+    if (written.endsWith(' ')) {
+      text
+        ..clear()
+        ..write('${written.substring(0, written.length - 1)}$docxBoldOff ');
+    } else {
+      text.write(docxBoldOff);
+    }
+    cells.last.closeBold(at);
+  }
 
   double get height {
     final sorted = [...heights]..sort();
@@ -64,45 +106,55 @@ bool pageIsAPicture({
   return inkCoverage > 0.1 && inkCoverage > textCoverage * 3 && textCoverage < 0.05;
 }
 
-/// A page's characters rebuilt into paragraphs and tables. A PDF only knows where each letter goes,
-/// not what a paragraph or a table is, so this reads them from the gaps between lines and the
-/// columns those gaps line up in, as a person would. [text] and [boxes] run side by side, one box to
-/// a UTF-16 unit. Exact layout, merged table cells and pictures are out of reach this way, so callers
-/// should say so.
+/// A page's characters rebuilt into paragraphs and tables, with its [pictures] where they stand. A
+/// PDF only knows where each letter goes, not what a paragraph or a table is, so this reads them from
+/// the gaps between lines and the columns those gaps line up in, as a person would. [text], [boxes]
+/// and [bold] run side by side, one to a UTF-16 unit; without [bold], nothing is. Exact layout and
+/// merged table cells are out of reach this way, so callers should say so.
 List<DocxBlock> layoutPageText(
   String text,
   List<CharBox> boxes, {
   required double pageWidth,
   bool newPage = false,
+  List<bool>? bold,
+  List<PagePicture> pictures = const [],
 }) {
-  final lines = _lines(text, boxes);
-  if (lines.isEmpty) return const [];
-  final body = _bodyHeight(lines);
-  final usual = _usualPitch(lines);
-  final blocks = <DocxBlock>[];
-  final pending = <_Line>[];
-  void addParagraphs() {
-    for (final paragraph in _paragraphs(pending, usual)) {
-      blocks.add(_toBlock(paragraph, body, pageWidth, newPage: newPage && blocks.isEmpty));
+  final lines = _lines(text, boxes, bold);
+  final placed = <(double, DocxBlock)>[];
+  if (lines.isNotEmpty) {
+    final body = _bodyHeight(lines);
+    final usual = _usualPitch(lines);
+    final pending = <_Line>[];
+    void addParagraphs() {
+      for (final paragraph in _paragraphs(pending, usual)) {
+        placed.add((paragraph.first.top, _toBlock(paragraph, body, pageWidth)));
+      }
+      pending.clear();
     }
-    pending.clear();
-  }
 
-  var i = 0;
-  while (i < lines.length) {
-    final table = _tableAt(lines, i, body, usual);
-    if (table == null) {
-      pending.add(lines[i]);
-      i++;
-      continue;
+    var i = 0;
+    while (i < lines.length) {
+      final table = _tableAt(lines, i, body, usual);
+      if (table == null) {
+        pending.add(lines[i]);
+        i++;
+        continue;
+      }
+      addParagraphs();
+      placed.add((lines[i].top, DocxTable(table.rows, columnWidths: table.widths)));
+      i = table.end;
     }
     addParagraphs();
-    blocks.add(
-      DocxTable(table.rows, columnWidths: table.widths, newPage: newPage && blocks.isEmpty),
-    );
-    i = table.end;
   }
-  addParagraphs();
+  // Each picture goes before the first text below its top. Text keeps its own order, as columns
+  // read down one and then the next.
+  for (final picture in [...pictures]..sort((a, b) => b.top.compareTo(a.top))) {
+    final below = placed.indexWhere((block) => block.$1 < picture.top && block.$2 is! DocxPicture);
+    final at = below == -1 ? placed.length : below;
+    placed.insert(at, (picture.top, picture.picture));
+  }
+  final blocks = [for (final (_, block) in placed) block];
+  if (newPage && blocks.isNotEmpty) blocks[0] = blocks[0].startingAPage();
   return blocks;
 }
 
@@ -163,7 +215,7 @@ List<DocxBlock> layoutPageText(
     for (final cell in line.cells) {
       for (final (index, words) in _splitAtColumns(cell, columns, body)) {
         final buffer = rows.last[index];
-        if (words.isEmpty) continue;
+        if (_plain(words).isEmpty) continue;
         if (buffer.isNotEmpty) buffer.write(' ');
         buffer.write(words);
       }
@@ -174,13 +226,14 @@ List<DocxBlock> layoutPageText(
   ];
   if (_isProseInColumns(lines.sublist(start, end), columns, body)) return null;
   // Bullets hang apart from their text, but a list isn't a table.
-  if (table.every((row) => _bullet.hasMatch(row.first))) return null;
+  if (table.every((row) => _bullet.hasMatch(_plain(row.first)))) return null;
   // Prose caught between columns reads mid-sentence, so most of its pieces start in lower case,
   // where a table's cells start with a capital or a number.
   final worded = [
     for (final row in table)
       for (final cell in row)
-        if (cell.isNotEmpty && _letter.hasMatch(cell[0])) cell[0],
+        if (_plain(cell) case final plain when plain.isNotEmpty && _letter.hasMatch(plain[0]))
+          plain[0],
   ];
   final lower = worded.where((first) => first != first.toUpperCase()).length;
   if (worded.isNotEmpty && lower > worded.length / 2) return null;
@@ -249,13 +302,14 @@ bool _isProseInColumns(List<_Line> lines, List<double> columns, double body) {
   return long && fillable > 0 && filled / fillable > 0.6;
 }
 
-List<_Line> _lines(String text, List<CharBox> boxes) {
+List<_Line> _lines(String text, List<CharBox> boxes, List<bool>? bold) {
   final lines = <_Line>[];
   _Line? current;
   final count = math.min(text.length, boxes.length);
   for (var i = 0; i < count; i++) {
     final unit = text[i];
     if (unit == '\n' || unit == '\r') {
+      current?.setBold(false, current.right);
       current = null;
       continue;
     }
@@ -274,7 +328,10 @@ List<_Line> _lines(String text, List<CharBox> boxes) {
       // new line.
       final middle = (box.top + box.bottom) / 2;
       final reach = current.height * 0.8;
-      if (middle > current.top + reach || middle < current.bottom - reach) current = null;
+      if (middle > current.top + reach || middle < current.bottom - reach) {
+        current.setBold(false, current.right);
+        current = null;
+      }
     }
     if (current == null) {
       current = _Line(box.top, box.bottom, box.left, box.right);
@@ -291,8 +348,13 @@ List<_Line> _lines(String text, List<CharBox> boxes) {
     // Table columns can sit closer: about an em apart is past any space, even in justified text.
     // Only gaps that line up over several rows make a table, so a stray wide space does no harm.
     if (current.heights.isNotEmpty && gap > current.height * 1.5) {
+      // A cell stands alone, so it opens its own bold.
+      final wasBold = current.bold;
+      current.setBold(false, current.right);
       current.cells.add(_Cell(box.left, box.right));
+      if (wasBold) current.setBold(true, box.left);
     }
+    current.setBold(bold != null && i < bold.length && bold[i], box.left);
     final cell = current.cells.last;
     cell
       ..right = math.max(cell.right, box.right)
@@ -306,6 +368,7 @@ List<_Line> _lines(String text, List<CharBox> boxes) {
     current.text.write(unit);
   }
   for (final line in lines) {
+    line.setBold(false, line.right);
     _rejoinJustified(line);
   }
   return lines;
@@ -382,10 +445,10 @@ List<_Paragraph> _paragraphs(List<_Line> lines, double? usual) {
   _Line? before;
   for (final line in lines) {
     final words = line.text.toString().trim();
-    if (words.isEmpty) continue;
+    if (_plain(words).isEmpty) continue;
     final previous = before;
     // Citation marks set high can leave the punctuation after them looking like a line of its own.
-    if (out.isNotEmpty && _onlyPunctuation.hasMatch(words)) {
+    if (out.isNotEmpty && _onlyPunctuation.hasMatch(_plain(words))) {
       out.last.text.write(words);
       continue;
     }
@@ -413,13 +476,14 @@ List<_Paragraph> _paragraphs(List<_Line> lines, double? usual) {
       final paragraph = out.last;
       final soFar = paragraph.text.toString();
       // A word broken across lines joins up again, unless it's a name like Anglo-Saxon.
-      final next = words[0];
+      final next = _plain(words)[0];
       final broken =
-          soFar.endsWith('-') && next.toLowerCase() == next && next.toUpperCase() != next;
+          _plain(soFar).endsWith('-') && next.toLowerCase() == next && next.toUpperCase() != next;
       if (broken) {
+        final hyphen = soFar.lastIndexOf('-');
         paragraph.text
           ..clear()
-          ..write(soFar.substring(0, soFar.length - 1));
+          ..write(soFar.replaceRange(hyphen, hyphen + 1, ''));
       } else {
         paragraph.text.write(' ');
       }
@@ -435,15 +499,10 @@ List<_Paragraph> _paragraphs(List<_Line> lines, double? usual) {
   return out;
 }
 
-DocxParagraph _toBlock(
-  _Paragraph paragraph,
-  double body,
-  double pageWidth, {
-  required bool newPage,
-}) {
+DocxParagraph _toBlock(_Paragraph paragraph, double body, double pageWidth) {
   final text = paragraph.text.toString();
   final ratio = (paragraph.first.top - paragraph.first.bottom) / body;
-  final short = text.length < 150;
+  final short = _plain(text).length < 150;
   final heading = !short
       ? 0
       : ratio >= 1.8
@@ -457,5 +516,5 @@ DocxParagraph _toBlock(
       leftGap > pageWidth * 0.1 &&
       rightGap > pageWidth * 0.1 &&
       (leftGap - rightGap).abs() < pageWidth * 0.04;
-  return DocxParagraph(text, heading: heading, centred: centred, newPage: newPage);
+  return DocxParagraph(text, heading: heading, centred: centred);
 }

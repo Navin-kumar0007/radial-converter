@@ -898,12 +898,12 @@ class WordsEn extends Words {
 
   @override
   String noteSomePictures(Object count, Object total) {
-    return '$count of $total pages are mostly pictures, so they came in that way. On the others, simple tables come through, but pictures and exact layout aren\'t kept.';
+    return '$count of $total pages are mostly pictures, so they came in that way. On the others, text, bold, simple tables and pictures came through, but not the exact layout.';
   }
 
   @override
   String get noteTextEditable =>
-      'The text and simple tables can be edited. Pictures and exact layout aren\'t kept.';
+      'Text, bold, simple tables and pictures came through, ready to edit. The exact layout isn\'t kept.';
 
   @override
   String get trayStillRunning => 'ShiftDrop is still running';

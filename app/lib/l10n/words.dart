@@ -1542,13 +1542,13 @@ abstract class Words {
   /// No description provided for @noteSomePictures.
   ///
   /// In en, this message translates to:
-  /// **'{count} of {total} pages are mostly pictures, so they came in that way. On the others, simple tables come through, but pictures and exact layout aren\'t kept.'**
+  /// **'{count} of {total} pages are mostly pictures, so they came in that way. On the others, text, bold, simple tables and pictures came through, but not the exact layout.'**
   String noteSomePictures(Object count, Object total);
 
   /// No description provided for @noteTextEditable.
   ///
   /// In en, this message translates to:
-  /// **'The text and simple tables can be edited. Pictures and exact layout aren\'t kept.'**
+  /// **'Text, bold, simple tables and pictures came through, ready to edit. The exact layout isn\'t kept.'**
   String get noteTextEditable;
 
   /// No description provided for @trayStillRunning.

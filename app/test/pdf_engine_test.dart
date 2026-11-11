@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
@@ -328,6 +329,21 @@ void main() {
       File(p.join(testFiles, 'locked.pdf')).readAsBytesSync(),
     );
 
+    test('bold words stay bold, and a picture on the page sits between its paragraphs', () async {
+      final out = (await run('pdf-to-docx', [_styledPdf()])).single;
+      final body = await wordsIn(out.file.bytes);
+      expect(body, contains('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">bold words</w:t>'));
+      expect(body, contains('<w:t xml:space="preserve">Plain words then </w:t>'));
+      final archive = ZipDecoder().decodeBytes(out.file.bytes);
+      expect(archive.findFile('word/media/image1.jpg'), isNotNull);
+      final above = body.indexOf('Plain words');
+      final picture = body.indexOf('<w:drawing>');
+      final below = body.indexOf('Text below the picture.');
+      expect(above < picture && picture < below, isTrue, reason: 'in the order of the page');
+      // 200 points wide on the page, so as wide in Word.
+      expect(body, contains('cx="${200 * 12700}"'));
+    });
+
     test('text comes through as text, one page to a page', () async {
       final out = (await run('pdf-to-docx', [
         locked,
@@ -338,7 +354,7 @@ void main() {
       expect(xml, contains('Page one'));
       expect(xml, contains('Page two'));
       expect('<w:pageBreakBefore/>'.allMatches(xml), hasLength(1));
-      expect(out.note, contains('can be edited'));
+      expect(out.note, contains('ready to edit'));
     });
 
     test('a scan comes in as pictures, and says so', () async {
@@ -459,4 +475,53 @@ void main() {
       }
     });
   });
+}
+
+/// A one-page PDF in the standard Helvetica and Helvetica-Bold, which every reader has built in,
+/// with a photo between two lines of text.
+PortableFile _styledPdf() {
+  final jpeg = img.encodeJpg(img.Image(width: 80, height: 60)..clear(img.ColorRgb8(200, 80, 40)));
+  const content =
+      'BT /F1 12 Tf 72 760 Td (Plain words then ) Tj /F2 12 Tf (bold words) Tj ET\n'
+      'q 200 0 0 150 72 560 cm /Im1 Do Q\n'
+      'BT /F1 12 Tf 72 500 Td (Text below the picture.) Tj ET\n';
+  final objects = <List<int>>[
+    utf8.encode('<< /Type /Catalog /Pages 2 0 R >>'),
+    utf8.encode('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'),
+    utf8.encode(
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 7 0 R '
+      '/Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im1 6 0 R >> >> >>',
+    ),
+    utf8.encode('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'),
+    utf8.encode('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'),
+    [
+      ...utf8.encode(
+        '<< /Type /XObject /Subtype /Image /Width 80 /Height 60 /ColorSpace /DeviceRGB '
+        '/BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n',
+      ),
+      ...jpeg,
+      ...utf8.encode('\nendstream'),
+    ],
+    utf8.encode('<< /Length ${content.length} >>\nstream\n${content}endstream'),
+  ];
+  final out = BytesBuilder()..add(utf8.encode('%PDF-1.4\n'));
+  final offsets = <int>[];
+  for (var i = 0; i < objects.length; i++) {
+    offsets.add(out.length);
+    out
+      ..add(utf8.encode('${i + 1} 0 obj\n'))
+      ..add(objects[i])
+      ..add(utf8.encode('\nendobj\n'));
+  }
+  final xref = out.length;
+  out.add(utf8.encode('xref\n0 ${objects.length + 1}\n0000000000 65535 f \n'));
+  for (final offset in offsets) {
+    out.add(utf8.encode('${offset.toString().padLeft(10, '0')} 00000 n \n'));
+  }
+  out.add(
+    utf8.encode(
+      'trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n',
+    ),
+  );
+  return PortableFile('styled.pdf', out.toBytes());
 }

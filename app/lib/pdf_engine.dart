@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:radial_core/radial_core.dart';
 
+import 'pdf_extras.dart';
 import 'words.dart';
 
 const _pdfActions = {
@@ -143,7 +144,7 @@ Future<PdfResult> _one(
     case 'pdf-to-png':
       return _toPictures(action, file, document, step, jpeg: false);
     case 'pdf-to-docx':
-      return _toDocx(action, file, document, step);
+      return _toDocx(action, file, document, step, options.password);
     case 'pdf-split':
       return _split(action, file, document, step);
     case 'pdf-rotate':
@@ -370,9 +371,12 @@ Future<PdfResult> _toDocx(
   PortableFile file,
   PdfDocument document,
   void Function(double) step,
+  String? password,
 ) async {
   final total = document.pages.length;
   if (total == 0) throw Fail.noPages(file.name);
+  // Bold and pictures, where PDFium can tell. Without them pages still come through, plainer.
+  final extras = await readPageExtras(file.bytes, password: password);
   final blocks = <DocxBlock>[];
   var scanned = 0;
   for (var i = 0; i < total; i++) {
@@ -381,6 +385,7 @@ Future<PdfResult> _toDocx(
     final words = text?.fullText ?? '';
     final startsPage = i > 0;
     if (text != null && !await _isAPicture(page, text)) {
+      final more = extras != null && i < extras.length ? extras[i] : null;
       blocks.addAll(
         layoutPageText(
           words,
@@ -390,6 +395,8 @@ Future<PdfResult> _toDocx(
           ],
           pageWidth: page.width,
           newPage: startsPage,
+          bold: more?.boldFor(words),
+          pictures: more?.pictures ?? const [],
         ),
       );
     } else {

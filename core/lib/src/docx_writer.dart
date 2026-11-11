@@ -1,7 +1,15 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+
+/// In a paragraph's or a cell's text, starts bold. Characters PDFs never hold: Unicode keeps them
+/// for private use.
+const docxBoldOn = '\uE000';
+
+/// Ends what [docxBoldOn] started.
+const docxBoldOff = '\uE001';
 
 /// Something a Word document holds.
 sealed class DocxBlock {
@@ -9,10 +17,33 @@ sealed class DocxBlock {
 
   /// Starts on a new page.
   final bool newPage;
+
+  /// The same, starting on a new page.
+  DocxBlock startingAPage() => switch (this) {
+    DocxParagraph(:final text, :final heading, :final centred) => DocxParagraph(
+      text,
+      heading: heading,
+      centred: centred,
+      newPage: true,
+    ),
+    DocxPicture(:final jpeg, :final width, :final height, :final displayWidth) => DocxPicture(
+      jpeg,
+      width: width,
+      height: height,
+      displayWidth: displayWidth,
+      newPage: true,
+    ),
+    DocxTable(:final rows, :final columnWidths) => DocxTable(
+      rows,
+      columnWidths: columnWidths,
+      newPage: true,
+    ),
+  };
 }
 
 /// A paragraph. [heading] is 0 for body text, 1 for a large heading and 2 for a smaller one. A tab
-/// in [text] stands for a wide gap, as between a table's columns.
+/// in [text] stands for a wide gap, as between a table's columns, and [docxBoldOn] and
+/// [docxBoldOff] mark what is bold.
 class DocxParagraph extends DocxBlock {
   const DocxParagraph(this.text, {this.heading = 0, this.centred = false, super.newPage});
 
@@ -21,13 +52,21 @@ class DocxParagraph extends DocxBlock {
   final bool centred;
 }
 
-/// A JPEG, drawn at most as large as a page's writing area, keeping its shape.
+/// A JPEG, keeping its shape. A whole page's picture fills the writing area; one from a page of
+/// text is [displayWidth] points wide, as on its page, if the writing area has room.
 class DocxPicture extends DocxBlock {
-  const DocxPicture(this.jpeg, {required this.width, required this.height, super.newPage});
+  const DocxPicture(
+    this.jpeg, {
+    required this.width,
+    required this.height,
+    this.displayWidth,
+    super.newPage,
+  });
 
   final Uint8List jpeg;
   final int width;
   final int height;
+  final double? displayWidth;
 }
 
 /// A table, row by row, each row holding a cell's text for every column. [columnWidths] are in any
@@ -103,11 +142,21 @@ String _escape(String text) {
 
 String _runs(String text) {
   final out = StringBuffer();
-  final parts = text.split('\t');
-  for (var i = 0; i < parts.length; i++) {
-    if (i > 0) out.write('<w:r><w:tab/></w:r>');
-    if (parts[i].isEmpty) continue;
-    out.write('<w:r><w:t xml:space="preserve">${_escape(parts[i])}</w:t></w:r>');
+  var bold = false;
+  for (final piece in RegExp(
+    '[\t$docxBoldOn$docxBoldOff]|[^\t$docxBoldOn$docxBoldOff]+',
+  ).allMatches(text).map((match) => match[0]!)) {
+    switch (piece) {
+      case docxBoldOn:
+        bold = true;
+      case docxBoldOff:
+        bold = false;
+      case '\t':
+        out.write('<w:r><w:tab/></w:r>');
+      default:
+        final style = bold ? '<w:rPr><w:b/></w:rPr>' : '';
+        out.write('<w:r>$style<w:t xml:space="preserve">${_escape(piece)}</w:t></w:r>');
+    }
   }
   return out.toString();
 }
@@ -183,7 +232,8 @@ String _table(DocxTable table) {
 }
 
 String _picture(DocxPicture picture, int index) {
-  final byWidth = _writingWidth / picture.width;
+  final wide = picture.displayWidth;
+  final byWidth = (wide == null ? _writingWidth : math.min(wide, _writingWidth)) / picture.width;
   final byHeight = _writingHeight / picture.height;
   final scale = byWidth < byHeight ? byWidth : byHeight;
   final cx = (picture.width * scale * _emuPerPoint).round();

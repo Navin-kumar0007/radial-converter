@@ -60,7 +60,7 @@ Exactly what's offered depends on the file and the device. The menu only shows w
 
 ## Good to know
 
-**PDF to Word.** Text comes through as paragraphs and headings you can edit, and simple tables as real Word tables. Pictures on text pages, merged table cells and exact layout aren't kept yet, and the result says so. Scanned pages come in as pictures, so their text can't be edited.
+**PDF to Word.** Text comes through as paragraphs and headings you can edit, with bold kept, simple tables as real Word tables, and pictures where they stood on the page. Merged table cells and exact layout aren't kept, and the result says so. Scanned pages come in as pictures, so their text can't be edited.
 
 **Form photos.** Pick a preset or type your own sizes. Rules change and differ between forms, so **always check against your form's own notice**. A file of the right size can still be refused for other reasons, such as what the photo shows.
 

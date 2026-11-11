@@ -186,6 +186,17 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   prose in page columns (long cells filling their column), sentence pieces (mostly lower-case cells). Checked on the
   owner's 54 Downloads PDFs: results, invoices, receipts, nutrition labels and report tables come through; a table whose
   cells wrap with the rest centred beside them still breaks up, as rows can't be told apart without its ruling lines.
+- Bold and pictures in PDF to DOCX (`pdf_extras*.dart`, `web/pdf_extras_worker.js`): pdfrx exposes neither, so each
+  platform reads them from PDFium itself. Native: `pdfium_dart` (pdfrx's own bindings) inside
+  `PdfrxEntryFunctions.instance.compute`, pdfrx's PDFium thread, as PDFium can't run on two at once. Browser: a second
+  worker made like pdfrx's (`pdfiumWasmUrl` then `importScripts` of pdfrx's unmodified `pdfium_worker.js`), then our
+  file, which adds `readExtras` to its `functions`; `pdf_extras_worker_test.dart` fails if a pdfrx update renames what
+  that uses. Bold goes through layout as two private-use marks (`docxBoldOn`/`docxBoldOff`), so paragraph and table
+  logic stays as it was, and becomes bold runs. Trust font names, not PDFium's weight: it gave 630 for a regular face
+  and 380 for Helvetica-Bold (`isBoldFont`). Pictures are image objects over 24 pt and under 80% of the page, drawn as
+  on the page, as JPEGs at most 1600 px, placed before the first text below their top and shown at their width on the
+  page. Pictures inside form objects aren't reached yet. Any failure leaves pages as before, plain and without
+  pictures. Checked on the 54 Downloads PDFs (about a second at most) and in Chrome.
 - Passwords: a locked PDF or ZIP throws `PasswordNeeded`, and the screen asks and runs it again, so every action handles
   locked files with no code of its own. The right password is tried on the next file of a batch before asking, and lasts
   only for that job. Remove password runs on PDFs through PDFium; Add password runs on archives and always makes an AES
@@ -290,7 +301,7 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 1. Run the Windows download from CI, and fix what it finds.
 2. Try a real iPhone HEIC photo, on every platform.
-3. Better PDF to DOCX: keep pictures on text pages, real tables, bold. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
+3. PDF to DOCX: tables whose cells wrap, pictures inside form objects, italic. Try PDF to DOCX on a phone and on Windows. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
 6. Menu: quality levels on Compress's ring, and Tools in Shift-drag (then rings in the native menus). Try size on hover in a real Shift-drag on both desktops, and for video in a browser and on a phone. A native speaker should review `app_hi.arb`.
