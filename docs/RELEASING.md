@@ -1,5 +1,7 @@
 # Making a release
 
+What goes into each version is in [release-plan.md](release-plan.md), with how drafts are held and published in order.
+
 Pushing a tag like `v0.9.0` builds and tests everything, then creates a **draft** GitHub release with
 the installers attached. Nothing is public until you press **Publish** on it.
 

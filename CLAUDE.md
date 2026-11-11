@@ -319,6 +319,10 @@ Engine decisions that differ from the plan or are easy to get wrong:
 
 ## Next steps
 
+What goes into each version, 0.11 to 1.0, is in `docs/release-plan.md`. 0.11 is Settings, reorder before merging, and
+previews. Releases are drafted ahead and published in order; never merge the whole branch to `main`, only a published
+tag. The list below is older and finer-grained.
+
 1. Run the Windows download from CI, and fix what it finds.
 2. Try a real iPhone HEIC photo, on every platform.
 3. PDF to DOCX: tables whose cells wrap, pictures inside form objects, italic. Try PDF to DOCX on a phone and on Windows. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
