@@ -20,11 +20,15 @@ Download the APK and open it. Android asks you to allow installing from your bro
 
 Open the web app in Safari, tap **Share**, then **Add to Home Screen**. It works offline after the first visit.
 
+The first time it opens, a short guide shows what ShiftDrop does and lets you practise on a sample photo: hold **Shift**, drag the photo, and let go on a slice. **Skip** leaves it, and **About** brings it back with **Show the guide again**.
+
 ## Converting a file
 
 **Open at login (Mac and Windows).** Shift-drag works only while ShiftDrop runs. Turn on **Open at login** in **About** (the i icon at the top) and it starts when you sign in, out of sight until you need it. On a Mac this needs macOS 13 or newer, and macOS may ask you to allow it in **System Settings → General → Login Items**.
 
 **Shift-drag (Mac and Windows).** Start dragging a file or folder from anywhere, hold **Shift** while dragging, and a round menu appears at your cursor. Drop on a slice. The result lands next to the original, and a chip appears at your cursor to drag it straight on. Drop in the middle to cancel.
+
+Hold **Option** (Mac) or **Alt** (Windows) as well, at any point in the drag, and the menu switches to **Tools**, such as Compress, Rotate, Resize and Strip metadata. Let go of it and Convert comes back. Rotate, Flip and Resize show their choices around the slice there too.
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
 
@@ -68,6 +72,8 @@ Exactly what's offered depends on the file and the device. The menu only shows w
 
 **Limits.** Pictures, PDFs and archives work in memory, up to 1 GB across a job, and folders open up to 200 files. Very large videos work, as they're read piece by piece.
 
-**Language.** The app follows your device's language, in English or Hindi. On Android 13 or newer and on a Mac you can also choose a language for this app alone, in the system settings.
+**Language.** The app follows your device's language, in English or Hindi. To choose one for this app alone, open **About** and pick **English** or **हिन्दी**; **As the device** goes back to following it.
+
+**New versions.** Copies downloaded from the website, on Mac and Windows, ask the website once a day whether a newer version is out, and show a note with a **Download** button if so. It's the only thing the app ever fetches, nothing about you or your files is sent, and **Check for new versions** in **About** turns it off. The Microsoft Store copy is updated by the Store. The Android app can't use the internet at all, so **About** has **Get the newest version**, which opens the download page in your browser. The web app updates itself.
 
 **Something wrong?** Please tell us in the project's [issues](https://github.com/Navin-kumar0007/shiftdrop/issues).

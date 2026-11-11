@@ -10,3 +10,5 @@
 /*
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
+/version.json
+  Cache-Control: no-cache

@@ -34,6 +34,21 @@ int main() {
       }
     }
   }
+  // The outer ring, as ShiftDrag.swift has it.
+  const double menu = 150, ring = 178, edge = 206;
+  Check("ring: the middle of three around the top", RadialChoiceAt(0, ring, 0, 6, 3, menu, edge), 1);
+  const double side = ChoiceSpan(6, 3);
+  Check("ring: one span clockwise",
+        RadialChoiceAt(std::sin(side) * ring, std::cos(side) * ring, 0, 6, 3, menu, edge), 2);
+  Check("ring: one span anticlockwise",
+        RadialChoiceAt(-std::sin(side) * ring, std::cos(side) * ring, 0, 6, 3, menu, edge), 0);
+  Check("ring: opposite is nothing", RadialChoiceAt(0, -ring, 0, 6, 3, menu, edge), -1);
+  Check("ring: inside the menu is nothing", RadialChoiceAt(0, 140, 0, 6, 3, menu, edge), -1);
+  Check("ring: past the ring is nothing", RadialChoiceAt(0, 210, 0, 6, 3, menu, edge), -1);
+  Check("ring: wrapping past the top",
+        RadialChoiceAt(-std::sin(0.05) * ring, std::cos(0.05) * ring, 3, 4, 3, menu, edge), 2);
+  Check("ring: the middle choice lines up with its slice",
+        static_cast<int>(std::lround(ChoiceAngle(1, 1, 4, 3) * 180 / 3.141592653589793)), 90);
   if (failures == 0) std::printf("Windows slice checks passed.\n");
   return failures == 0 ? 0 : 1;
 }

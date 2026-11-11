@@ -51,8 +51,12 @@
   "@ringChoice": {
     "description": "A choice on the outer ring, read out by screen readers, such as: Rotate, 180°",
     "placeholders": {
-      "action": {"type": "String"},
-      "choice": {"type": "String"}
+      "action": {
+        "type": "String"
+      },
+      "choice": {
+        "type": "String"
+      }
     }
   },
   "cancelFiles": "Cancel, {count} files",
@@ -639,5 +643,51 @@
   "keepWorkingText": "You can use other apps. ShiftDrop keeps going and the result will be waiting.",
   "openAtLogin": "Open at login",
   "openAtLoginWhy": "So Shift-drag works as soon as you sign in. It waits out of sight until you need it.",
-  "openAtLoginApprove": "Allow ShiftDrop in System Settings, General, Login Items."
+  "openAtLoginApprove": "Allow ShiftDrop in System Settings, General, Login Items.",
+  "welcomeTitle": "Welcome to ShiftDrop",
+  "welcomeText": "Convert, shrink and tidy files right here. Nothing is uploaded: every file stays on this device.",
+  "welcomeSkip": "Skip",
+  "welcomeBack": "Back",
+  "welcomeNext": "Next",
+  "welcomeStart": "Start",
+  "practiceTitle": "Try it",
+  "practiceShiftDrag": "Hold Shift and drag the photo, then let go on a slice.",
+  "practiceDrag": "Drag the photo, then let go on a slice.",
+  "practiceHoldShift": "Hold Shift while you drag.",
+  "practiceCancelled": "Nothing was chosen: the centre cancels. Try again, letting go on a slice.",
+  "practiceDone": "Done: {name}, {size}.",
+  "@practiceDone": {
+    "placeholders": {
+      "name": {},
+      "size": {}
+    }
+  },
+  "practiceFailed": "That didn't work this time. You can still carry on.",
+  "practicePhoto": "A sample photo to practise on",
+  "tipMac": "It works the same from Finder, over any app: Shift-drag a file and let go on a slice. Hold Option as well for tools such as Compress, Rotate and Resize.",
+  "tipWindows": "It works the same from File Explorer, over any app: Shift-drag a file and let go on a slice. Hold Alt as well for tools such as Compress, Rotate and Resize.",
+  "tipAndroid": "In other apps, tap Share, then ShiftDrop.",
+  "tipWeb": "Drop files on this page, or choose them. On an iPhone or iPad, open it in Safari, tap Share, then Add to Home Screen, and it works offline.",
+  "choicesTitle": "A few choices",
+  "language": "Language",
+  "languageDevice": "As the device",
+  "checkUpdates": "Check for new versions",
+  "checkUpdatesWhy": "Once a day, ShiftDrop asks its website whether a newer version is out. Nothing about you or your files is sent.",
+  "getNewest": "Get the newest version",
+  "getNewestWhy": "Opens the download page in your browser. ShiftDrop itself can't use the internet.",
+  "updateReady": "ShiftDrop {version} is out.",
+  "@updateReady": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "updateGet": "Download",
+  "updateLater": "Later",
+  "pageFailed": "Couldn't open the page. It's at {address}",
+  "@pageFailed": {
+    "placeholders": {
+      "address": {}
+    }
+  },
+  "showGuide": "Show the guide again"
 }

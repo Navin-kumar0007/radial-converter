@@ -45,7 +45,12 @@ class ShiftDrag : public IDropTarget {
   struct Slice {
     std::string id;
     std::wstring label;
+    // Labels of its outer-ring choices, if it has any.
+    std::vector<std::wstring> choices;
   };
+
+  // The slices in an answer to "menuFor".
+  static std::vector<Slice> SlicesFrom(const flutter::EncodableValue* answer);
 
   static LRESULT CALLBACK PanelProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
   static LRESULT CALLBACK ChipProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -58,12 +63,26 @@ class ShiftDrag : public IDropTarget {
 
   void Tick();
   void Place(POINT cursor);
-  void Reveal(std::vector<Slice> slices);
+  void Reveal(std::vector<Slice> slices, bool tools);
   void Hide();
   void Paint();
-  void AskForSlices();
-  int SliceAt(POINTL point) const;
+  // Asks Dart what the menu offers for the dragged files, as tools or not.
+  void AskForSlices(bool tools);
+  // Alt pressed or let go while the menu shows: the same files, the other kind of actions.
+  void SwitchMode(bool tools);
   double Scale() const;
+  // The point from the menu's centre, with y growing upwards.
+  void FromCentre(POINTL point, double* dx, double* dy) const;
+  // Highlights what the drag is over: a slice, or past the menu one of its choices.
+  void Follow(POINTL point);
+  // Whether a drop where the drag last was would choose something.
+  bool Choosing() const;
+  bool NeedsRing() const;
+  // Makes room for the outer ring, or gives it back, keeping the menu's centre where it is.
+  void Resize();
+  // The window takes the menu's shape, plus the highlighted slice's choices, so drags elsewhere
+  // still reach the apps below.
+  void Shape();
   void SetHighlight(int slice);
   // Asks Dart what the centre should say about the slice the drag has rested on.
   void AskSize();
@@ -79,6 +98,14 @@ class ShiftDrag : public IDropTarget {
   std::vector<Slice> slices_;
   std::vector<std::string> paths_;
   int highlighted_ = -1;
+  // The highlighted slice's choice on the outer ring, or -1.
+  int choice_ = -1;
+  // Past the menu's edge, where only a choice can be dropped on.
+  bool past_menu_ = false;
+  // Showing Tools rather than Convert, and what was last asked for, so each Alt change asks once.
+  bool tools_ = false;
+  bool asked_tools_ = false;
+  bool switching_ = false;
   // What the centre says each slice's result will weigh, by slice id, such as "About 240 KB".
   std::map<std::string, std::wstring> sizes_;
   // Slices already asked about in this drag, so each is asked once.

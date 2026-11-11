@@ -14,6 +14,30 @@ import 'words.dart';
 
 const _openDuration = Duration(milliseconds: 120);
 
+/// A drag that began outside the menu and goes on over it, as in the guide's practice, where the
+/// photo is pressed first and the menu opens under the pointer. Positions are global.
+class RadialMenuDrag extends ChangeNotifier {
+  Offset? _at;
+  bool _dropped = false;
+
+  Offset? get at => _at;
+  bool get dropped => _dropped;
+
+  void move(Offset global) {
+    if (_dropped) return;
+    _at = global;
+    notifyListeners();
+  }
+
+  /// Let go: on a slice runs it, on the centre or off the menu cancels.
+  void drop(Offset global) {
+    if (_dropped) return;
+    _at = global;
+    _dropped = true;
+    notifyListeners();
+  }
+}
+
 /// The radial menu: slices around a centre that cancels. Works by mouse, by keyboard and with
 /// screen readers. Files are dropped on it during a drag, so "More" opens by hovering alone.
 class RadialMenu extends StatefulWidget {
@@ -29,6 +53,7 @@ class RadialMenu extends StatefulWidget {
     this.sizeDwell = const Duration(milliseconds: 250),
     this.onChoice,
     this.ringWidth = 60,
+    this.drag,
   });
 
   final List<RadialAction> actions;
@@ -56,6 +81,9 @@ class RadialMenu extends StatefulWidget {
   /// How wide the outer ring is, around [diameter]. Narrower where the screen is.
   final double ringWidth;
 
+  /// A drag to follow, which hovers as the pointer moves and chooses where it's let go.
+  final RadialMenuDrag? drag;
+
   @override
   State<RadialMenu> createState() => _RadialMenuState();
 }
@@ -76,6 +104,9 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
 
   /// Sizes by action id. Null while asking, or if it can't be told.
   final _sizes = <String, SizeGuess?>{};
+
+  /// The square holding the menu and its ring, to place a drag's global positions in it.
+  final _square = GlobalKey();
 
   /// The inner menu and the ring around it, as the space allows: set when laid out.
   late double _diameter = widget.diameter;
@@ -105,8 +136,42 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
   }
 
   @override
+  void initState() {
+    super.initState();
+    widget.drag?.addListener(_followDrag);
+  }
+
+  void _followDrag() {
+    final drag = widget.drag;
+    final at = drag?.at;
+    final box = _square.currentContext?.findRenderObject() as RenderBox?;
+    if (drag == null || at == null || box == null || !box.hasSize || !mounted) return;
+    final point = box.globalToLocal(at);
+    final inside = (point - Offset(_size / 2, _size / 2)).distance <= _size / 2;
+    if (!drag.dropped) {
+      if (inside) {
+        _hover(point);
+      } else {
+        _setHighlight(null);
+      }
+      return;
+    }
+    if (!inside) {
+      widget.onCancelled();
+      return;
+    }
+    // Let go, as a mouse click would be: a finger's first tap only shows a slice's choices.
+    _hover(point);
+    _handleTap(point, PointerDeviceKind.mouse);
+  }
+
+  @override
   void didUpdateWidget(RadialMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.drag != widget.drag) {
+      oldWidget.drag?.removeListener(_followDrag);
+      widget.drag?.addListener(_followDrag);
+    }
     if (oldWidget.sizeOf != widget.sizeOf) _sizes.clear();
     if (oldWidget.actions != widget.actions) {
       _pages = menuPages(widget.actions);
@@ -117,6 +182,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    widget.drag?.removeListener(_followDrag);
     _moreTimer?.cancel();
     _sizeTimer?.cancel();
     _opening.dispose();
@@ -352,6 +418,7 @@ class _RadialMenuState extends State<RadialMenu> with SingleTickerProviderStateM
         child: FadeTransition(
           opacity: _opening,
           child: SizedBox.square(
+            key: _square,
             dimension: _size,
             child: MouseRegion(
               cursor: SystemMouseCursors.click,

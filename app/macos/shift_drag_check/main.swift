@@ -75,6 +75,60 @@ if fittedFontSize("1 KB", width: 60, largest: 11, smallest: 7, weight: .bold) !=
   failures += 1
 }
 
+// The outer ring: choices gather around their slice, as radial_geometry.dart has them.
+let menu = radialMenuRadius
+let ring = radialMenuRadius + radialRingWidth / 2
+check("ring: the middle of three around the top slice", radialChoice(
+  dx: 0, dy: ring, parent: 0, count: 6, choices: 3, menuRadius: menu, ringRadius: menu + radialRingWidth), 1)
+let side = choiceSpan(count: 6, choices: 3)
+check("ring: one span clockwise is the next", radialChoice(
+  dx: sin(side) * ring, dy: cos(side) * ring, parent: 0, count: 6, choices: 3, menuRadius: menu,
+  ringRadius: menu + radialRingWidth), 2)
+check("ring: one span anticlockwise is the first", radialChoice(
+  dx: -sin(side) * ring, dy: cos(side) * ring, parent: 0, count: 6, choices: 3, menuRadius: menu,
+  ringRadius: menu + radialRingWidth), 0)
+check("ring: opposite the slice is no choice", radialChoice(
+  dx: 0, dy: -ring, parent: 0, count: 6, choices: 3, menuRadius: menu, ringRadius: menu + radialRingWidth), nil)
+check("ring: inside the menu is no choice", radialChoice(
+  dx: 0, dy: menu - 10, parent: 0, count: 6, choices: 3, menuRadius: menu, ringRadius: menu + radialRingWidth), nil)
+check("ring: past the ring is no choice", radialChoice(
+  dx: 0, dy: menu + radialRingWidth + 5, parent: 0, count: 6, choices: 3, menuRadius: menu,
+  ringRadius: menu + radialRingWidth), nil)
+// Around the right-hand slice of four, the first choice is anticlockwise of it, as in the app.
+let right = choiceAngle(1, parent: 1, count: 4, choices: 3)
+check("ring: the middle choice lines up with its slice", Int((right * 180 / CGFloat.pi).rounded()), 90)
+check("ring: around the last slice, wrapping past the top", radialChoice(
+  dx: -sin(0.05) * ring, dy: cos(0.05) * ring, parent: 3, count: 4, choices: 3, menuRadius: menu,
+  ringRadius: menu + radialRingWidth) ?? -1, 2)
+
+let plain = [RadialSlice(id: "a", label: "PNG")]
+let ringed = [RadialSlice(id: "r", label: "Rotate", choices: ["90° right", "180°", "90° left"])]
+check("no ring keeps the old size", Int(RadialDropView.side(for: plain)), 300)
+check("a ring makes room around the menu", Int(RadialDropView.side(for: ringed)), 412)
+
+let ringView = RadialDropView(frame: NSRect(x: 0, y: 0, width: 412, height: 412))
+ringView.slices = ringed + plain + plain + plain
+ringView.isTools = true
+ringView.sizes = ["r": "About 240 KB"]
+let middle = NSPoint(x: 206, y: 206)
+ringView.follow(NSPoint(x: middle.x, y: middle.y + 100))
+check("following onto the top slice highlights it", ringView.highlighted, 0)
+ringView.follow(NSPoint(x: middle.x, y: middle.y + ring))
+check("past it, its choices are tried and it stays highlighted", ringView.highlighted, 0)
+check("the choice under the drag", ringView.choice, 1)
+for _ in 0..<2 {
+  let image = NSImage(size: ringView.bounds.size)
+  image.lockFocus()
+  ringView.draw(ringView.bounds)
+  image.unlockFocus()
+  ringView.choice = nil
+}
+ringView.follow(NSPoint(x: middle.x, y: middle.y - 100))
+check("back on the menu, another slice", ringView.highlighted, 2)
+check("and no choice", ringView.choice, nil)
+ringView.follow(NSPoint(x: middle.x, y: middle.y - ring))
+check("past a slice without choices is nothing", ringView.highlighted, nil)
+
 let watcher = ShiftDragWatcher()
 watcher.start()
 

@@ -89,12 +89,12 @@ void main() {
       TestWidgetsFlutterBinding.ensureInitialized();
       final asked = <String>[];
       final stop = listenForShiftDrag(
-        menuFor: (paths) async => const [],
+        menuFor: (paths, mode) async => const [],
         sizeOf: (action, paths) async {
           asked.add('${action.id} ${paths.join()}');
           return 'About 12 KB';
         },
-        chosen: (action, paths) {},
+        chosen: (action, paths, options) {},
       );
       addTearDown(stop);
       expect(
@@ -113,12 +113,78 @@ void main() {
       );
       expect(asked, ['image-to-jpg /a.png']);
     }, skip: hasMenu ? false : 'Only macOS and Windows have the Shift-drag menu');
+
+    test('Alt asks for Tools, whose slices bring their ring choices', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final modes = <ActionMode>[];
+      final picked = <(String, ActionOptions)>[];
+      final stop = listenForShiftDrag(
+        menuFor: (paths, mode) async {
+          modes.add(mode);
+          return [actionById('image-rotate')!, actionById('image-compress')!];
+        },
+        sizeOf: (action, paths) async => null,
+        chosen: (action, paths, options) => picked.add((action.id, options)),
+      );
+      addTearDown(stop);
+      final slices = await ask('menuFor', {
+        'paths': ['/a.png'],
+        'tools': true,
+      }) as List;
+      await ask('menuFor', {
+        'paths': ['/a.png'],
+      });
+      expect(modes, [ActionMode.tools, ActionMode.convert]);
+      expect(slices[0], {
+        'id': 'image-rotate',
+        'label': 'Rotate',
+        'choices': ['90° right', '180°', '90° left'],
+      });
+      expect((slices[1] as Map).containsKey('choices'), isFalse);
+
+      for (final choice in [null, 0, 2, 9, 'x']) {
+        await ask('chosen', {
+          'id': 'image-rotate',
+          'paths': ['/a.png'],
+          'choice': choice,
+        });
+      }
+      expect([for (final (_, options) in picked) options.degrees], [null, null, 270, null, null]);
+      // The slice itself runs as plain options, so its size trial can be reused.
+      expect(identical(picked[1].$2, const ActionOptions()), isTrue);
+    }, skip: hasMenu ? false : 'Only macOS and Windows have the Shift-drag menu');
+  });
+
+  test('ring choices are chosen by index, out of range runs the slice itself', () {
+    final resize = actionById('image-resize')!;
+    expect(shiftDragOptions(resize, 2).longSide, 1280);
+    expect(shiftDragOptions(resize, 0), same(const ActionOptions()));
+    expect(shiftDragOptions(resize, -1), same(const ActionOptions()));
+    expect(shiftDragOptions(actionById('image-to-jpg')!, 1), same(const ActionOptions()));
+    expect(shiftDragSlice(actionById('image-to-jpg')!, lookupWords(const Locale('en'))), {
+      'id': 'image-to-jpg',
+      'label': 'JPG',
+    });
   });
 
   group('through the screen', () {
-    late Future<List<RadialAction>> Function(List<String>) menuFor;
+    late Future<List<RadialAction>> Function(List<String>, ActionMode) menuForMode;
     late Future<String?> Function(RadialAction, List<String>) sizeOf;
-    late void Function(RadialAction, List<String>) chosen;
+    late void Function(RadialAction, List<String>, ActionOptions) chooseWith;
+    Future<List<RadialAction>> menuFor(List<String> paths) =>
+        menuForMode(paths, ActionMode.convert);
+    void chosen(RadialAction action, List<String> paths) {
+      chooseWith(action, paths, const ActionOptions());
+    }
+
+    Future<void> untilSaved(WidgetTester tester, int count) async {
+      final saved = find.textContaining('Saved beside the original');
+      for (var i = 0; i < 250 && saved.evaluate().length < count; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+    }
+
     var stopped = false;
 
     Future<void> pump(WidgetTester tester, {Converter? converter}) async {
@@ -145,9 +211,9 @@ void main() {
           ),
         ),
       );
-      menuFor = _menuFor!;
+      menuForMode = _menuFor!;
       sizeOf = _sizeOf!;
-      chosen = _chosen!;
+      chooseWith = _chosen!;
     }
 
     testWidgets('the menu offers what runs at once, in few slices', (tester) async {
@@ -157,6 +223,56 @@ void main() {
       expect(actions, isNotEmpty);
       expect(actions!.length, lessThanOrEqualTo(8));
       expect(actions.map((a) => a.id), isNot(contains('image-crop')));
+    });
+
+    testWidgets('with Alt held the menu offers tools instead', (tester) async {
+      await pump(tester);
+      final path = aPhoto('photo.png');
+      final tools = await tester.runAsync(() => menuForMode([path], ActionMode.tools));
+      final convert = await tester.runAsync(() => menuFor([path]));
+      expect(tools!.map((a) => a.mode).toSet(), {ActionMode.tools});
+      expect(tools.map((a) => a.id), contains('image-rotate'));
+      expect(tools.map((a) => a.id), isNot(contains('image-crop')), reason: 'it asks first');
+      expect(convert!.map((a) => a.mode).toSet(), {ActionMode.convert});
+      expect(tools.length, lessThanOrEqualTo(8));
+    });
+
+    testWidgets('a ring choice from Shift-drag runs with its options', (tester) async {
+      final ran = <(String, int?)>[];
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          ran.add((action.id, options.degrees));
+          return runPortable(action, files, options: options);
+        },
+      );
+      final path = aPhoto('photo.png');
+      final rotate = actionById('image-rotate')!;
+      await tester.runAsync(() => menuForMode([path], ActionMode.tools));
+      await tester.runAsync(() async => chooseWith(rotate, [path], ringChoices(rotate)[1].options));
+      await untilSaved(tester, 1);
+      expect(ran, [('image-rotate', 180)]);
+      expect(find.text('Tools'), findsOneWidget, reason: 'the screen now shows Tools');
+    });
+
+    testWidgets('switching to Tools mid-drag keeps the trials made in Convert', (tester) async {
+      final converted = <String>[];
+      await pump(
+        tester,
+        converter: (action, files, onProgress, options) {
+          converted.add(action.id);
+          return runPortable(action, files, options: options);
+        },
+      );
+      final path = aPhoto('photo.png');
+      final jpg = actionById('image-to-jpg')!;
+      await tester.runAsync(() => menuFor([path]));
+      await tester.runAsync(() => sizeOf(jpg, [path]));
+      await tester.runAsync(() => menuForMode([path], ActionMode.tools));
+      await tester.runAsync(() => menuFor([path]));
+      await tester.runAsync(() async => chosen(jpg, [path]));
+      await untilSaved(tester, 1);
+      expect(converted, ['image-to-jpg']);
     });
 
     testWidgets('a file nothing can convert offers nothing', (tester) async {
@@ -213,14 +329,6 @@ void main() {
       final names = holiday.listSync().map((e) => p.basename(e.path)).toSet();
       expect(names, {'a.png', 'b.png', 'a (converted).jpg', 'b (converted).jpg'});
     });
-
-    Future<void> untilSaved(WidgetTester tester, int count) async {
-      final saved = find.textContaining('Saved beside the original');
-      for (var i = 0; i < 250 && saved.evaluate().length < count; i++) {
-        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-        await tester.pump();
-      }
-    }
 
     testWidgets('after a damaged file each result still goes beside its own original', (
       tester,
@@ -343,14 +451,14 @@ void main() {
   });
 }
 
-Future<List<RadialAction>> Function(List<String>)? _menuFor;
+Future<List<RadialAction>> Function(List<String>, ActionMode)? _menuFor;
 Future<String?> Function(RadialAction, List<String>)? _sizeOf;
-void Function(RadialAction, List<String>)? _chosen;
+void Function(RadialAction, List<String>, ActionOptions)? _chosen;
 
 void _capture(
-  Future<List<RadialAction>> Function(List<String>) menuFor,
+  Future<List<RadialAction>> Function(List<String>, ActionMode) menuFor,
   Future<String?> Function(RadialAction, List<String>) sizeOf,
-  void Function(RadialAction, List<String>) chosen,
+  void Function(RadialAction, List<String>, ActionOptions) chosen,
 ) {
   _menuFor = menuFor;
   _sizeOf = sizeOf;

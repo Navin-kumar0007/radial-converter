@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_settings.dart';
+import 'open_page.dart';
 import 'shift_drag.dart';
+import 'update_check.dart';
 import 'words.dart';
 
 /// Shown to people, and checked against `pubspec.yaml` by a test.
@@ -58,8 +61,11 @@ void registerBundledLicenses() {
   });
 }
 
-/// What the app is, what it promises, and the licences of everything in it.
-void showAbout(BuildContext context) {
+/// What the app is, what it promises, and the licences of everything in it, with the few choices
+/// there are. [onShowGuide] opens the first-launch guide again.
+void showAbout(BuildContext context, {VoidCallback? onShowGuide}) {
+  final settings = SettingsScope.maybeOf(context);
+  final updates = updateWayHere;
   showAboutDialog(
     context: context,
     applicationName: appName,
@@ -77,8 +83,120 @@ void showAbout(BuildContext context) {
       const SizedBox(height: 12),
       const SelectableText(projectAddress),
       const OpenAtLogin(),
+      if (settings != null) ...[
+        const SizedBox(height: 4),
+        LanguageChoice(settings: settings),
+        if (updates == UpdateWay.check) UpdateChecks(settings: settings),
+      ],
+      if (updates == UpdateWay.page) const GetNewest(),
+      if (onShowGuide != null)
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Builder(
+            builder: (context) => TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onShowGuide();
+              },
+              icon: const Icon(Icons.school_outlined),
+              label: Text(context.words.showGuide),
+            ),
+          ),
+        ),
     ],
   );
+}
+
+/// The app's language: the device's, or one chosen here.
+class LanguageChoice extends StatelessWidget {
+  const LanguageChoice({super.key, required this.settings});
+
+  final SettingsStore settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = context.words;
+    return ValueListenableBuilder(
+      valueListenable: settings,
+      builder: (context, value, _) => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(words.language, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: '', label: Text(words.languageDevice)),
+                // Each language named in itself, so it can be found whatever is showing.
+                const ButtonSegment(value: 'en', label: Text('English')),
+                const ButtonSegment(
+                  value: 'hi',
+                  label: Text('\u0939\u093f\u0928\u094d\u0926\u0940'),
+                ),
+              ],
+              selected: {value.language ?? ''},
+              onSelectionChanged: (chosen) {
+                final language = chosen.single;
+                settings.change(
+                  (old) => old.copyWith(language: () => language.isEmpty ? null : language),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The switch for the daily check for a newer version, on copies downloaded from the website.
+class UpdateChecks extends StatelessWidget {
+  const UpdateChecks({super.key, required this.settings});
+
+  final SettingsStore settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = context.words;
+    return ValueListenableBuilder(
+      valueListenable: settings,
+      builder: (context, value, _) => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(words.checkUpdates),
+        subtitle: Text(words.checkUpdatesWhy),
+        value: value.checkForUpdates,
+        onChanged: (on) => settings.change((old) => old.copyWith(checkForUpdates: on)),
+      ),
+    );
+  }
+}
+
+/// Where the app can't check by itself, a way to the download page in the browser.
+class GetNewest extends StatelessWidget {
+  const GetNewest({super.key, this.open = openPage});
+
+  final Future<bool> Function(Uri address) open;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = context.words;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.system_update_alt),
+      title: Text(words.getNewest),
+      subtitle: Text(words.getNewestWhy),
+      onTap: () async {
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (!await open(releasesPage)) {
+          messenger?.showSnackBar(
+            SnackBar(content: Text(words.pageFailed(releasesPage.toString()))),
+          );
+        }
+      },
+    );
+  }
 }
 
 /// The switch for opening at login, shown only where the app can do it.

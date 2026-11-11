@@ -934,4 +934,107 @@ class WordsHi extends Words {
   @override
   String get openAtLoginApprove =>
       'System Settings, General, Login Items में ShiftDrop को अनुमति दें।';
+
+  @override
+  String get welcomeTitle => 'ShiftDrop में आपका स्वागत है';
+
+  @override
+  String get welcomeText =>
+      'फ़ाइलें यहीं बदलें, छोटी करें और सँवारें। कुछ भी अपलोड नहीं होता: हर फ़ाइल इसी डिवाइस पर रहती है।';
+
+  @override
+  String get welcomeSkip => 'छोड़ें';
+
+  @override
+  String get welcomeBack => 'पीछे';
+
+  @override
+  String get welcomeNext => 'आगे';
+
+  @override
+  String get welcomeStart => 'शुरू करें';
+
+  @override
+  String get practiceTitle => 'आज़माकर देखें';
+
+  @override
+  String get practiceShiftDrag => 'Shift दबाए रखकर फ़ोटो खींचें, फिर किसी हिस्से पर छोड़ें।';
+
+  @override
+  String get practiceDrag => 'फ़ोटो खींचें, फिर किसी हिस्से पर छोड़ें।';
+
+  @override
+  String get practiceHoldShift => 'खींचते समय Shift दबाए रखें।';
+
+  @override
+  String get practiceCancelled =>
+      'कुछ नहीं चुना गया: बीच का घेरा रद्द करता है। फिर से आज़माएँ और किसी हिस्से पर छोड़ें।';
+
+  @override
+  String practiceDone(Object name, Object size) {
+    return 'हो गया: $name, $size।';
+  }
+
+  @override
+  String get practiceFailed => 'इस बार यह नहीं हुआ। आप फिर भी आगे बढ़ सकते हैं।';
+
+  @override
+  String get practicePhoto => 'अभ्यास के लिए एक नमूना फ़ोटो';
+
+  @override
+  String get tipMac =>
+      'Finder से भी, किसी भी ऐप के ऊपर, यह ऐसे ही काम करता है: फ़ाइल को Shift के साथ खींचें और किसी हिस्से पर छोड़ें। छोटा करने, घुमाने और साइज़ बदलने जैसे टूल के लिए साथ में Option भी दबाएँ।';
+
+  @override
+  String get tipWindows =>
+      'File Explorer से भी, किसी भी ऐप के ऊपर, यह ऐसे ही काम करता है: फ़ाइल को Shift के साथ खींचें और किसी हिस्से पर छोड़ें। छोटा करने, घुमाने और साइज़ बदलने जैसे टूल के लिए साथ में Alt भी दबाएँ।';
+
+  @override
+  String get tipAndroid => 'दूसरे ऐप में Share पर टैप करें, फिर ShiftDrop चुनें।';
+
+  @override
+  String get tipWeb =>
+      'फ़ाइलें इस पेज पर छोड़ें या उन्हें चुनें। iPhone या iPad पर इसे Safari में खोलें, Share पर टैप करें, फिर Add to Home Screen चुनें, तब यह बिना इंटरनेट भी चलता है।';
+
+  @override
+  String get choicesTitle => 'कुछ विकल्प';
+
+  @override
+  String get language => 'भाषा';
+
+  @override
+  String get languageDevice => 'डिवाइस जैसी';
+
+  @override
+  String get checkUpdates => 'नए वर्शन देखें';
+
+  @override
+  String get checkUpdatesWhy =>
+      'दिन में एक बार ShiftDrop अपनी वेबसाइट से पूछता है कि नया वर्शन आया है या नहीं। आपके या आपकी फ़ाइलों के बारे में कुछ नहीं भेजा जाता।';
+
+  @override
+  String get getNewest => 'सबसे नया वर्शन पाएँ';
+
+  @override
+  String get getNewestWhy =>
+      'डाउनलोड पेज आपके ब्राउज़र में खुलता है। ShiftDrop खुद इंटरनेट इस्तेमाल नहीं कर सकता।';
+
+  @override
+  String updateReady(Object version) {
+    return 'ShiftDrop $version आ गया है।';
+  }
+
+  @override
+  String get updateGet => 'डाउनलोड करें';
+
+  @override
+  String get updateLater => 'बाद में';
+
+  @override
+  String pageFailed(Object address) {
+    return 'पेज नहीं खुल सका। पता है: $address';
+  }
+
+  @override
+  String get showGuide => 'गाइड फिर से दिखाएँ';
 }

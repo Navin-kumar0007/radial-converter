@@ -2,12 +2,15 @@ import 'package:radial_core/radial_core.dart';
 
 /// A page can't watch drags outside itself.
 void Function() listenForShiftDrag({
-  required Future<List<RadialAction>> Function(List<String> paths) menuFor,
+  required Future<List<RadialAction>> Function(List<String> paths, ActionMode mode) menuFor,
   required Future<String?> Function(RadialAction action, List<String> paths) sizeOf,
-  required void Function(RadialAction action, List<String> paths) chosen,
+  required void Function(RadialAction action, List<String> paths, ActionOptions options) chosen,
 }) {
   return () {};
 }
+
+/// No native menu to tell.
+void sendNativeWords() {}
 
 /// Only a desktop has a folder to save beside.
 Future<String> saveBesideOriginal(String originalPath, PortableFile file) {

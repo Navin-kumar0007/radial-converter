@@ -57,8 +57,8 @@ Headline features that make people switch:
 | Path | Contents |
 | --- | --- |
 | `spike/macos-shift-drag/` | Phase 0 prototype in Swift: Shift-drag detection + radial panel + `sips` conversion. Run with `bash spike/macos-shift-drag/run.sh`. **Works** (tested 2 Nov). |
-| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 588 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
-| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 330 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
+| `core/` | Dart package `radial_core`: file detection by bytes, 77-action catalogue, preset loader, never-overwrite naming, "under X KB" search, video bitrate maths, job queue, PDF writer, subtitles, and `portable_engine.dart` (images and subtitles in pure Dart, on every platform). `lib/engines.dart` (desktop only) runs engines as separate processes; `bin/radial.dart` is the command-line test tool. 632 tests; engine tests need `brew install vips qpdf ffmpeg` and skip otherwise. |
+| `app/` | Flutter app (`io.github.navinkumar0007.shiftdrop`): pick files, radial menu, real conversion, save. Same screen on all four platforms. 396 tests, plus 37 PDF ones needing `PDFIUM_PATH`. `tool/test_android_device.sh` runs the real Android engine and share menu on an emulator, in CI. |
 | `engines/` | Scripts that build or fetch the FFmpeg we ship. See its README. |
 | `core/lib/presets/` | Form presets, one JSON file per preset; the file name must equal the id. Inside `lib/` because that's the only way an app can ship a package's files, and each must also be listed in `app/pubspec.yaml`. A test catches a missed one. |
 | `test-files/` | Sample files for tests: `portrait.heic`, tiled and turned by a tag, as iPhone photos are; `locked.pdf` (password `open sesame`) and `restricted.pdf`, made with qpdf; `sample-*` 7z and RAR files, including a locked one and a bomb. |
@@ -140,9 +140,15 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   640 px), using options every engine already honoured but nobody could pick. The first choice is what the slice does,
   and runs as the slice, so its size trial is reused; others run with their options. A finger taps once to see the
   choices; Tab goes in and out of them; screen readers get them as actions on the slice. A narrow screen narrows the ring,
-  then the menu, then drops the ring. Window menu only: Shift-drag offers only convert actions, none of which have
-  choices, so native rings wait until Shift-drag gets Tools. Tried in Chrome. Quality levels for Compress need a new
-  option in every engine.
+  then the menu, then drops the ring. Tried in Chrome. Quality levels for Compress need a new option in every engine.
+- Tools in Shift-drag: holding Option (Mac) or Alt (Windows) as well asks `menuFor` with `tools: true`, and pressing or
+  releasing it mid-drag asks again (the same file keeps its trials). Each slice comes with its ring choices' labels
+  (`shiftDragSlice`), and a drop on one sends its index as `choice` (`shiftDragOptions`; 0 or none is the slice itself).
+  Native rings: `radialChoice` in `ShiftDrag.swift` and `RadialChoiceAt` in `radial_slice.h` copy `choiceAt` in
+  `radial_geometry.dart`, checked by `check_shift_drag.sh`. The Mac panel grows to 412 px when a slice has choices; on
+  Windows the window's region is the menu plus the highlighted slice's choices, so drags elsewhere still reach the apps
+  below. Neither has been tried in a real drag. Alt+Shift is Windows' default shortcut for switching keyboard language,
+  so check in the VM whether a Tools drag also switches it.
 - Jobs run one file at a time from the screen unless the action combines them (`combinesFiles`), so a damaged file gets
   its own failed row and the rest still finish. Results carry the original they came from: don't match them by position.
   In a browser each file starts its own worker. Results still pile up in memory until saved.
@@ -228,7 +234,21 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   zip, APKs, the web app, the LGPL source and checksums. See `docs/RELEASING.md`. The installer and disk image are also made
   and tried on every push. APKs say `TEST-KEY` until the owner sets up a signing key. `--no-shrink` is deliberate: R8 can't see
   what native code calls.
-- Languages: English and Hindi, following the device (`app/lib/l10n/app_*.arb`, `flutter gen-l10n` writes `words*.dart`,
+- First launch (`welcome_screen.dart`, shown by `app_home.dart` until `welcomed`): a hello, a practice drag on a sample
+  photo drawn in Dart (`samplePhoto`), then language, open at login and update checks. The practice uses the real
+  `RadialMenu`, following a drag that began outside it (`RadialMenuDrag`), and really converts the photo. A mouse on a
+  desktop must hold Shift; a finger just drags. Skipping counts as seen, and About shows it again.
+- Settings (`app_settings.dart`, `settings_store_*.dart`): `settings.json` beside the history, or localStorage. Read
+  before the first frame in `main()`. Damaged or missing reads as the defaults; failing to save never stops anything.
+- Update check (`update_check.dart`, `core/lib/src/update_info.dart`): Mac and Windows copies from the website fetch
+  `https://shiftdrop.pages.dev/version.json` (`docs/site/version.json`) at most once a day, 5 s after launch, and show a
+  banner whose Download opens the address in the browser (`openPage`, native `openPage`/`radial/pages`, https only).
+  Only github.com and shiftdrop.pages.dev addresses are kept from the file. The Store copy is built with
+  `--dart-define=SHIFTDROP_STORE=true` and never checks. Android keeps no internet permission, so About only opens the
+  releases page. Update `version.json` by hand after a release (`docs/RELEASING.md`); a test fails if it runs ahead of
+  `pubspec.yaml`. Sparkle and in-app APK downloads, as the plan has them, aren't done: both need more than a link.
+- Languages: English and Hindi, following the device unless one is picked in About (`chosenLocale` for `deviceWords`,
+  and `sendNativeWords` tells the native menus again) (`app/lib/l10n/app_*.arb`, `flutter gen-l10n` writes `words*.dart`,
   checked in). `context.words` on screen, `deviceWords` where there's no screen, such as the Shift-drag menu. Action
   labels stay English in `core/` and in history, and `actionLabel` translates them by their English text; a test fails
   if a catalogue label with words has no translation. Format and product names stay as they are. Android 13+ and macOS
@@ -304,7 +324,10 @@ Engine decisions that differ from the plan or are easy to get wrong:
 3. PDF to DOCX: tables whose cells wrap, pictures inside form objects, italic. Try PDF to DOCX on a phone and on Windows. Try the trim preview on real long videos: a seek far into one may be slow on a phone.
 4. Try Shift-drag from Explorer in the Windows VM, and dragging results out on both desktops.
 5. Extract to a folder. Adding a password to a PDF, once qpdf is bundled. Multi-part RAR files.
-6. Menu: quality levels on Compress's ring, and Tools in Shift-drag (then rings in the native menus). Try size on hover in a real Shift-drag on both desktops, and for video in a browser and on a phone. A native speaker should review `app_hi.arb`.
+6. Menu: quality levels on Compress's ring. Try in a real Shift-drag on both desktops: size on hover, Option/Alt for
+   Tools, and the native rings. Try size on hover for video in a browser and on a phone. Try the first-launch guide and
+   the update banner on each platform. A native
+   speaker should review `app_hi.arb`.
 7. Android package name `io.github.navinkumar0007.shiftdrop`: register it with Google in Phase 5. It can't change after
    the first public release, as Android treats a new name as a different app.
 8. The owner is installing Xcode. Then: `sudo xcode-select -s /Applications/Xcode.app`,

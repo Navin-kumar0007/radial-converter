@@ -933,4 +933,107 @@ class WordsEn extends Words {
 
   @override
   String get openAtLoginApprove => 'Allow ShiftDrop in System Settings, General, Login Items.';
+
+  @override
+  String get welcomeTitle => 'Welcome to ShiftDrop';
+
+  @override
+  String get welcomeText =>
+      'Convert, shrink and tidy files right here. Nothing is uploaded: every file stays on this device.';
+
+  @override
+  String get welcomeSkip => 'Skip';
+
+  @override
+  String get welcomeBack => 'Back';
+
+  @override
+  String get welcomeNext => 'Next';
+
+  @override
+  String get welcomeStart => 'Start';
+
+  @override
+  String get practiceTitle => 'Try it';
+
+  @override
+  String get practiceShiftDrag => 'Hold Shift and drag the photo, then let go on a slice.';
+
+  @override
+  String get practiceDrag => 'Drag the photo, then let go on a slice.';
+
+  @override
+  String get practiceHoldShift => 'Hold Shift while you drag.';
+
+  @override
+  String get practiceCancelled =>
+      'Nothing was chosen: the centre cancels. Try again, letting go on a slice.';
+
+  @override
+  String practiceDone(Object name, Object size) {
+    return 'Done: $name, $size.';
+  }
+
+  @override
+  String get practiceFailed => 'That didn\'t work this time. You can still carry on.';
+
+  @override
+  String get practicePhoto => 'A sample photo to practise on';
+
+  @override
+  String get tipMac =>
+      'It works the same from Finder, over any app: Shift-drag a file and let go on a slice. Hold Option as well for tools such as Compress, Rotate and Resize.';
+
+  @override
+  String get tipWindows =>
+      'It works the same from File Explorer, over any app: Shift-drag a file and let go on a slice. Hold Alt as well for tools such as Compress, Rotate and Resize.';
+
+  @override
+  String get tipAndroid => 'In other apps, tap Share, then ShiftDrop.';
+
+  @override
+  String get tipWeb =>
+      'Drop files on this page, or choose them. On an iPhone or iPad, open it in Safari, tap Share, then Add to Home Screen, and it works offline.';
+
+  @override
+  String get choicesTitle => 'A few choices';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get languageDevice => 'As the device';
+
+  @override
+  String get checkUpdates => 'Check for new versions';
+
+  @override
+  String get checkUpdatesWhy =>
+      'Once a day, ShiftDrop asks its website whether a newer version is out. Nothing about you or your files is sent.';
+
+  @override
+  String get getNewest => 'Get the newest version';
+
+  @override
+  String get getNewestWhy =>
+      'Opens the download page in your browser. ShiftDrop itself can\'t use the internet.';
+
+  @override
+  String updateReady(Object version) {
+    return 'ShiftDrop $version is out.';
+  }
+
+  @override
+  String get updateGet => 'Download';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String pageFailed(Object address) {
+    return 'Couldn\'t open the page. It\'s at $address';
+  }
+
+  @override
+  String get showGuide => 'Show the guide again';
 }

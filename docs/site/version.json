@@ -1,0 +1,9 @@
+{
+  "version": "0.9.1",
+  "page": "https://github.com/Navin-kumar0007/shiftdrop/releases/tag/v0.9.1",
+  "downloads": {
+    "macos": "https://github.com/Navin-kumar0007/shiftdrop/releases/download/v0.9.1/ShiftDrop-mac.dmg",
+    "windows": "https://github.com/Navin-kumar0007/shiftdrop/releases/download/v0.9.1/ShiftDrop-windows-setup.exe",
+    "android": "https://github.com/Navin-kumar0007/shiftdrop/releases/download/v0.9.1/ShiftDrop-android-arm64.apk"
+  }
+}

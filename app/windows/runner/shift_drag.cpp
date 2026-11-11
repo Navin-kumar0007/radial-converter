@@ -43,6 +43,9 @@ const ULONGLONG kHideDelayMs = 400;
 const BYTE kAlphaHidden = 1;
 const BYTE kAlphaShown = 245;
 const int kSize = 300;
+// The menu's radius, and the outer ring's width around it when a slice has choices.
+const double kMenuRadius = kSize / 2.0;
+const double kRingWidth = 56;
 const double kInnerRadius = 38;
 const COLORREF kAccent = RGB(0x0B, 0x6E, 0x5F);
 const double kPi = 3.141592653589793;
@@ -54,6 +57,32 @@ bool LeftButtonDown() {
 }
 
 bool ShiftDown() { return (::GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0; }
+
+// Held as well as Shift, the menu offers Tools instead of Convert.
+bool AltDown() { return (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0; }
+
+// The outline of a piece of ring between two angles, clockwise from the top, in a window whose
+// centre is at (centre, centre).
+std::vector<POINT> Sector(double centre, double inner, double outer, double from, double to) {
+  const int steps = 16;
+  std::vector<POINT> points;
+  for (int i = 0; i <= steps; i++) {
+    const double angle = from + (to - from) * i / steps;
+    points.push_back({static_cast<LONG>(centre + std::sin(angle) * outer),
+                      static_cast<LONG>(centre - std::cos(angle) * outer)});
+  }
+  for (int i = steps; i >= 0; i--) {
+    const double angle = from + (to - from) * i / steps;
+    points.push_back({static_cast<LONG>(centre + std::sin(angle) * inner),
+                      static_cast<LONG>(centre - std::cos(angle) * inner)});
+  }
+  return points;
+}
+
+COLORREF Mix(COLORREF a, COLORREF b) {
+  return RGB((GetRValue(a) + GetRValue(b)) / 2, (GetGValue(a) + GetGValue(b)) / 2,
+             (GetBValue(a) + GetBValue(b)) / 2);
+}
 
 std::wstring Utf16FromUtf8(const std::string& text) {
   if (text.empty()) return std::wstring();
@@ -278,6 +307,24 @@ ShiftDrag::ShiftDrag(flutter::BinaryMessenger* messenger, HWND app_window)
           if (name != nullptr && text != nullptr) Words()[*name] = Utf16FromUtf8(*text);
         }
       }
+    } else if (call.method_name() == "openPage") {
+      // Only web pages, as a page is all the app ever opens: the newest version's download.
+      std::string url;
+      if (const auto* map = std::get_if<EncodableMap>(call.arguments())) {
+        const auto found = map->find(EncodableValue("url"));
+        if (found != map->end()) {
+          if (const auto* text = std::get_if<std::string>(&found->second)) url = *text;
+        }
+      }
+      bool opened = false;
+      if (url.rfind("https://", 0) == 0) {
+        const HINSTANCE done = ::ShellExecuteW(nullptr, L"open", WideFromUtf8(url).c_str(),
+                                               nullptr, nullptr, SW_SHOWNORMAL);
+        // ShellExecute answers with a number above 32 when it worked.
+        opened = reinterpret_cast<INT_PTR>(done) > 32;
+      }
+      result->Success(EncodableValue(opened));
+      return;
     } else if (call.method_name() == "showInFolder") {
       const auto paths = PathsFrom(call.arguments());
       if (paths.size() == 1) ShowInExplorer(paths[0]);
@@ -474,6 +521,7 @@ void ShiftDrag::Tick() {
     button_was_down_ = true;
     pressed_at_ = cursor;
   }
+  if (revealed_ && !switching_ && AltDown() != asked_tools_) SwitchMode(AltDown());
   if (placed_ || !ShiftDown()) return;
   if (std::abs(cursor.x - pressed_at_.x) + std::abs(cursor.y - pressed_at_.y) < kDragDistance) {
     return;
@@ -498,6 +546,10 @@ void ShiftDrag::Place(POINT cursor) {
   sizes_.clear();
   asked_.clear();
   highlighted_ = -1;
+  choice_ = -1;
+  past_menu_ = false;
+  tools_ = false;
+  switching_ = false;
   resting_on_ = -1;
   ::KillTimer(panel_, kSizeTimer);
   revealed_ = false;
@@ -510,11 +562,55 @@ void ShiftDrag::Place(POINT cursor) {
   placed_ = true;
 }
 
-void ShiftDrag::Reveal(std::vector<Slice> slices) {
+void ShiftDrag::Reveal(std::vector<Slice> slices, bool tools) {
   slices_ = std::move(slices);
+  tools_ = tools;
   revealed_ = true;
+  Resize();
+  Shape();
   ::SetLayeredWindowAttributes(panel_, 0, kAlphaShown, LWA_ALPHA);
   ::InvalidateRect(panel_, nullptr, TRUE);
+}
+
+bool ShiftDrag::NeedsRing() const {
+  return std::any_of(slices_.begin(), slices_.end(),
+                     [](const Slice& slice) { return !slice.choices.empty(); });
+}
+
+void ShiftDrag::Resize() {
+  const int side = static_cast<int>((kSize + (NeedsRing() ? 2 * kRingWidth : 0)) * Scale());
+  RECT frame;
+  ::GetWindowRect(panel_, &frame);
+  if (frame.right - frame.left == side) return;
+  const int centre_x = (frame.left + frame.right) / 2;
+  const int centre_y = (frame.top + frame.bottom) / 2;
+  ::SetWindowPos(panel_, HWND_TOPMOST, centre_x - side / 2, centre_y - side / 2, side, side,
+                 SWP_NOACTIVATE);
+}
+
+void ShiftDrag::Shape() {
+  RECT area;
+  ::GetClientRect(panel_, &area);
+  const double centre = (area.right - area.left) / 2.0;
+  const double scale = Scale();
+  const double menu = kMenuRadius * scale;
+  HRGN shape = ::CreateEllipticRgn(static_cast<int>(centre - menu), static_cast<int>(centre - menu),
+                                   static_cast<int>(centre + menu) + 1,
+                                   static_cast<int>(centre + menu) + 1);
+  const int count = static_cast<int>(slices_.size());
+  if (highlighted_ >= 0 && highlighted_ < count && !slices_[highlighted_].choices.empty()) {
+    const int choices = static_cast<int>(slices_[highlighted_].choices.size());
+    const double span = ChoiceSpan(count, choices);
+    const double from = ChoiceAngle(0, highlighted_, count, choices) - span / 2;
+    // From just inside the menu's edge, so there's no gap to fall through on the way out.
+    auto points = Sector(centre, menu - 4 * scale, menu + kRingWidth * scale, from,
+                         from + span * choices);
+    HRGN ring = ::CreatePolygonRgn(points.data(), static_cast<int>(points.size()), WINDING);
+    ::CombineRgn(shape, shape, ring, RGN_OR);
+    ::DeleteObject(ring);
+  }
+  // The window owns the region from here on.
+  ::SetWindowRgn(panel_, shape, TRUE);
 }
 
 void ShiftDrag::Hide() {
@@ -526,32 +622,55 @@ void ShiftDrag::Hide() {
   sizes_.clear();
   asked_.clear();
   resting_on_ = -1;
+  highlighted_ = -1;
+  choice_ = -1;
+  switching_ = false;
   ::KillTimer(panel_, kSizeTimer);
   drag_++;
 }
 
-void ShiftDrag::AskForSlices() {
-  const unsigned int drag = drag_;
-  EncodableMap arguments = {{EncodableValue("paths"), PathsArgument(paths_)}};
-  auto answered = [this, drag](const EncodableValue* answer) {
-    if (drag != drag_) return;
-    std::vector<Slice> slices;
-    if (const auto* list = answer ? std::get_if<EncodableList>(answer) : nullptr) {
-      for (const auto& item : *list) {
-        const auto* map = std::get_if<EncodableMap>(&item);
-        if (map == nullptr) continue;
-        const auto id = map->find(EncodableValue("id"));
-        const auto label = map->find(EncodableValue("label"));
-        if (id == map->end() || label == map->end()) continue;
-        slices.push_back({std::get<std::string>(id->second),
-                          Utf16FromUtf8(std::get<std::string>(label->second))});
+std::vector<ShiftDrag::Slice> ShiftDrag::SlicesFrom(const EncodableValue* answer) {
+  std::vector<Slice> slices;
+  const auto* list = answer ? std::get_if<EncodableList>(answer) : nullptr;
+  if (list == nullptr) return slices;
+  for (const auto& item : *list) {
+    const auto* map = std::get_if<EncodableMap>(&item);
+    if (map == nullptr) continue;
+    const auto id = map->find(EncodableValue("id"));
+    const auto label = map->find(EncodableValue("label"));
+    if (id == map->end() || label == map->end()) continue;
+    const auto* id_text = std::get_if<std::string>(&id->second);
+    const auto* label_text = std::get_if<std::string>(&label->second);
+    if (id_text == nullptr || label_text == nullptr) continue;
+    Slice slice{*id_text, Utf16FromUtf8(*label_text), {}};
+    const auto choices = map->find(EncodableValue("choices"));
+    if (choices != map->end()) {
+      if (const auto* names = std::get_if<EncodableList>(&choices->second)) {
+        for (const auto& name : *names) {
+          if (const auto* text = std::get_if<std::string>(&name)) {
+            slice.choices.push_back(Utf16FromUtf8(*text));
+          }
+        }
       }
     }
+    slices.push_back(std::move(slice));
+  }
+  return slices;
+}
+
+void ShiftDrag::AskForSlices(bool tools) {
+  const unsigned int drag = drag_;
+  asked_tools_ = tools;
+  EncodableMap arguments = {{EncodableValue("paths"), PathsArgument(paths_)},
+                            {EncodableValue("tools"), EncodableValue(tools)}};
+  auto answered = [this, drag, tools](const EncodableValue* answer) {
+    if (drag != drag_) return;
+    std::vector<Slice> slices = SlicesFrom(answer);
     // Nothing can convert this file, so nothing appears.
     if (slices.empty()) {
       Hide();
     } else {
-      Reveal(std::move(slices));
+      Reveal(std::move(slices), tools);
     }
   };
   channel_->InvokeMethod(
@@ -564,18 +683,86 @@ void ShiftDrag::AskForSlices() {
           [answered]() { answered(nullptr); }));
 }
 
-int ShiftDrag::SliceAt(POINTL point) const {
+void ShiftDrag::SwitchMode(bool tools) {
+  switching_ = true;
+  asked_tools_ = tools;
+  const unsigned int drag = drag_;
+  EncodableMap arguments = {{EncodableValue("paths"), PathsArgument(paths_)},
+                            {EncodableValue("tools"), EncodableValue(tools)}};
+  auto answered = [this, drag, tools](const EncodableValue* answer) {
+    if (drag != drag_) return;
+    switching_ = false;
+    std::vector<Slice> slices = SlicesFrom(answer);
+    // Nothing of that kind keeps the menu as it was, until Alt changes again.
+    if (slices.empty() || !revealed_) return;
+    slices_ = std::move(slices);
+    tools_ = tools;
+    highlighted_ = -1;
+    choice_ = -1;
+    resting_on_ = -1;
+    sizes_.clear();
+    asked_.clear();
+    ::KillTimer(panel_, kSizeTimer);
+    Resize();
+    Shape();
+    ::InvalidateRect(panel_, nullptr, TRUE);
+  };
+  channel_->InvokeMethod(
+      "menuFor", std::make_unique<EncodableValue>(arguments),
+      std::make_unique<flutter::MethodResultFunctions<EncodableValue>>(
+          [answered](const EncodableValue* answer) { answered(answer); },
+          [answered](const std::string&, const std::string&, const EncodableValue*) {
+            answered(nullptr);
+          },
+          [answered]() { answered(nullptr); }));
+}
+
+void ShiftDrag::FromCentre(POINTL point, double* dx, double* dy) const {
   RECT frame;
   ::GetWindowRect(panel_, &frame);
-  const double centre_x = (frame.left + frame.right) / 2.0;
-  const double centre_y = (frame.top + frame.bottom) / 2.0;
-  return RadialSliceAt(point.x - centre_x, centre_y - point.y, static_cast<int>(slices_.size()),
-                       kInnerRadius * Scale());
+  *dx = point.x - (frame.left + frame.right) / 2.0;
+  *dy = (frame.top + frame.bottom) / 2.0 - point.y;
+}
+
+void ShiftDrag::Follow(POINTL point) {
+  if (!revealed_) {
+    SetHighlight(-1);
+    return;
+  }
+  double dx, dy;
+  FromCentre(point, &dx, &dy);
+  const double scale = Scale();
+  const double menu = kMenuRadius * scale;
+  const int count = static_cast<int>(slices_.size());
+  past_menu_ = std::hypot(dx, dy) > menu;
+  if (past_menu_ && highlighted_ >= 0 && highlighted_ < count &&
+      !slices_[highlighted_].choices.empty()) {
+    const int choice = RadialChoiceAt(dx, dy, highlighted_, count,
+                                      static_cast<int>(slices_[highlighted_].choices.size()), menu,
+                                      menu + kRingWidth * scale);
+    if (choice != choice_) {
+      choice_ = choice;
+      ::InvalidateRect(panel_, nullptr, FALSE);
+    }
+    return;
+  }
+  if (choice_ != -1) {
+    choice_ = -1;
+    ::InvalidateRect(panel_, nullptr, FALSE);
+  }
+  SetHighlight(past_menu_ ? -1 : RadialSliceAt(dx, dy, count, kInnerRadius * scale));
+}
+
+bool ShiftDrag::Choosing() const {
+  return highlighted_ >= 0 && (!past_menu_ || choice_ >= 0);
 }
 
 void ShiftDrag::SetHighlight(int slice) {
   if (slice == highlighted_) return;
   highlighted_ = slice;
+  choice_ = -1;
+  // The window grows to take in this slice's choices, if it has any.
+  if (revealed_) Shape();
   ::InvalidateRect(panel_, nullptr, FALSE);
   ::KillTimer(panel_, kSizeTimer);
   resting_on_ = -1;
@@ -615,7 +802,7 @@ HRESULT ShiftDrag::DragEnter(IDataObject* data, DWORD, POINTL point, DWORD* effe
   }
   // Still over the menu, so not time to hide.
   hide_at_ = 0;
-  if (!revealed_) AskForSlices();
+  if (!revealed_) AskForSlices(AltDown());
   *effect = DROPEFFECT_COPY;
   return S_OK;
 }
@@ -625,10 +812,9 @@ HRESULT ShiftDrag::DragOver(DWORD, POINTL point, DWORD* effect) {
     *effect = DROPEFFECT_NONE;
     return S_OK;
   }
-  const int slice = revealed_ ? SliceAt(point) : -1;
-  SetHighlight(slice);
-  // The centre refuses the drop, which is how to cancel.
-  *effect = slice < 0 ? DROPEFFECT_NONE : DROPEFFECT_COPY;
+  Follow(point);
+  // The centre refuses the drop, which is how to cancel, as does the ring between choices.
+  *effect = Choosing() ? DROPEFFECT_COPY : DROPEFFECT_NONE;
   return S_OK;
 }
 
@@ -638,18 +824,20 @@ HRESULT ShiftDrag::DragLeave() {
 }
 
 HRESULT ShiftDrag::Drop(IDataObject* data, DWORD, POINTL point, DWORD* effect) {
-  const int slice = revealed_ ? SliceAt(point) : -1;
-  if (slice < 0) {
+  Follow(point);
+  if (!Choosing()) {
     *effect = DROPEFFECT_NONE;
     Hide();
     return S_OK;
   }
-  const std::string id = slices_[slice].id;
+  const std::string id = slices_[highlighted_].id;
+  const int choice = choice_;
   const std::vector<std::string> paths = PathsIn(data);
   Hide();
   *effect = DROPEFFECT_COPY;
   EncodableMap arguments = {{EncodableValue("id"), EncodableValue(id)},
                             {EncodableValue("paths"), PathsArgument(paths)}};
+  if (choice >= 0) arguments[EncodableValue("choice")] = EncodableValue(choice);
   channel_->InvokeMethod("chosen", std::make_unique<EncodableValue>(arguments));
   return S_OK;
 }
@@ -662,13 +850,18 @@ void ShiftDrag::Paint() {
   const double scale = Scale();
   const int size = area.right - area.left;
   const double centre = size / 2.0;
-  const double outer = centre;
+  const double outer = kMenuRadius * scale;
   const double inner = kInnerRadius * scale;
+  // The menu's square, inside the window, which has room for the ring around it.
+  const int box_from = static_cast<int>(centre - outer);
+  const int box_to = static_cast<int>(centre + outer);
   const COLORREF background = ::GetSysColor(COLOR_WINDOW);
   const COLORREF text = ::GetSysColor(COLOR_WINDOWTEXT);
 
   HBRUSH background_brush = ::CreateSolidBrush(background);
-  HBRUSH accent_brush = ::CreateSolidBrush(kAccent);
+  // Fainter while one of the slice's choices is the one dropped on.
+  HBRUSH accent_brush = ::CreateSolidBrush(choice_ >= 0 ? Mix(kAccent, background) : kAccent);
+  HBRUSH choice_brush = ::CreateSolidBrush(kAccent);
   HPEN line = ::CreatePen(PS_SOLID, 1, ::GetSysColor(COLOR_3DSHADOW));
   HFONT font = MenuFont(13, scale, FW_SEMIBOLD);
   HGDIOBJ old_pen = ::SelectObject(dc, line);
@@ -688,9 +881,9 @@ void ShiftDrag::Paint() {
       const double to = middle - span / 2;
       ::SelectObject(dc, i == highlighted_ ? accent_brush : background_brush);
       if (count == 1) {
-        ::Ellipse(dc, 0, 0, size, size);
+        ::Ellipse(dc, box_from, box_from, box_to, box_to);
       } else {
-        ::Pie(dc, 0, 0, size, size, static_cast<int>(centre + std::sin(from) * outer),
+        ::Pie(dc, box_from, box_from, box_to, box_to, static_cast<int>(centre + std::sin(from) * outer),
               static_cast<int>(centre - std::cos(from) * outer),
               static_cast<int>(centre + std::sin(to) * outer),
               static_cast<int>(centre - std::cos(to) * outer));
@@ -710,12 +903,54 @@ void ShiftDrag::Paint() {
     }
   }
 
+  // The highlighted slice's choices, around the menu next to it.
+  if (highlighted_ >= 0 && highlighted_ < count && !slices_[highlighted_].choices.empty()) {
+    const auto& choices = slices_[highlighted_].choices;
+    const int total = static_cast<int>(choices.size());
+    const double span = ChoiceSpan(count, total);
+    const double ring_inner = outer + 4 * scale;
+    const double ring_outer = outer + kRingWidth * scale - 1;
+    for (int i = 0; i < total; i++) {
+      const double middle = ChoiceAngle(i, highlighted_, count, total);
+      auto points = Sector(centre, ring_inner, ring_outer, middle - span / 2, middle + span / 2);
+      ::SelectObject(dc, i == choice_ ? choice_brush : background_brush);
+      ::Polygon(dc, points.data(), static_cast<int>(points.size()));
+      const double reach = (ring_inner + ring_outer) / 2;
+      const int x = static_cast<int>(centre + std::sin(middle) * reach);
+      const int y = static_cast<int>(centre - std::cos(middle) * reach);
+      const int width = static_cast<int>(2 * reach * std::sin(span / 2) - 6 * scale);
+      HFONT choice_font = FittedFont(dc, choices[i], width, scale, FW_SEMIBOLD, 11, 8);
+      ::SelectObject(dc, choice_font);
+      ::SetTextColor(dc, i == choice_ ? RGB(255, 255, 255) : text);
+      RECT label = {x - width / 2, y - static_cast<int>(10 * scale), x + width / 2,
+                    y + static_cast<int>(10 * scale)};
+      ::DrawTextW(dc, choices[i].c_str(), -1, &label,
+                  DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+      ::SelectObject(dc, font);
+      ::DeleteObject(choice_font);
+    }
+  }
+
   ::SelectObject(dc, background_brush);
   const int hub = static_cast<int>(inner - 4 * scale);
   const int middle = static_cast<int>(centre);
   ::Ellipse(dc, middle - hub, middle - hub, middle + hub, middle + hub);
   ::SetTextColor(dc, text);
   const std::wstring cancel_word = NativeWord("cancel", L"Cancel");
+  // In Tools, the hub says so along its top.
+  if (tools_) {
+    const std::wstring tools_word = NativeWord("tools", L"Tools");
+    HFONT tools_font = FittedFont(dc, tools_word, static_cast<int>(hub * 1.4), scale, FW_SEMIBOLD,
+                                  9, 7);
+    ::SelectObject(dc, tools_font);
+    ::SetTextColor(dc, kAccent);
+    RECT top = {middle - hub, middle - hub + static_cast<int>(4 * scale), middle + hub,
+                middle - hub + static_cast<int>(18 * scale)};
+    ::DrawTextW(dc, tools_word.c_str(), -1, &top, DT_CENTER | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+    ::SelectObject(dc, font);
+    ::DeleteObject(tools_font);
+    ::SetTextColor(dc, text);
+  }
   // Named apart from [size], the panel's width, declared above.
   const std::wstring* size_text = nullptr;
   if (highlighted_ >= 0 && highlighted_ < count) {
@@ -752,6 +987,7 @@ void ShiftDrag::Paint() {
   ::DeleteObject(font);
   ::DeleteObject(line);
   ::DeleteObject(accent_brush);
+  ::DeleteObject(choice_brush);
   ::DeleteObject(background_brush);
   ::EndPaint(panel_, &paint);
 }

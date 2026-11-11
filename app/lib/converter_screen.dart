@@ -23,9 +23,9 @@ import 'words.dart';
 typedef FilesPicker = Future<List<PickedFile>> Function();
 typedef DropReader = Future<DroppedFiles> Function(List<DropItem> items);
 typedef ShiftDragListener = void Function() Function({
-  required Future<List<RadialAction>> Function(List<String> paths) menuFor,
+  required Future<List<RadialAction>> Function(List<String> paths, ActionMode mode) menuFor,
   required Future<String?> Function(RadialAction action, List<String> paths) sizeOf,
-  required void Function(RadialAction action, List<String> paths) chosen,
+  required void Function(RadialAction action, List<String> paths, ActionOptions options) chosen,
 });
 typedef KeepWorking = Future<void> Function(bool working);
 typedef FileSaver = Future<SavedAs?> Function(PortableFile file);
@@ -129,6 +129,7 @@ class ConverterScreen extends StatefulWidget {
     this.mediaAvailable,
     this.acceptsDrops,
     this.savesBeside,
+    this.showGuide,
   });
 
   final FilesPicker pickFiles;
@@ -175,6 +176,9 @@ class ConverterScreen extends StatefulWidget {
   /// Whether many results can go straight beside their originals. Null asks the platform: a phone's
   /// copies sit in a cache nobody would look in, and a browser has no folders to write to.
   final bool? savesBeside;
+
+  /// Opens the first-launch guide again, from About.
+  final VoidCallback? showGuide;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -356,9 +360,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
     );
   }
 
-  /// What the Shift-drag menu offers. It has room for few slices, and a drag can't stop to ask
-  /// questions, so actions that ask first are left out.
-  Future<List<RadialAction>> _menuFor(List<String> paths) async {
+  /// What the Shift-drag menu offers: Convert, or Tools with Alt (Option on a Mac) held as well. It
+  /// has room for few slices, and a drag can't stop to ask questions, so actions that ask first are
+  /// left out.
+  Future<List<RadialAction>> _menuFor(List<String> paths, ActionMode mode) async {
+    // Switching to Tools mid-drag asks again about the same file, which keeps its trials.
+    final same = _draggedFor(paths);
     _dragged = null;
     final List<PickedFile> files;
     try {
@@ -369,22 +376,34 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final kinds = [for (final file in files) detectKind(file.head, fileName: file.name)];
     // One file only, as the menu's centre has room for one size.
     if (files.length == 1) {
-      _dragged = (
-        paths: List.unmodifiable(paths),
-        file: files.single,
-        previews: SizePreviews(files.single, kinds.single, _trial, readMedia: widget.mediaProbe),
-      );
+      _dragged =
+          same ??
+          (
+            paths: List.unmodifiable(paths),
+            file: files.single,
+            previews: SizePreviews(
+              files.single,
+              kinds.single,
+              _trial,
+              readMedia: widget.mediaProbe,
+            ),
+          );
     }
     return availableActions(
       kinds,
-      ActionMode.convert,
+      mode,
       mediaAvailable: _mediaAvailable,
       mediaOutputs: mediaOutputsHere(),
     ).where((action) => !needsOptions(action)).take(_shiftDragSlices).toList();
   }
 
-  /// A slice was chosen outside the window, so results go straight beside the originals.
-  Future<void> _chosenFromShiftDrag(RadialAction action, List<String> paths) async {
+  /// A slice was chosen outside the window, so results go straight beside the originals. A choice
+  /// from the outer ring comes with its options.
+  Future<void> _chosenFromShiftDrag(
+    RadialAction action,
+    List<String> paths,
+    ActionOptions options,
+  ) async {
     final dragged = _draggedFor(paths);
     _dragged = null;
     final List<PickedFile> files;
@@ -402,8 +421,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
     }
     if (!mounted) return;
     _open(files);
+    // Opening the menu again offers the same kind of actions.
+    setState(() => _mode = action.mode);
     if (dragged != null) _previews = dragged.previews;
-    await _start(action, const ActionOptions(), saveBeside: true);
+    await _start(action, options, saveBeside: true);
   }
 
   /// What the Shift-drag menu's centre says while resting on a slice, or null if it can't tell.
@@ -942,7 +963,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           IconButton(
             tooltip: words.about,
             icon: const Icon(Icons.info_outline),
-            onPressed: () => showAbout(context),
+            onPressed: () => showAbout(context, onShowGuide: widget.showGuide),
           ),
           IconButton(
             tooltip: words.history,

@@ -12,6 +12,9 @@ the installers attached. Nothing is public until you press **Publish** on it.
    git tag v0.9.1 && git push origin v0.9.1
    ```
 3. When CI finishes, open the draft under **Releases**, try the downloads, and press **Publish**.
+4. About two days later, once testers have had it, update `docs/site/version.json` to the new version and its
+   download addresses, and push to `main`. Copies from the website then tell their users within a day. A test fails
+   if the file names a version newer than `app/pubspec.yaml`, so update it after the release, never before.
 
 ## Set up once
 

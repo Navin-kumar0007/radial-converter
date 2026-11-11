@@ -12,8 +12,11 @@ extension WordsOf on BuildContext {
   Words get words => Words.of(this);
 }
 
+/// The language chosen in the app, or null to follow the device. Set by `main.dart`.
+Locale? chosenLocale;
+
 /// For code with no screen to ask, such as the Shift-drag menu and engines.
-Words get deviceWords => wordsFor(PlatformDispatcher.instance.locale);
+Words get deviceWords => wordsFor(chosenLocale ?? PlatformDispatcher.instance.locale);
 
 /// English for any language there's no translation for.
 Words wordsFor(Locale locale) =>

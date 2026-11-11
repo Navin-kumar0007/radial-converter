@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- A short guide on first launch, with a practice Shift-drag on a sample photo. **About** shows it again.
+- Mac and Windows copies from the website check once a day for a newer version and offer the download. The only
+  thing the app fetches, and **About** turns it off. On Android, **About** links to the download page instead.
+- Hold Option (Mac) or Alt (Windows) during a Shift-drag for Tools, such as Compress, Rotate and Resize, with the
+  outer ring of choices for Rotate, Flip and Resize there too.
+- Choose English or Hindi for the app in **About**, whatever the device's language.
+
 - Rest on a slice and the menu says how big the result will be. For one picture it really makes it, so choosing that slice is then instant. This works in the Shift-drag menu on Mac and Windows too.
 - PDF to Word keeps simple tables as real Word tables, bold text, and the pictures on text pages.
 - Rotate, Flip and Resize show their choices around the slice: 180° or a quarter turn left, upside down, or a long side of 1920, 1280 or 640 pixels. On a phone, tap once to see them.
