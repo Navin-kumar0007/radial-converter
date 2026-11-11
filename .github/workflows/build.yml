@@ -372,11 +372,14 @@ jobs:
           mkdir dmg
           ditto "app/build/macos/Build/Products/Release/ShiftDrop.app" "dmg/ShiftDrop.app"
           ln -s /Applications dmg/Applications
-          hdiutil create -volname "ShiftDrop" -srcfolder dmg -ov -format UDZO shiftdrop-macos.dmg
-          hdiutil verify shiftdrop-macos.dmg
-          hdiutil attach -nobrowse -mountpoint mounted shiftdrop-macos.dmg
+          # hdiutil on GitHub's Macs sometimes says "Resource temporarily unavailable" about an image it
+          # has just made, so each step gets a few tries. A real fault still fails all of them.
+          again() { for try in 1 2 3 4; do "$@" && return 0; echo "Retrying: $*"; sleep 15; done; return 1; }
+          again hdiutil create -volname "ShiftDrop" -srcfolder dmg -ov -format UDZO shiftdrop-macos.dmg
+          again hdiutil verify shiftdrop-macos.dmg
+          again hdiutil attach -nobrowse -mountpoint mounted shiftdrop-macos.dmg
           codesign -d --entitlements - "mounted/ShiftDrop.app" 2>&1 | grep -q 'files.user-selected.read-write'
-          hdiutil detach mounted
+          again hdiutil detach mounted
       - uses: actions/upload-artifact@v4
         with:
           name: shiftdrop-macos
