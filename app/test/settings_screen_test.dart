@@ -189,7 +189,8 @@ void main() {
     tearDown(() => folder.deleteSync(recursive: true));
 
     /// Shift-drags a photo onto JPG with these settings, and waits for it to be saved. Returns the
-    /// photo's folder.
+    /// photo's folder. Previews stay off: one still reading the photo would stop Windows deleting
+    /// the folder afterwards.
     Future<String> shiftDragAPhoto(WidgetTester tester, SettingsStore store) async {
       late void Function(RadialAction, List<String>, ActionOptions) choose;
       await tester.pumpWidget(
@@ -232,7 +233,7 @@ void main() {
       final results = Directory(p.join(folder.path, 'Converted'))..createSync();
       final photos = await shiftDragAPhoto(
         tester,
-        _store(AppSettings(welcomed: true, resultsFolder: results.path)),
+        _store(AppSettings(welcomed: true, showPreviews: false, resultsFolder: results.path)),
       );
       expect(File(p.join(results.path, 'photo (converted).jpg')).existsSync(), isTrue);
       expect(Directory(photos).listSync().map((e) => p.basename(e.path)), ['photo.png']);
@@ -245,7 +246,7 @@ void main() {
       final gone = p.join(folder.path, 'not here');
       final photos = await shiftDragAPhoto(
         tester,
-        _store(AppSettings(welcomed: true, resultsFolder: gone)),
+        _store(AppSettings(welcomed: true, showPreviews: false, resultsFolder: gone)),
       );
       expect(File(p.join(photos, 'photo (converted).jpg')).existsSync(), isTrue);
       expect(Directory(gone).existsSync(), isFalse, reason: 'it is never made');
