@@ -16,6 +16,8 @@ import 'history_store.dart';
 import 'keep_going.dart';
 import 'option_screens.dart';
 import 'presets.dart';
+import 'preview.dart';
+import 'preview_view.dart';
 import 'radial_menu.dart';
 import 'reorder_dialog.dart';
 import 'settings_screen.dart';
@@ -60,6 +62,9 @@ typedef MediaConverter = Future<List<ConvertedFile>> Function(
   ConvertControl control,
   ActionOptions options,
 );
+
+/// Results past this many in a list show their tick rather than a picture, as each takes a moment.
+const _thumbnailRows = 30;
 
 /// As many slices as the Shift-drag menu can label readably.
 const _shiftDragSlices = 8;
@@ -136,6 +141,7 @@ class ConverterScreen extends StatefulWidget {
     this.savesBeside,
     this.showGuide,
     this.folderCheck = folderWritable,
+    this.pdfPage = pdfFirstPage,
   });
 
   final FilesPicker pickFiles;
@@ -189,6 +195,9 @@ class ConverterScreen extends StatefulWidget {
   /// Whether results can be written into a folder chosen in Settings.
   final Future<bool> Function(String folder) folderCheck;
 
+  /// Draws page 1 of a PDF, for previews.
+  final PdfPageReader pdfPage;
+
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
 }
@@ -229,6 +238,53 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   /// A chosen folder that can't be used is said once, not on every job.
   bool _saidFolderGone = false;
+
+  /// Small pictures of the files and their results, made one at a time and kept until other files
+  /// are opened.
+  late final PreviewCache _looks = PreviewCache(
+    Previewer(
+      readPicture: _pictureToShow,
+      frameAt: widget.frameReader,
+      probe: widget.mediaProbe,
+      pdfPage: widget.pdfPage,
+    ),
+  );
+
+  /// The preview panel hidden for now, from its own button. Settings turns previews off for good.
+  bool _previewHidden = false;
+
+  /// Only where there are settings to say so: tests of this screen alone make none.
+  bool get _showPreviews => SettingsScope.maybeOf(context)?.value.showPreviews ?? false;
+
+  Future<Preview> _lookAt(PickedFile file, FileKind kind, {int width = 600}) {
+    return _looks.of(
+      file,
+      PreviewSubject(file: file, kind: kind),
+      width: width,
+    );
+  }
+
+  /// A result's preview, or null where it can't be reached.
+  Future<Preview>? _lookAtResult(_Job job, {int width = 600}) {
+    final output = job.output;
+    if (output == null || job.undone) return null;
+    final subject = PreviewSubject.ofResult(output);
+    return subject == null ? null : _looks.of(job, subject, width: width);
+  }
+
+  /// The result to show beside the first file: its own, or the one that came of all of them.
+  _Job? get _firstResult {
+    final done = [
+      for (final job in _jobs)
+        if (job.state == FileChipState.done && job.output != null && !job.undone) job,
+    ];
+    if (done.isEmpty) return null;
+    for (final job in done) {
+      if (identical(job.from, _files.first)) return job;
+    }
+    return done.first;
+  }
+
   late final StreamSubscription<SharedFiles> _shares;
   late final void Function() _stopShiftDrag;
 
@@ -577,6 +633,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   void _open(List<PickedFile> files) {
     if (files.isEmpty) return;
     _stopRunningJob();
+    _looks.clear();
     setState(() {
       _files = files;
       _kinds = [for (final file in files) detectKind(file.head, fileName: file.name)];
@@ -788,7 +845,17 @@ class _ConverterScreenState extends State<ConverterScreen> {
     // Pages or clips go one after another, so the order is asked first. From a Shift-drag there's
     // no screen to ask on, and they go in the order they were dragged.
     if (keepsOrder(action) && _files.length > 1) {
-      final order = await askForOrder(context, action: action, files: _files, kinds: _kinds);
+      final files = _files;
+      final kinds = _kinds;
+      final order = await askForOrder(
+        context,
+        action: action,
+        files: files,
+        kinds: kinds,
+        picture: _showPreviews
+            ? (i) => PreviewThumb(preview: _lookAt(files[i], kinds[i]), kind: kinds[i], size: 44)
+            : null,
+      );
       if (order == null || !mounted) return;
       setState(() {
         _files = [for (final i in order) _files[i]];
@@ -1056,6 +1123,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 if (_files.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(_summary(), textAlign: TextAlign.center, style: styles.bodyMedium),
+                  if (_showPreviews) ...[const SizedBox(height: 12), _buildPreview()],
                   const SizedBox(height: 16),
                   Center(child: _buildModeSwitch()),
                 ],
@@ -1097,6 +1165,42 @@ class _ConverterScreenState extends State<ConverterScreen> {
         _dropped(details.files);
       },
       child: Stack(fit: StackFit.expand, children: [screen, if (_dragging) _buildDropHint(styles)]),
+    );
+  }
+
+  Widget _buildPreview() {
+    if (_previewHidden) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: () => setState(() => _previewHidden = false),
+          icon: const Icon(Icons.visibility_outlined),
+          label: Text(_words.previewShow),
+        ),
+      );
+    }
+    final file = _files.first;
+    final kind = _kinds.first;
+    final result = _firstResult;
+    final resultKind = result?.output == null
+        ? kind
+        : PreviewSubject.ofResult(result!.output!)?.kind ?? kind;
+    return PreviewPanel(
+      key: ValueKey((file, result)),
+      before: _lookAt(file, kind),
+      after: result == null ? null : _lookAtResult(result),
+      kind: kind,
+      afterKind: resultKind,
+      name: file.name,
+      // Smaller while the menu is open, so the menu still fits a small window.
+      height: _menuOpen ? 120 : 180,
+      onHide: () => setState(() => _previewHidden = true),
+      onEnlarge: () => showPreviewLarge(
+        context,
+        name: result?.output?.name ?? file.name,
+        kind: resultKind,
+        before: _lookAt(file, kind, width: 1600),
+        after: result == null ? null : _lookAtResult(result, width: 1600),
+      ),
     );
   }
 
@@ -1200,6 +1304,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final canReach = _undoAvailable && !job.undone && remembered?.path != null;
     final note = output?.note;
     final before = job.bytesBefore;
+    final look = _showPreviews && _jobs.indexOf(job) < _thumbnailRows
+        ? _lookAtResult(job, width: 120)
+        : null;
     final sizes = output == null
         ? null
         : '${before == null ? formatBytes(output.size) : _words.sizeChange(formatBytes(before), formatBytes(output.size))}'
@@ -1226,6 +1333,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
       onShare: _resultsShare && canHandOver ? () => _handOver(widget.shareResult, output) : null,
       onDragOut: _resultsDrag && canHandOver ? () => _handOver(widget.dragResultOut, output) : null,
       onCancel: job.state == FileChipState.working ? _cancel : null,
+      thumbnail: look == null
+          ? null
+          : PreviewThumb(preview: look, kind: PreviewSubject.ofResult(output!)!.kind),
     );
   }
 }

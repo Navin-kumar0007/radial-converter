@@ -90,6 +90,8 @@ Rules:
 - Previews live in memory only. They are never written to disk or kept in history.
 - Every preview has a text description for screen readers.
 
+**Done** (`preview.dart`, `preview_view.dart`), tried in Chrome.
+
 ### Done when
 
 - Each feature works in Chrome, on the Mac, on an Android emulator in CI, and builds for Windows.

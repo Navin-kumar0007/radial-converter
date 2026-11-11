@@ -32,6 +32,8 @@ Hold **Option** (Mac) or **Alt** (Windows) as well, at any point in the drag, an
 
 **In the window.** Choose files, or drop them on the window, and pick a slice. Press **Tools** for things like merging and compressing, and use **More** for further slices.
 
+**Previews.** Once files are chosen, a small panel shows the first one: a picture or PDF page, a frame of a video, the first lines of subtitles, or the names in an archive, with its size and weight. After converting, it shows the result too. For pictures and PDF pages of the same shape a line runs across them, with the original on the left and the result on the right: drag it, or use the arrow keys, to see what changed. **Enlarge** shows it full size, and each result in the list gets a small picture. The eye button hides the panel for now, and **Show previews** in **Settings** turns them off. Previews are made on your device and never saved.
+
 **Putting files in order.** Merging PDFs, video or sound, and **One PDF** from pictures, first show the files in a list. They go together from top to bottom: drag them by the handle, or use the arrows, then press the button to go on. A Shift-drag has no list to show, so its files go in the order they were dragged; to change it, open the menu again in the window and choose the slice there.
 
 Some tools have choices. Rest on **Rotate**, **Flip** or **Resize** and they appear in an outer ring around the slice, such as 180° or a long side of 1280 pixels: move out onto one and click. Choosing the slice itself does the first choice. On a phone, tap the slice once to see its choices. With a keyboard, press **Tab** to move into them and back.

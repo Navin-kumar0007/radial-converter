@@ -300,5 +300,16 @@
   "reorderTitle": "इन्हें क्रम में लगाएँ",
   "reorderHint": "ये ऊपर से नीचे के क्रम में जुड़ेंगी। इन्हें खींचें, या तीरों का इस्तेमाल करें।",
   "reorderUp": "{name} को ऊपर ले जाएँ",
-  "reorderDown": "{name} को नीचे ले जाएँ"
+  "reorderDown": "{name} को नीचे ले जाएँ",
+  "previewTitle": "झलक",
+  "previewHide": "झलक छिपाएँ",
+  "previewShow": "झलक दिखाएँ",
+  "previewBefore": "पहले",
+  "previewAfter": "बाद में",
+  "previewCant": "इसकी झलक नहीं दिख सकती",
+  "previewLocked": "लॉक है। पासवर्ड देने के बाद दिखेगी।",
+  "previewPages": "{count, plural, =1{1 पेज} other{{count} पेज}}",
+  "previewOf": "{name} की झलक",
+  "previewCompare": "पहले और बाद में। तुलना के लिए रेखा खिसकाएँ।",
+  "previewEnlarge": "बड़ा करें"
 }

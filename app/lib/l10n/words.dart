@@ -1898,6 +1898,72 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Move {name} down'**
   String reorderDown(Object name);
+
+  /// No description provided for @previewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get previewTitle;
+
+  /// No description provided for @previewHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the preview'**
+  String get previewHide;
+
+  /// No description provided for @previewShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the preview'**
+  String get previewShow;
+
+  /// No description provided for @previewBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get previewBefore;
+
+  /// No description provided for @previewAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get previewAfter;
+
+  /// No description provided for @previewCant.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t preview this'**
+  String get previewCant;
+
+  /// No description provided for @previewLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked. It shows once the password is given.'**
+  String get previewLocked;
+
+  /// No description provided for @previewPages.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 page} other{{count} pages}}'**
+  String previewPages(int count);
+
+  /// No description provided for @previewOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview of {name}'**
+  String previewOf(Object name);
+
+  /// No description provided for @previewCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Before and after. Move the line to compare.'**
+  String get previewCompare;
+
+  /// No description provided for @previewEnlarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Enlarge'**
+  String get previewEnlarge;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

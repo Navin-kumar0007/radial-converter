@@ -149,6 +149,13 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   Windows the window's region is the menu plus the highlighted slice's choices, so drags elsewhere still reach the apps
   below. Neither has been tried in a real drag. Alt+Shift is Windows' default shortcut for switching keyboard language,
   so check in the VM whether a Tools drag also switches it.
+- Previews (`preview.dart`, `preview_view.dart`): `Previewer` makes them from engines already here: pictures through
+  `shrinkPicture` (size from the header with the `image` package, then Flutter decodes at the smaller width; don't use
+  `ImageDescriptor.width`, which throws in a browser), PDFs through `pdfFirstPage`, video through the frame reader and
+  probe, text for subtitles, archives and Word results. Failures are `Preview.failed`, never errors. `PreviewCache` makes
+  one at a time and keeps them in memory until other files open. Only shown when Settings exist and allow it, so tests
+  of the screen alone make none. The compare slider needs both pictures the same shape (`sameShape`); otherwise they sit
+  side by side. Facts use `sizeChange` ("to"), as the arrow isn't in the shipped fonts. Tried in Chrome.
 - Order before combining (`reorder_dialog.dart`, `keepsOrder` in core): in the window, actions that combine files ask
   for their order first, and `_files`/`_kinds` are put in that order before the job. Up and down buttons do what dragging
   does, for keyboards and screen readers. Shift-drag can't ask, so it keeps the drag's order.

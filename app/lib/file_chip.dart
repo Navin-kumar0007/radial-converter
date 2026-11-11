@@ -30,6 +30,7 @@ class FileChip extends StatefulWidget {
     this.onUndo,
     this.onFaded,
     this.fadeAfter = const Duration(seconds: 10),
+    this.thumbnail,
   });
 
   final String name;
@@ -57,6 +58,9 @@ class FileChip extends StatefulWidget {
   final VoidCallback? onUndo;
   final VoidCallback? onFaded;
   final Duration? fadeAfter;
+
+  /// A small picture of the result, shown in place of the tick once it's done.
+  final Widget? thumbnail;
 
   @override
   State<FileChip> createState() => _FileChipState();
@@ -174,6 +178,12 @@ class _FileChipState extends State<FileChip> {
           semanticsLabel: context.words.converting,
           semanticsValue: widget.indeterminate ? null : '${(widget.progress * 100).round()}%',
         ),
+      ),
+      FileChipState.done when widget.thumbnail != null => Semantics(
+        label: context.words.done,
+        child: widget.onDragOut == null
+            ? widget.thumbnail
+            : Tooltip(message: context.words.dragToApp, child: widget.thumbnail),
       ),
       FileChipState.done => Semantics(
         label: context.words.done,

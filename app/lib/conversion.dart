@@ -4,7 +4,7 @@ import 'pdf_engine.dart';
 import 'words.dart';
 
 export 'convert_native.dart' if (dart.library.js_interop) 'convert_web.dart';
-export 'pdf_engine.dart' show PdfResult, canRunPdf, convertPdf;
+export 'pdf_engine.dart' show PdfResult, canRunPdf, convertPdf, pdfFirstPage;
 export 'picked_file.dart';
 
 /// What the menu offers for these files on this device. Pictures and subtitles run on all

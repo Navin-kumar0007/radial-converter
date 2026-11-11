@@ -6,6 +6,9 @@
   and Windows), theme, language, previews, open at login and update checks. About now only says what the app is.
 - Merging PDFs, video or sound, and One PDF from pictures, first show the files in a list to put in order, by
   dragging or with arrow buttons.
+- Previews: the first file's first page before converting, and its result after, with a line to drag across
+  pictures to compare them, sizes and weights underneath, a small picture on each result, and Enlarge. Settings
+  turns them off.
 
 ## 0.10.0 (beta, 11 November 2026)
 

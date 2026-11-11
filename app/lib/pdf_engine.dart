@@ -480,3 +480,44 @@ Uint8List _zip(Map<String, Uint8List> files) {
   });
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
+
+/// Page 1 of a PDF drawn [width] pixels wide on white, as a PNG, with how many pages there are, for
+/// a preview. A locked one throws [PasswordNeeded] unless [password] opens it.
+Future<({Uint8List png, int pages})> pdfFirstPage(
+  Uint8List bytes,
+  String name, {
+  int width = 600,
+  String? password,
+}) async {
+  final document = await _open(PortableFile(name, bytes), password);
+  try {
+    if (document.pages.isEmpty) throw Fail.damaged(name);
+    final page = document.pages.first;
+    final scale = width / page.width;
+    final drawnWidth = width;
+    final drawnHeight = math.max(1, (page.height * scale).round());
+    final rendered = await page.render(
+      width: drawnWidth,
+      height: drawnHeight,
+      fullWidth: drawnWidth.toDouble(),
+      fullHeight: drawnHeight.toDouble(),
+      backgroundColor: 0xFFFFFFFF,
+    );
+    if (rendered == null) throw Fail.damaged(name);
+    try {
+      final picture = img.Image.fromBytes(
+        width: rendered.width,
+        height: rendered.height,
+        bytes: rendered.pixels.buffer,
+        bytesOffset: rendered.pixels.offsetInBytes,
+        numChannels: 4,
+        order: img.ChannelOrder.bgra,
+      ).convert(numChannels: 3);
+      return (png: img.encodePng(picture, level: 1), pages: document.pages.length);
+    } finally {
+      rendered.dispose();
+    }
+  } finally {
+    await document.dispose();
+  }
+}

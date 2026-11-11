@@ -1106,4 +1106,47 @@ class WordsEn extends Words {
   String reorderDown(Object name) {
     return 'Move $name down';
   }
+
+  @override
+  String get previewTitle => 'Preview';
+
+  @override
+  String get previewHide => 'Hide the preview';
+
+  @override
+  String get previewShow => 'Show the preview';
+
+  @override
+  String get previewBefore => 'Before';
+
+  @override
+  String get previewAfter => 'After';
+
+  @override
+  String get previewCant => 'Can\'t preview this';
+
+  @override
+  String get previewLocked => 'Locked. It shows once the password is given.';
+
+  @override
+  String previewPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pages',
+      one: '1 page',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String previewOf(Object name) {
+    return 'Preview of $name';
+  }
+
+  @override
+  String get previewCompare => 'Before and after. Move the line to compare.';
+
+  @override
+  String get previewEnlarge => 'Enlarge';
 }

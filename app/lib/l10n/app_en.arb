@@ -739,5 +739,28 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "previewTitle": "Preview",
+  "previewHide": "Hide the preview",
+  "previewShow": "Show the preview",
+  "previewBefore": "Before",
+  "previewAfter": "After",
+  "previewCant": "Can't preview this",
+  "previewLocked": "Locked. It shows once the password is given.",
+  "previewPages": "{count, plural, =1{1 page} other{{count} pages}}",
+  "@previewPages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewOf": "Preview of {name}",
+  "@previewOf": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "previewCompare": "Before and after. Move the line to compare.",
+  "previewEnlarge": "Enlarge"
 }

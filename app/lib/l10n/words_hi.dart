@@ -1108,4 +1108,47 @@ class WordsHi extends Words {
   String reorderDown(Object name) {
     return '$name को नीचे ले जाएँ';
   }
+
+  @override
+  String get previewTitle => 'झलक';
+
+  @override
+  String get previewHide => 'झलक छिपाएँ';
+
+  @override
+  String get previewShow => 'झलक दिखाएँ';
+
+  @override
+  String get previewBefore => 'पहले';
+
+  @override
+  String get previewAfter => 'बाद में';
+
+  @override
+  String get previewCant => 'इसकी झलक नहीं दिख सकती';
+
+  @override
+  String get previewLocked => 'लॉक है। पासवर्ड देने के बाद दिखेगी।';
+
+  @override
+  String previewPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count पेज',
+      one: '1 पेज',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String previewOf(Object name) {
+    return '$name की झलक';
+  }
+
+  @override
+  String get previewCompare => 'पहले और बाद में। तुलना के लिए रेखा खिसकाएँ।';
+
+  @override
+  String get previewEnlarge => 'बड़ा करें';
 }
