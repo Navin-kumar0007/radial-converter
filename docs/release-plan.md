@@ -28,7 +28,7 @@ Publish in version order, as GitHub's "latest" release, which the site's Downloa
 
 ## 0.11.0: Settings, reorder before merging, previews
 
-Build from 12 November, tag about 26 November, publish about 6 December 2026.
+**Done.** Built and tagged on 11 November 2026, ahead of plan; publish after 0.10.0, about 6 December 2026.
 
 ### 1. Settings screen
 
