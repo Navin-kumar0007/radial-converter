@@ -176,9 +176,16 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
 - PDF to DOCX on every platform (`_toDocx`, `core/lib/src/docx_writer.dart`, `pdf_text_layout.dart`): pure Dart from
   PDFium's text and character positions. Text becomes editable paragraphs and headings, one PDF page to a Word page. A
   page that's mostly a picture comes in as one (`pageIsAPicture`), by comparing what its text covers with how much is
-  inked: a scanner app's stamp must not replace the page. Scans can't be edited until OCR. Pictures on text pages, tables
-  and exact layout aren't kept, and the result says so. Trust PDFium's spaces and line breaks: character boxes hug each
+  inked: a scanner app's stamp must not replace the page. Scans can't be edited until OCR. Pictures on text pages and
+  exact layout aren't kept, and the result says so. Trust PDFium's spaces and line breaks: character boxes hug each
   glyph, so gaps and box heights mislead. Tested on 53 real PDFs. Check real ones when changing this.
+- Tables in PDF to DOCX (`_tableAt` in `pdf_text_layout.dart`, `DocxTable`): lines split at gaps over about an em (soft
+  cells, narrower than the 2 em tab rule paragraphs use), whose starts line up over rows, become a Word table with the
+  PDF's column widths. Wrapped text under a later column joins its row; a heading cell spanning columns is split at the
+  word nearest each column. Not a table: two rows of two, justified text (5+ evenly spaced gaps of words), bullet lists,
+  prose in page columns (long cells filling their column), sentence pieces (mostly lower-case cells). Checked on the
+  owner's 54 Downloads PDFs: results, invoices, receipts, nutrition labels and report tables come through; a table whose
+  cells wrap with the rest centred beside them still breaks up, as rows can't be told apart without its ruling lines.
 - Passwords: a locked PDF or ZIP throws `PasswordNeeded`, and the screen asks and runs it again, so every action handles
   locked files with no code of its own. The right password is tried on the next file of a batch before asking, and lasts
   only for that job. Remove password runs on PDFs through PDFium; Add password runs on archives and always makes an AES

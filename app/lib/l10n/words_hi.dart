@@ -897,12 +897,12 @@ class WordsHi extends Words {
 
   @override
   String noteSomePictures(Object count, Object total) {
-    return '$total में से $count पेज ज़्यादातर तस्वीरें हैं, इसलिए वे तस्वीरों के रूप में आए। बाक़ी पेजों पर तस्वीरें, टेबल और सटीक लेआउट नहीं रखे गए।';
+    return '$total में से $count पेज ज़्यादातर तस्वीरें हैं, इसलिए वे तस्वीरों के रूप में आए। बाक़ी पेजों पर सरल टेबल आ गए, पर तस्वीरें और सटीक लेआउट नहीं रखे गए।';
   }
 
   @override
   String get noteTextEditable =>
-      'टेक्स्ट बदला जा सकता है। तस्वीरें, टेबल और सटीक लेआउट नहीं रखे गए।';
+      'टेक्स्ट और सरल टेबल बदले जा सकते हैं। तस्वीरें और सटीक लेआउट नहीं रखे गए।';
 
   @override
   String get trayStillRunning => 'ShiftDrop अभी भी चल रहा है';

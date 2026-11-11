@@ -30,6 +30,15 @@ class DocxPicture extends DocxBlock {
   final int height;
 }
 
+/// A table, row by row, each row holding a cell's text for every column. [columnWidths] are in any
+/// unit, as only their shares of the width count: the PDF's own measures do.
+class DocxTable extends DocxBlock {
+  const DocxTable(this.rows, {required this.columnWidths, super.newPage});
+
+  final List<List<String>> rows;
+  final List<double> columnWidths;
+}
+
 // A4 with one inch margins, in points.
 const _writingWidth = 451.0;
 const _writingHeight = 697.0;
@@ -117,6 +126,10 @@ String _document(List<DocxBlock> blocks, List<DocxPicture> pictures) {
         body.write(
           '<w:p><w:pPr>$newPage<w:jc w:val="center"/></w:pPr>${_picture(block, index)}</w:p>',
         );
+      case DocxTable():
+        // A table can't break a page itself, so an empty paragraph before it does.
+        if (block.newPage) body.write('<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>');
+        body.write(_table(block));
     }
   }
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -129,6 +142,44 @@ String _document(List<DocxBlock> blocks, List<DocxPicture> pictures) {
       '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
       '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>'
       '</w:body></w:document>';
+}
+
+/// Twentieths of a point, the unit Word measures tables in.
+const _twipsPerPoint = 20;
+
+String _table(DocxTable table) {
+  final total = table.columnWidths.fold<double>(0, (sum, width) => sum + width);
+  final widths = [
+    for (final width in table.columnWidths)
+      total <= 0
+          ? (_writingWidth * _twipsPerPoint / table.columnWidths.length).round()
+          : (width / total * _writingWidth * _twipsPerPoint).round(),
+  ];
+  const border = 'w:val="single" w:sz="4" w:space="0" w:color="999999"';
+  final out = StringBuffer(
+    '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>'
+    '<w:top $border/><w:left $border/><w:bottom $border/><w:right $border/>'
+    '<w:insideH $border/><w:insideV $border/></w:tblBorders>'
+    '<w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>',
+  );
+  for (final width in widths) {
+    out.write('<w:gridCol w:w="$width"/>');
+  }
+  out.write('</w:tblGrid>');
+  for (final row in table.rows) {
+    out.write('<w:tr>');
+    for (var i = 0; i < widths.length; i++) {
+      final text = i < row.length ? row[i] : '';
+      // Every cell needs a paragraph, even an empty one, or Word calls the file damaged.
+      out.write(
+        '<w:tc><w:tcPr><w:tcW w:w="${widths[i]}" w:type="dxa"/></w:tcPr>'
+        '<w:p><w:pPr><w:spacing w:after="0"/></w:pPr>${_runs(text)}</w:p></w:tc>',
+      );
+    }
+    out.write('</w:tr>');
+  }
+  out.write('</w:tbl>');
+  return out.toString();
 }
 
 String _picture(DocxPicture picture, int index) {
