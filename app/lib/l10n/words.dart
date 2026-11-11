@@ -1964,6 +1964,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Enlarge'**
   String get previewEnlarge;
+
+  /// No description provided for @previewCompareShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare'**
+  String get previewCompareShort;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -414,8 +414,8 @@ class PreviewThumb extends StatelessWidget {
   }
 }
 
-/// The preview full size, to zoom into, with the comparison where there is one. [larger] are
-/// bigger pictures made for this, shown in place of the small ones once they're ready.
+/// The preview full size. With a result there's a choice of comparing the two, or either one
+/// alone to zoom into: zooming would fight the comparing line's drag, so they're kept apart.
 Future<void> showPreviewLarge(
   BuildContext context, {
   required String name,
@@ -425,63 +425,125 @@ Future<void> showPreviewLarge(
 }) {
   return showDialog<void>(
     context: context,
-    builder: (context) {
-      final words = context.words;
-      return Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-            leading: IconButton(
-              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          body: FutureBuilder<Preview>(
-            future: before,
-            builder: (context, first) => FutureBuilder<Preview>(
-              future: after,
-              builder: (context, second) {
-                final shown = first.data;
-                if (shown == null) return const Center(child: CircularProgressIndicator());
-                final a = shown.picture;
-                final b = second.data?.picture;
-                final Widget body;
-                if (a != null && b != null && sameShape(a, b)) {
-                  // Zooming would fight the slider's drag, so comparing stays at its size.
-                  body = Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: CompareSlider(before: a, after: b, name: name),
-                  );
-                } else {
-                  final picture = b ?? a;
-                  body = InteractiveViewer(
-                    maxScale: 8,
-                    child: Center(
-                      child: picture == null
-                          ? PreviewView(preview: second.data ?? shown, kind: kind, name: name)
-                          : Image.memory(
-                              picture,
-                              semanticLabel: words.previewOf(name),
-                              gaplessPlayback: true,
-                            ),
-                    ),
-                  );
-                }
-                return Column(
-                  children: [
-                    Expanded(child: body),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(previewFactsLine(words, shown.facts, second.data?.facts)),
-                    ),
-                  ],
-                );
-              },
-            ),
+    builder: (_) => LargePreview(name: name, kind: kind, before: before, after: after),
+  );
+}
+
+enum _Showing { compare, before, after }
+
+class LargePreview extends StatefulWidget {
+  const LargePreview({
+    super.key,
+    required this.name,
+    required this.kind,
+    required this.before,
+    this.after,
+  });
+
+  final String name;
+  final FileKind kind;
+  final Future<Preview> before;
+  final Future<Preview>? after;
+
+  @override
+  State<LargePreview> createState() => _LargePreviewState();
+}
+
+class _LargePreviewState extends State<LargePreview> {
+  /// Null until chosen: then comparing where it can, or the result.
+  _Showing? _chosen;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = context.words;
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          leading: IconButton(
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-      );
-    },
-  );
+        body: FutureBuilder<Preview>(
+          future: widget.before,
+          builder: (context, first) => FutureBuilder<Preview>(
+            future: widget.after,
+            builder: (context, second) {
+              final shown = first.data;
+              if (shown == null) return const Center(child: CircularProgressIndicator());
+              final result = second.data;
+              final a = shown.picture;
+              final b = result?.picture;
+              final comparable = a != null && b != null && sameShape(a, b);
+              final choices = [
+                if (comparable) _Showing.compare,
+                if (b != null) ...[_Showing.before, _Showing.after],
+              ];
+              var showing = _chosen ?? (comparable ? _Showing.compare : _Showing.after);
+              if (!choices.contains(showing)) {
+                showing = b == null ? _Showing.before : _Showing.after;
+              }
+              return Column(
+                children: [
+                  if (choices.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: SegmentedButton<_Showing>(
+                        showSelectedIcon: false,
+                        segments: [
+                          for (final choice in choices)
+                            ButtonSegment(
+                              value: choice,
+                              label: Text(switch (choice) {
+                                _Showing.compare => words.previewCompareShort,
+                                _Showing.before => words.previewBefore,
+                                _Showing.after => words.previewAfter,
+                              }),
+                            ),
+                        ],
+                        selected: {showing},
+                        onSelectionChanged: (picked) => setState(() => _chosen = picked.single),
+                      ),
+                    ),
+                  Expanded(
+                    child: showing == _Showing.compare
+                        ? Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: CompareSlider(before: a!, after: b!, name: widget.name),
+                          )
+                        : _zoomable(
+                            showing == _Showing.after && result != null ? result : shown,
+                            words,
+                          ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(previewFactsLine(words, shown.facts, result?.facts)),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _zoomable(Preview preview, Words words) {
+    final picture = preview.picture;
+    return InteractiveViewer(
+      maxScale: 8,
+      child: Center(
+        child: picture == null
+            ? PreviewView(preview: preview, kind: widget.kind, name: widget.name)
+            : Image.memory(
+                picture,
+                semanticLabel: words.previewOf(widget.name),
+                gaplessPlayback: true,
+              ),
+      ),
+    );
+  }
 }

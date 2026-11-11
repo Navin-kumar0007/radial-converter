@@ -311,5 +311,6 @@
   "previewPages": "{count, plural, =1{1 पेज} other{{count} पेज}}",
   "previewOf": "{name} की झलक",
   "previewCompare": "पहले और बाद में। तुलना के लिए रेखा खिसकाएँ।",
-  "previewEnlarge": "बड़ा करें"
+  "previewEnlarge": "बड़ा करें",
+  "previewCompareShort": "तुलना"
 }

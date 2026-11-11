@@ -1149,4 +1149,7 @@ class WordsEn extends Words {
 
   @override
   String get previewEnlarge => 'Enlarge';
+
+  @override
+  String get previewCompareShort => 'Compare';
 }

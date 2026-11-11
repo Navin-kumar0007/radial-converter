@@ -50,7 +50,7 @@ class Preview {
 
 /// A file to preview: one picked, or a result.
 class PreviewSubject {
-  const PreviewSubject({required this.file, required this.kind});
+  const PreviewSubject({required this.file, required this.kind, this.password});
 
   /// A result, read from memory or from where it was saved. Null if it can't be reached, as a
   /// browser's video kept in its private storage.
@@ -85,6 +85,9 @@ class PreviewSubject {
 
   final PickedFile file;
   final FileKind kind;
+
+  /// What opened a locked PDF during a job. Used once, to draw it, and never kept.
+  final String? password;
 }
 
 /// The kind a file's name says, for results whose bytes aren't at hand.
@@ -104,6 +107,7 @@ typedef PdfPageReader = Future<({Uint8List png, int pages})> Function(
   Uint8List bytes,
   String name, {
   int width,
+  String? password,
 });
 
 /// Makes previews from the engines the app already has, on every platform. Anything that goes
@@ -114,6 +118,7 @@ class Previewer {
     required this.frameAt,
     required this.probe,
     required this.pdfPage,
+    this.namesInside,
   });
 
   /// A picture's bytes in a form Flutter can draw: HEIC and TIFF come decoded.
@@ -121,6 +126,10 @@ class Previewer {
   final FrameAt frameAt;
   final Probe probe;
   final PdfPageReader pdfPage;
+
+  /// The names in a 7z or RAR, known once a job has unpacked it. They can't be listed without
+  /// unpacking, which is too much work for a preview.
+  final List<String>? Function(PickedFile file)? namesInside;
 
   /// How many lines of text a preview shows.
   static const textLines = 4;
@@ -131,13 +140,17 @@ class Previewer {
     try {
       return switch (kind.family) {
         FileFamily.image => await _picture(file, kind, width),
-        FileFamily.pdf => await _pdf(file, width),
+        FileFamily.pdf => await _pdf(file, width, subject.password),
         FileFamily.video => await _video(file, width),
         FileFamily.audio => Preview(
           facts: PreviewFacts(bytes: file.size, seconds: (await probe(file)).seconds),
         ),
         FileFamily.subtitle => Preview(
           lines: subtitleLines(await file.read()),
+          facts: PreviewFacts(bytes: file.size),
+        ),
+        FileFamily.archive when kind == FileKind.sevenZip || kind == FileKind.rar => Preview(
+          lines: namesInside?.call(file) ?? const [],
           facts: PreviewFacts(bytes: file.size),
         ),
         FileFamily.archive => Preview(
@@ -166,8 +179,8 @@ class Previewer {
     );
   }
 
-  Future<Preview> _pdf(PickedFile file, int width) async {
-    final page = await pdfPage(await file.read(), file.name, width: width);
+  Future<Preview> _pdf(PickedFile file, int width, String? password) async {
+    final page = await pdfPage(await file.read(), file.name, width: width, password: password);
     return Preview(
       picture: page.png,
       facts: PreviewFacts(bytes: file.size, pages: page.pages),
@@ -297,6 +310,10 @@ class PreviewCache {
       return made;
     });
   }
+
+  /// Forgets [key]'s previews at every size, so the next ask makes them again, as when a job has
+  /// learnt something new about the file.
+  void forget(Object key) => _made.removeWhere((made, _) => made.$1 == key);
 
   void clear() => _made.clear();
 }

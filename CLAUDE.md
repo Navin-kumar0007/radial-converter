@@ -155,7 +155,10 @@ mouse-up is delayed 0.4 s so a drop on the menu arrives first. No special permis
   probe, text for subtitles, archives and Word results. Failures are `Preview.failed`, never errors. `PreviewCache` makes
   one at a time and keeps them in memory until other files open. Only shown when Settings exist and allow it, so tests
   of the screen alone make none. The compare slider needs both pictures the same shape (`sameShape`); otherwise they sit
-  side by side. Facts use `sizeChange` ("to"), as the arrow isn't in the shipped fonts. Tried in Chrome.
+  side by side. Facts use `sizeChange` ("to"), as the arrow isn't in the shipped fonts. Tried in Chrome. A locked PDF
+  is drawn with its password the moment a job opens it (`_lookInsideUnlocked`), keeping only the picture, as passwords
+  last only for their job. 7z and RAR are never read for a preview: `_unpack` notes their names when a job unpacks them
+  (`namesInside`). Enlarge offers Compare, or Before and After alone to zoom, as zooming would fight the slider's drag.
 - Order before combining (`reorder_dialog.dart`, `keepsOrder` in core): in the window, actions that combine files ask
   for their order first, and `_files`/`_kinds` are put in that order before the job. Up and down buttons do what dragging
   does, for keyboards and screen readers. Shift-drag can't ask, so it keeps the drag's order.

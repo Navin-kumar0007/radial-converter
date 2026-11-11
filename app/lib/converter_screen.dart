@@ -247,8 +247,38 @@ class _ConverterScreenState extends State<ConverterScreen> {
       frameAt: widget.frameReader,
       probe: widget.mediaProbe,
       pdfPage: widget.pdfPage,
+      namesInside: (file) => _namesInside[file],
     ),
   );
+
+  /// Unpacks a 7z or RAR for a job, noting the names inside for its preview on the way.
+  Future<Uint8List> _unpack(PickedFile file) async {
+    final zip = await widget.archiveUnpacker(file);
+    try {
+      _namesInside[file] = archiveNames(zip, FileKind.zip);
+      _looks.forget(file);
+    } catch (_) {
+      // The job goes on; the preview just has no names.
+    }
+    return zip;
+  }
+
+  /// A locked PDF a job has just opened is drawn now, while its password is still in hand, and only
+  /// the picture is kept.
+  void _lookInsideUnlocked(List<PickedFile> files, List<FileKind> kinds, String password) {
+    if (!_showPreviews) return;
+    for (var i = 0; i < files.length; i++) {
+      if (kinds[i] != FileKind.pdf) continue;
+      final subject = PreviewSubject(file: files[i], kind: kinds[i], password: password);
+      _looks
+        ..forget(files[i])
+        ..of(files[i], subject)
+        ..of(files[i], subject, width: 1600);
+    }
+  }
+
+  /// The names inside 7z and RAR files a job has unpacked, for their previews.
+  final _namesInside = Expando<List<String>>('names inside');
 
   /// The preview panel hidden for now, from its own button. Settings turns previews off for good.
   bool _previewHidden = false;
@@ -708,7 +738,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
       var typedOne = false;
       while (true) {
         try {
-          return await _runTogether(action, some, theirKinds, progress, control, current);
+          final results = await _runTogether(action, some, theirKinds, progress, control, current);
+          final password = current.password;
+          if (password != null && mounted) _lookInsideUnlocked(some, theirKinds, password);
+          return results;
         } on PasswordNeeded catch (needed) {
           if (!wanted()) throw const JobCancelled();
           if (outsideTheWindow) showAppWindow();
@@ -798,7 +831,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         for (var i = 0; i < files.length; i++)
           PortableFile(files[i].name, await switch (kinds[i]) {
             FileKind.heic => widget.photoDecoder(files[i]),
-            FileKind.sevenZip || FileKind.rar => widget.archiveUnpacker(files[i]),
+            FileKind.sevenZip || FileKind.rar => _unpack(files[i]),
             _ => files[i].read(),
           }),
       ];

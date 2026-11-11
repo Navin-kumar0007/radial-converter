@@ -1151,4 +1151,7 @@ class WordsHi extends Words {
 
   @override
   String get previewEnlarge => 'बड़ा करें';
+
+  @override
+  String get previewCompareShort => 'तुलना';
 }

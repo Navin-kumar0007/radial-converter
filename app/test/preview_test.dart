@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:radial_core/radial_core.dart';
@@ -16,6 +16,8 @@ import 'package:shiftdrop/words.dart';
 final english = wordsFor(const Locale('en'));
 
 Uint8List _png(int width, int height) => img.encodePng(img.Image(width: width, height: height));
+
+Uint8List jpegOf(int width, int height) => img.encodeJpg(img.Image(width: width, height: height));
 
 PickedFile _file(String name, Uint8List bytes) => PickedFile(
   name: name,
@@ -44,7 +46,7 @@ Previewer _previewer({
     probe: probe ?? (file) async => const MediaInfo(seconds: 65, width: 1920, height: 1080),
     pdfPage:
         pdfPage ??
-        (bytes, name, {int width = 600}) async =>
+        (bytes, name, {int width = 600, String? password}) async =>
             (png: _png(width, width * 1414 ~/ 1000), pages: 3),
   );
 }
@@ -109,11 +111,13 @@ void main() {
     test('a locked PDF says so, and a failure is only a failed preview', () async {
       final pdf = buildImagePdf([img.encodeJpg(img.Image(width: 10, height: 10))]);
       final locked = await _previewer(
-        pdfPage: (bytes, name, {int width = 600}) async => throw PasswordNeeded(name),
+        pdfPage: (bytes, name, {int width = 600, String? password}) async =>
+            throw PasswordNeeded(name),
       ).make(_subject('a.pdf', pdf));
       expect(locked.locked, isTrue);
       final broken = await _previewer(
-        pdfPage: (bytes, name, {int width = 600}) async => throw StateError('broken'),
+        pdfPage: (bytes, name, {int width = 600, String? password}) async =>
+            throw StateError('broken'),
       ).make(_subject('a.pdf', pdf));
       expect(broken.failed, isTrue);
     });
@@ -142,6 +146,28 @@ void main() {
         },
       ).make(PreviewSubject(file: _file('clip.mp4', Uint8List(16)), kind: FileKind.mp4));
       expect(at, [0.2]);
+    });
+
+    test('a 7z or RAR is never read for a preview, only named once a job unpacked it', () async {
+      final rar = PickedFile(
+        name: 'notes.rar',
+        size: 8,
+        head: const [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00],
+        read: () async => throw StateError('A preview must not read a whole RAR'),
+      );
+      final subject = PreviewSubject(file: rar, kind: FileKind.rar);
+      final before = await _previewer().make(subject);
+      expect(before.failed, isFalse);
+      expect(before.lines, isEmpty);
+      final named = Previewer(
+        readPicture: (file, kind) async => file.read(),
+        frameAt: (file, seconds) async => _png(1, 1),
+        probe: (file) async => const MediaInfo(seconds: 1),
+        pdfPage: (bytes, name, {int width = 600, String? password}) async =>
+            (png: _png(1, 1), pages: 1),
+        namesInside: (file) => ['a.txt', 'b.txt'],
+      );
+      expect((await named.make(subject)).lines, ['a.txt', 'b.txt']);
     });
 
     test('sound has no picture, only its length', () async {
@@ -276,6 +302,55 @@ void main() {
     });
   });
 
+  group('enlarged', () {
+    Future<void> open(WidgetTester tester, Uint8List before, Uint8List after) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: Words.localizationsDelegates,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showPreviewLarge(
+                context,
+                name: 'photo.jpg',
+                kind: FileKind.jpg,
+                before: Future.value(Preview(picture: before)),
+                after: Future.value(Preview(picture: after)),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('compares first, and either one alone can be zoomed into', (tester) async {
+      await open(tester, _png(400, 300), _png(200, 150));
+      expect(find.text('Compare'), findsOneWidget);
+      expect(find.byType(CompareSlider), findsOneWidget);
+      expect(find.byType(InteractiveViewer), findsNothing);
+      await tester.tap(
+        find.descendant(
+          of: find.byWidgetPredicate((widget) => widget is SegmentedButton),
+          matching: find.text('Before'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(CompareSlider), findsNothing);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+    });
+
+    testWidgets("a turned result can't be compared, so it shows the result to zoom", (
+      tester,
+    ) async {
+      await open(tester, _png(400, 300), _png(300, 400));
+      expect(find.text('Compare'), findsNothing);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+      expect(find.text('After'), findsOneWidget);
+    });
+  });
+
   group('on the main screen', () {
     Future<void> pump(WidgetTester tester, {required bool previews}) async {
       tester.view.physicalSize = const Size(800, 1400);
@@ -336,6 +411,104 @@ void main() {
       await tester.tap(find.text('Show the preview'));
       await tester.pump();
       expect(find.text('Preview'), findsOneWidget);
+    });
+
+    testWidgets('a locked PDF shows its page once a job has opened it', (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final drawnWith = <String?>[];
+      final pdf = Uint8List.fromList(utf8.encode('%PDF-1.4\n%locked\n'));
+      await tester.pumpWidget(
+        SettingsScope(
+          store: SettingsStore(const AppSettings(welcomed: true), write: (_) async {}),
+          child: MaterialApp(
+            localizationsDelegates: Words.localizationsDelegates,
+            home: ConverterScreen(
+              pickFiles: () async => [_file('locked.pdf', pdf)],
+              saveFile: (_) async => const SavedAs(),
+              mediaAvailable: false,
+              historyReader: () async => null,
+              historyWriter: (_) async {},
+              sharedFiles: () => const Stream.empty(),
+              keepWorking: (_) async {},
+              pdfPage: (bytes, name, {int width = 600, String? password}) async {
+                drawnWith.add(password);
+                if (password != 'right') throw PasswordNeeded(name);
+                return (png: _png(width, width), pages: 2);
+              },
+              pdfConverter: (action, files, onProgress, options) async {
+                if (options.password != 'right') throw PasswordNeeded('locked.pdf');
+                return [PdfResult(PortableFile('locked (converted).jpg', jpegOf(40, 40)))];
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.textContaining('hoose'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await letPreviewsFinish(tester);
+      expect(find.textContaining('Locked'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await letPreviewsFinish(tester);
+      await tester.enterText(find.byType(TextField).last, 'right');
+      await tester.tap(find.text('Open'));
+      await letPreviewsFinish(tester);
+      await letPreviewsFinish(tester);
+      expect(drawnWith, containsAllInOrder([null, 'right']));
+      expect(find.textContaining('Locked'), findsNothing);
+      expect(find.textContaining('2 pages'), findsOneWidget);
+    });
+
+    testWidgets('a RAR shows the names inside once a job has unpacked it', (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final rar = Uint8List.fromList([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
+      var unpacked = 0;
+      final zip = Archive()
+        ..addFile(ArchiveFile.bytes('report.txt', utf8.encode('r')))
+        ..addFile(ArchiveFile.bytes('photo.jpg', utf8.encode('p')));
+      await tester.pumpWidget(
+        SettingsScope(
+          store: SettingsStore(const AppSettings(welcomed: true), write: (_) async {}),
+          child: MaterialApp(
+            localizationsDelegates: Words.localizationsDelegates,
+            home: ConverterScreen(
+              pickFiles: () async => [_file('notes.rar', rar)],
+              saveFile: (_) async => const SavedAs(),
+              mediaAvailable: false,
+              historyReader: () async => null,
+              historyWriter: (_) async {},
+              sharedFiles: () => const Stream.empty(),
+              keepWorking: (_) async {},
+              archiveUnpacker: (file) async {
+                unpacked++;
+                return Uint8List.fromList(ZipEncoder().encodeBytes(zip));
+              },
+              converter: (action, files, onProgress, options) =>
+                  runPortable(action, files, options: options),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.textContaining('hoose'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await letPreviewsFinish(tester);
+      expect(unpacked, 0, reason: 'a preview alone never unpacks');
+      expect(find.text('report.txt'), findsNothing);
+      if (find.text('Extract').evaluate().isEmpty) {
+        await tester.tap(find.text('Tools'));
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      await tester.tap(find.text('Extract'));
+      await letPreviewsFinish(tester);
+      await letPreviewsFinish(tester);
+      expect(unpacked, 1);
+      expect(find.text('report.txt'), findsWidgets);
     });
 
     testWidgets('turned off in Settings, there are none', (tester) async {

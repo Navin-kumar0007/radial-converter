@@ -762,5 +762,6 @@
     }
   },
   "previewCompare": "Before and after. Move the line to compare.",
-  "previewEnlarge": "Enlarge"
+  "previewEnlarge": "Enlarge",
+  "previewCompareShort": "Compare"
 }
