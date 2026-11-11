@@ -39,7 +39,10 @@ if [ "$result" -eq 124 ]; then
   echo "The device tests didn't finish in 15 minutes." >&2
 fi
 if [ "$result" -ne 0 ]; then
-  adb -s "$device" logcat -d -s RadialMedia:* RadialShare:* TransformerInternal:* flutter:* | tail -80
+  # Our own lines, and anything that ended the app: an uncaught exception, or a crash in native code
+  # such as libarchive, either of which leaves the tests waiting with nothing said.
+  adb -s "$device" logcat -d -s RadialMedia:* RadialShare:* TransformerInternal:* flutter:* \
+    AndroidRuntime:E DEBUG:* libc:F ActivityManager:W | tail -150
 fi
 if [ "$offered" != yes ]; then
   echo "The share sheet doesn't offer this app." >&2

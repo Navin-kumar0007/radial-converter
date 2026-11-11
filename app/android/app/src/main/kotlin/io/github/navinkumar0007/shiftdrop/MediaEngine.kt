@@ -170,6 +170,10 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
             } catch (error: OutOfMemoryError) {
                 Log.w(TAG, "A photo was too large", error)
                 null
+            } catch (error: RuntimeException) {
+                // Uncaught, it would end the whole app, and Dart would wait for an answer forever.
+                Log.w(TAG, "Could not decode a photo", error)
+                null
             }
             main.post {
                 if (png == null) {
@@ -235,6 +239,13 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 failure = describeFailure(name, error.message)
             } catch (error: IOException) {
                 Log.w(TAG, "Could not unpack an archive", error)
+                failure = Said("cantRead", "$name could not be read.", mapOf("name" to name))
+            } catch (error: RuntimeException) {
+                // Uncaught, it would end the whole app, and Dart would wait for an answer forever.
+                Log.w(TAG, "Unpacking an archive failed", error)
+                failure = Said("cantRead", "$name could not be read.", mapOf("name" to name))
+            } catch (error: OutOfMemoryError) {
+                Log.w(TAG, "An archive was too large to unpack", error)
                 failure = Said("cantRead", "$name could not be read.", mapOf("name" to name))
             }
             if (failure != null) zip.parentFile?.deleteRecursively()
@@ -335,6 +346,9 @@ class MediaEngine(private val activity: Activity, messenger: BinaryMessenger) :
                 null
             } catch (error: IOException) {
                 Log.w(TAG, "Could not read a frame", error)
+                null
+            } catch (error: OutOfMemoryError) {
+                Log.w(TAG, "A frame was too large", error)
                 null
             }
             main.post {
