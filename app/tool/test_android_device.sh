@@ -7,18 +7,40 @@ set -u
 device="${ANDROID_SERIAL:-emulator-5554}"
 app=io.github.navinkumar0007.shiftdrop
 # It takes a few minutes. Once it sat silent for six hours on the emulator, so it gets a limit, and
-# a hang then shows the device's log like any failure. Flutter's tool sometimes fails to connect to
-# the app before any test runs ("Failed to start Dart Development Service"); that alone gets one
-# more try, as it says nothing about our code.
+# a hang then shows the device's log like any failure. Flutter's tool sometimes never reaches the app
+# on the emulator: it fails at once ("Failed to start Dart Development Service"), or the app starts
+# and the tool sits silent until the limit. Neither says anything about our code, so either gets one
+# more try: the first test normally finishes about two minutes in, building included.
 log="$(mktemp)"
+first_test_by=480
 run_tests() {
-  local try code
+  local try code runner watcher waited
   for try in 1 2; do
-    timeout 15m flutter test integration_test/android_media_test.dart -d "$device" 2>&1 | tee "$log"
-    code=${PIPESTATUS[0]}
+    : > "$log"
+    timeout 15m flutter test integration_test/android_media_test.dart -d "$device" > "$log" 2>&1 &
+    runner=$!
+    tail -f "$log" &
+    watcher=$!
+    waited=0
+    while kill -0 "$runner" 2>/dev/null; do
+      if grep -qE "✅|❌" "$log"; then break; fi
+      if [ "$waited" -ge "$first_test_by" ] && [ "$try" -eq 1 ]; then
+        echo "No test finished in $((first_test_by / 60)) minutes; Flutter's tool never reached the app. Trying once more." >&2
+        kill "$runner" 2>/dev/null
+        pkill -f "flutter_tools.*integration_test" 2>/dev/null
+        break
+      fi
+      sleep 5
+      waited=$((waited + 5))
+    done
+    wait "$runner"
+    code=$?
+    kill "$watcher" 2>/dev/null
+    wait "$watcher" 2>/dev/null
     if [ "$code" -ne 0 ] && [ "$try" -eq 1 ] &&
-      grep -q "Failed to start Dart Development Service" "$log"; then
-      echo "Flutter's test tool didn't connect to the app; trying once more." >&2
+      { [ "$waited" -ge "$first_test_by" ] || grep -q "Failed to start Dart Development Service" "$log"; }; then
+      [ "$waited" -ge "$first_test_by" ] || echo "Flutter's test tool didn't connect to the app; trying once more." >&2
+      adb -s "$device" shell am force-stop "$app" 2>/dev/null
       sleep 10
       continue
     fi
