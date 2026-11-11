@@ -7,8 +7,25 @@ set -u
 device="${ANDROID_SERIAL:-emulator-5554}"
 app=io.github.navinkumar0007.shiftdrop
 # It takes a few minutes. Once it sat silent for six hours on the emulator, so it gets a limit, and
-# a hang then shows the device's log like any failure.
-timeout 15m flutter test integration_test/android_media_test.dart -d "$device" &
+# a hang then shows the device's log like any failure. Flutter's tool sometimes fails to connect to
+# the app before any test runs ("Failed to start Dart Development Service"); that alone gets one
+# more try, as it says nothing about our code.
+log="$(mktemp)"
+run_tests() {
+  local try code
+  for try in 1 2; do
+    timeout 15m flutter test integration_test/android_media_test.dart -d "$device" 2>&1 | tee "$log"
+    code=${PIPESTATUS[0]}
+    if [ "$code" -ne 0 ] && [ "$try" -eq 1 ] &&
+      grep -q "Failed to start Dart Development Service" "$log"; then
+      echo "Flutter's test tool didn't connect to the app; trying once more." >&2
+      sleep 10
+      continue
+    fi
+    return "$code"
+  done
+}
+run_tests &
 tests=$!
 
 # Named directly: other apps accept shares too, so Android would otherwise stop to ask which one.
