@@ -9,7 +9,7 @@ the installers attached. Nothing is public until you press **Publish** on it.
    `CHANGELOG.md`, with a heading for the new version.
 2. Merge to `main`, then tag it:
    ```sh
-   git tag v0.9.1 && git push origin v0.9.1
+   git tag v0.10.0 && git push origin v0.10.0
    ```
 3. When CI finishes, open the draft under **Releases**, try the downloads, and press **Publish**.
 4. About two days later, once testers have had it, update `docs/site/version.json` to the new version and its

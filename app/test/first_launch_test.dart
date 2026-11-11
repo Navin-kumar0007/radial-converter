@@ -392,7 +392,7 @@ void main() {
       await tester.tap(find.text('Show the guide again'));
       await tester.pumpAndSettle();
       expect(shown, 1);
-      expect(find.text('0.9.1'), findsNothing, reason: 'About closes first');
+      expect(find.text(appVersion), findsNothing, reason: 'About closes first');
     });
 
     testWidgets('a phone gets a link to the download page instead of a check', (tester) async {

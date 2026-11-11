@@ -84,7 +84,7 @@ void main() {
     );
     await tester.tap(find.byTooltip('About'));
     await tester.pumpAndSettle();
-    expect(find.text('0.9.1'), findsOneWidget);
+    expect(find.text(appVersion), findsOneWidget);
   });
 
   testWidgets('About says what the app promises, and fits a phone', (tester) async {
@@ -103,7 +103,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('ShiftDrop'), findsOneWidget);
-    expect(find.text('0.9.1'), findsOneWidget);
+    expect(find.text(appVersion), findsOneWidget);
     expect(find.textContaining('Your files stay on this device'), findsOneWidget);
     expect(find.textContaining('Mozilla Public License'), findsOneWidget);
     expect(find.text('View licenses'), findsOneWidget);

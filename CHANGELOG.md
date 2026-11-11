@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 (beta, 11 November 2026)
+
+This is the first version that tells you about the next one. Copies of 0.9 don't check, so install this one by hand.
 
 - A short guide on first launch, with a practice Shift-drag on a sample photo. **About** shows it again.
 - Mac and Windows copies from the website check once a day for a newer version and offer the download. The only
@@ -8,7 +10,6 @@
 - Hold Option (Mac) or Alt (Windows) during a Shift-drag for Tools, such as Compress, Rotate and Resize, with the
   outer ring of choices for Rotate, Flip and Resize there too.
 - Choose English or Hindi for the app in **About**, whatever the device's language.
-
 - Rest on a slice and the menu says how big the result will be. For one picture it really makes it, so choosing that slice is then instant. This works in the Shift-drag menu on Mac and Windows too.
 - PDF to Word keeps simple tables as real Word tables, bold text, and the pictures on text pages.
 - Rotate, Flip and Resize show their choices around the slice: 180° or a quarter turn left, upside down, or a long side of 1920, 1280 or 640 pixels. On a phone, tap once to see them.
