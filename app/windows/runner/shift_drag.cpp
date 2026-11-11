@@ -716,12 +716,13 @@ void ShiftDrag::Paint() {
   ::Ellipse(dc, middle - hub, middle - hub, middle + hub, middle + hub);
   ::SetTextColor(dc, text);
   const std::wstring cancel_word = NativeWord("cancel", L"Cancel");
-  const std::wstring* size = nullptr;
+  // Named apart from [size], the panel's width, declared above.
+  const std::wstring* size_text = nullptr;
   if (highlighted_ >= 0 && highlighted_ < count) {
     const auto found = sizes_.find(slices_[highlighted_].id);
-    if (found != sizes_.end()) size = &found->second;
+    if (found != sizes_.end()) size_text = &found->second;
   }
-  if (size == nullptr) {
+  if (size_text == nullptr) {
     RECT cancel = {middle - hub, middle - hub, middle + hub, middle + hub};
     ::DrawTextW(dc, cancel_word.c_str(), -1, &cancel,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
@@ -729,11 +730,11 @@ void ShiftDrag::Paint() {
     // The size above, Cancel below, both inside the hub.
     const int room = static_cast<int>(hub * 2 - 8 * scale);
     const int gap = static_cast<int>(2 * scale);
-    HFONT size_font = FittedFont(dc, *size, room, scale, FW_BOLD, 11, 7);
+    HFONT size_font = FittedFont(dc, *size_text, room, scale, FW_BOLD, 11, 7);
     HFONT cancel_font = MenuFont(10, scale, FW_NORMAL);
     ::SelectObject(dc, size_font);
     RECT above = {middle - hub, middle - hub, middle + hub, middle - gap};
-    ::DrawTextW(dc, size->c_str(), -1, &above,
+    ::DrawTextW(dc, size_text->c_str(), -1, &above,
                 DT_CENTER | DT_BOTTOM | DT_SINGLELINE | DT_NOPREFIX);
     ::SelectObject(dc, cancel_font);
     ::SetTextColor(dc, ::GetSysColor(COLOR_GRAYTEXT));

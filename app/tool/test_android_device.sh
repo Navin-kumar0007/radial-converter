@@ -6,7 +6,9 @@ set -u
 
 device="${ANDROID_SERIAL:-emulator-5554}"
 app=io.github.navinkumar0007.shiftdrop
-flutter test integration_test/android_media_test.dart -d "$device" &
+# It takes a few minutes. Once it sat silent for six hours on the emulator, so it gets a limit, and
+# a hang then shows the device's log like any failure.
+timeout 15m flutter test integration_test/android_media_test.dart -d "$device" &
 tests=$!
 
 # Named directly: other apps accept shares too, so Android would otherwise stop to ask which one.
@@ -33,6 +35,9 @@ done
 
 wait "$tests"
 result=$?
+if [ "$result" -eq 124 ]; then
+  echo "The device tests didn't finish in 15 minutes." >&2
+fi
 if [ "$result" -ne 0 ]; then
   adb -s "$device" logcat -d -s RadialMedia:* RadialShare:* TransformerInternal:* flutter:* | tail -80
 fi
